@@ -1,0 +1,108 @@
+package com.limelight.console;
+
+/** Generates MoonWaker's original, dependency-free console sound palette. */
+final class ConsoleAudioSynthesis {
+    enum Cue {
+        NAVIGATE(0.075f),
+        SUCCESS(0.45f),
+        ERROR(0.30f),
+        LAUNCH(0.68f);
+
+        final float durationSeconds;
+
+        Cue(float durationSeconds) {
+            this.durationSeconds = durationSeconds;
+        }
+    }
+
+    static final double LIMIT_KNEE = 0.5;
+    static final double LIMIT_CEILING = 0.98;
+
+    private ConsoleAudioSynthesis() { }
+
+    static short[] renderCue(Cue cue, int sampleRate) {
+        int frames = Math.max(1, Math.round(cue.durationSeconds * sampleRate));
+        short[] samples = new short[frames];
+        for (int frame = 0; frame < frames; frame++) {
+            double time = frame / (double) sampleRate;
+            double progress = frame / (double) Math.max(1, frames - 1);
+            double attack = Math.min(1.0, time / 0.008);
+            double release = Math.pow(Math.max(0.0, 1.0 - progress), 1.65);
+            double value;
+            switch (cue) {
+                case NAVIGATE:
+                    value = sine(610, time) * 0.70 + sine(915, time) * 0.30;
+                    value *= attack * Math.pow(1.0 - progress, 2.7) * 0.20;
+                    break;
+                case SUCCESS:
+                    value = successChord(time, cue.durationSeconds);
+                    value *= attack * release * 0.25;
+                    break;
+                case ERROR:
+                    double pulse = 0.62 + 0.38 * Math.cos(2.0 * Math.PI * 7.0 * time);
+                    value = (sine(174, time) * 0.62 + sine(207, time) * 0.38)
+                            * pulse * attack * release * 0.26;
+                    break;
+                case LAUNCH:
+                default:
+                    double lift = chirp(145, 820, time, cue.durationSeconds) * 0.40
+                            + chirp(290, 1240, time, cue.durationSeconds) * 0.18;
+                    double air = sine(1180, time) * Math.sin(Math.PI * progress) * 0.11;
+                    value = (lift + air) * attack
+                            * Math.pow(Math.max(0.0, 1.0 - progress), 0.72) * 0.46;
+                    break;
+            }
+            samples[frame] = pcm(value);
+        }
+        return samples;
+    }
+
+    static short[] renderDiscordDmCue(int sampleRate) {
+        int frames = Math.max(1, Math.round(0.22f * sampleRate));
+        short[] samples = new short[frames];
+        for (int frame = 0; frame < frames; frame++) {
+            double time = frame / (double) sampleRate;
+            double progress = frame / (double) Math.max(1, frames - 1);
+            double attack = Math.min(1.0, time / 0.008);
+            double release = Math.pow(Math.max(0.0, 1.0 - progress), 2.1);
+            double chime = sine(523.25, time) * 0.58 + sine(783.99, time) * 0.24;
+            samples[frame] = pcm(chime * attack * release * 0.18);
+        }
+        return samples;
+    }
+
+    private static double successChord(double time, double duration) {
+        double third = duration / 3.0;
+        double first = noteWindow(time, 0.0, third * 1.25) * sine(440.0, time);
+        double second = noteWindow(time, third * 0.72, third * 2.20) * sine(554.37, time);
+        double thirdNote = noteWindow(time, third * 1.48, duration) * sine(659.25, time);
+        return first * 0.58 + second * 0.48 + thirdNote * 0.54;
+    }
+
+    private static double noteWindow(double time, double start, double end) {
+        if (time < start || time >= end) return 0.0;
+        double progress = (time - start) / Math.max(0.001, end - start);
+        return Math.min(1.0, progress / 0.08) * Math.pow(1.0 - progress, 1.25);
+    }
+
+    private static double sine(double frequency, double time) {
+        return Math.sin(2.0 * Math.PI * frequency * time);
+    }
+
+    private static double chirp(double from, double to, double time, double duration) {
+        double slope = (to - from) / duration;
+        return Math.sin(2.0 * Math.PI * (from * time + 0.5 * slope * time * time));
+    }
+
+    private static short pcm(double value) {
+        return (short) Math.round(softLimit(value) * Short.MAX_VALUE);
+    }
+
+    /** Identity below the knee, then a tanh shoulder that never reaches the ceiling. */
+    static double softLimit(double value) {
+        double magnitude = Math.abs(value);
+        if (magnitude <= LIMIT_KNEE) return value;
+        double over = (magnitude - LIMIT_KNEE) / (LIMIT_CEILING - LIMIT_KNEE);
+        return Math.signum(value) * (LIMIT_KNEE + (LIMIT_CEILING - LIMIT_KNEE) * Math.tanh(over));
+    }
+}

@@ -1,0 +1,5 @@
+<!-- Tester welcome line icon (mockup tester-welcome _report): 2.6 px stroke at 40 px, round caps; tinted in code. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="20dp" android:height="20dp" android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.12" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M12,8H36A6,6 0,0 1,42,14V28A6,6 0,0 1,36,34H12A6,6 0,0 1,6,28V14A6,6 0,0 1,12,8ZM15,34L14,42L23,34M24,14V23" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M24,26.2A1.8,1.8 0,1 1,24,29.8A1.8,1.8 0,1 1,24,26.2Z" />
+</vector>

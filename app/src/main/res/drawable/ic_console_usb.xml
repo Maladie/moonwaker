@@ -1,0 +1,5 @@
+<!-- Top bar line icon (UX_MENU_PL.md 4.7) like ic_console_microphone: the Material "usb" trident
+     as lines on a 28 dp canvas, glyph about 12x19/24, 2-unit stroke, round caps; tinted in code. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="28dp" android:height="28dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFFFF" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M12,18V3.5M10,6L12,3.5L14,6M12,15H9.5A2,2 0,0 1,7.5 13V10.6M12,13H14.5A1.5,1.5 0,0 0,16 11.5V9.8M7.5,10.6A1.6,1.6 0,1 0,7.5 7.4A1.6,1.6 0,1 0,7.5 10.6ZM14.6,7H17.4V9.8H14.6ZM12,21.2A1.6,1.6 0,1 0,12 18A1.6,1.6 0,1 0,12 21.2Z" />
+</vector>

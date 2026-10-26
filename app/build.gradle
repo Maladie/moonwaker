@@ -1,0 +1,171 @@
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+android {
+    ndkVersion "27.0.12077973"
+
+    compileSdk 34
+
+    namespace 'com.limelight'
+
+    defaultConfig {
+        minSdk 29
+        targetSdk 34
+
+        // MoonWaker's own version (owner 2026-10-23); every release raises versionCode, which
+        // Publish-Release.ps1 checks against the last published one.
+        versionName "0.8.1"
+        versionCode = 801
+
+        // Generate native debug symbols to allow Google Play to symbolicate our native crashes
+        ndk.debugSymbolLevel = 'FULL'
+
+        // -Ptesting: a tester build (the tester welcome and its Settings entry).
+        buildConfigField "boolean", "TESTING", providers.gradleProperty("testing").isPresent().toString()
+
+        // The public key that release.json must be signed with (New-ReleaseKeys.ps1). Until it
+        // exists no release verifies, so the app offers no update.
+        def releaseSigningKey = rootProject.file("release/release-signing.pub")
+        buildConfigField "String", "RELEASE_SIGNING_KEY",
+                "\"${releaseSigningKey.exists() ? releaseSigningKey.text.trim() : ""}\""
+    }
+
+    // The release key lives outside the repository (owner 2026-10-23): -PreleaseKeystore=<path>,
+    // with the store and key password in MOONWAKER_KEYSTORE_PASSWORD. Without it a release
+    // build stays unsigned.
+    def releaseKeystore = providers.gradleProperty("releaseKeystore")
+    signingConfigs {
+        release {
+            if (releaseKeystore.isPresent()) {
+                storeFile file(releaseKeystore.get())
+                storePassword System.getenv("MOONWAKER_KEYSTORE_PASSWORD")
+                keyAlias "moonwaker"
+                keyPassword System.getenv("MOONWAKER_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
+    flavorDimensions.add("root")
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    productFlavors {
+        root {
+            // Android O has native mouse capture, so don't show the rooted
+            // version to devices running O on the Play Store.
+            maxSdk 25
+
+            externalNativeBuild {
+                ndkBuild {
+                    arguments "PRODUCT_FLAVOR=root"
+                }
+            }
+
+            applicationId "app.moonwaker.tv.root"
+            dimension "root"
+            buildConfigField "boolean", "ROOT_BUILD", "true"
+        }
+
+        nonRoot {
+            externalNativeBuild {
+                ndkBuild {
+                    arguments "PRODUCT_FLAVOR=nonRoot"
+                }
+            }
+
+            applicationId "app.moonwaker.tv"
+            dimension "root"
+            buildConfigField "boolean", "ROOT_BUILD", "false"
+        }
+    }
+
+    compileOptions {
+        encoding "UTF-8"
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    // Robolectric screen captures (FeatureShowcaseCapture) need the merged resources.
+    testOptions {
+        unitTests.includeAndroidResources = true
+    }
+
+    lint {
+        disable 'MissingTranslation'
+        lintConfig file('lint.xml')
+    }
+
+    bundle {
+        language {
+            // Avoid splitting by language, since we allow users
+            // to manually switch language in settings.
+            enableSplit = false
+        }
+        density {
+            // FIXME: This should not be necessary but we get
+            // weird crashes due to missing drawable resources
+            // when this split is enabled.
+            enableSplit = false
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            resValue "string", "app_label", "MoonWaker (Debug)"
+            resValue "string", "app_label_root", "MoonWaker (Root Debug)"
+
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        release {
+            // A tester build (-Ptesting) installs beside the store app under its own id and name.
+            if (providers.gradleProperty("testing").isPresent()) {
+                applicationIdSuffix ".test"
+                resValue "string", "app_label", "MoonWaker (Test)"
+                resValue "string", "app_label_root", "MoonWaker (Root Test)"
+            } else {
+                resValue "string", "app_label", "MoonWaker"
+                resValue "string", "app_label_root", "MoonWaker (Root)"
+            }
+
+            if (releaseKeystore.isPresent()) signingConfig signingConfigs.release
+
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    externalNativeBuild {
+        ndkBuild {
+            path "src/main/jni/Android.mk"
+        }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+    }
+}
+
+dependencies {
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.tvprovider:tvprovider:1.0.0'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.77'
+    implementation 'org.bouncycastle:bcpkix-jdk18on:1.77'
+    implementation 'org.jcodec:jcodec:0.2.5'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.google.zxing:core:3.5.3'
+    implementation 'org.jmdns:jmdns:3.5.9'
+    implementation 'com.github.cgutman:ShieldControllerExtensions:1.0.1'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+    // The app's own Bouncy Castle stays on the test classpath; a newer bcprov from
+    // Robolectric would no longer match bcpkix 1.77.
+    testImplementation('org.robolectric:robolectric:4.14.1') {
+        exclude group: 'org.bouncycastle'
+    }
+}

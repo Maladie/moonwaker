@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shortcut strings -->
+    <string name="scut_deleted_pc"> 电脑已删除 </string>
+    <string name="scut_not_paired"> 电脑未配对 </string>
+    <string name="scut_pc_not_found"> 电脑未找到 </string>
+    <string name="scut_invalid_uuid"> 提供的电脑无效 </string>
+    <string name="scut_invalid_app_id"> 提供的App无效 </string>
+    <!-- Help strings -->
+    <string name="help_loading_title"> 查看帮助 </string>
+    <string name="help_loading_msg"> 正在加载帮助页面…… </string>
+    <!-- PC view menu entries -->
+    <string name="pcview_menu_unpair_pc"> 取消配对 </string>
+    <!-- Pair messages -->
+    <string name="pairing"> 配对中…… </string>
+    <string name="pair_pc_offline"> 电脑离线中 </string>
+    <string name="pair_pc_ingame">电脑正在游戏中，在配对之前你必须先退出游戏。</string>
+    <string name="pair_pairing_title"> 配对中 </string>
+    <string name="pair_pairing_msg"> 请在目标电脑上输入以下PIN码： </string>
+    <string name="pair_incorrect_pin"> PIN码错误 </string>
+    <string name="pair_fail"> 配对失败 </string>
+    <string name="pair_already_in_progress"> 配对中，请稍候 </string>
+    <!-- WOL messages -->
+    <string name="wol_pc_online"> 电脑在线中 </string>
+    <string name="wol_no_mac">无法唤醒电脑，因为没有存储的 MAC 地址</string>
+    <string name="wol_waking_pc"> 唤醒电脑中…… </string>
+    <string name="wol_waking_msg">唤醒电脑需要一些时间。如果电脑没有唤醒，请确保 Wake-On-LAN 设置无误。</string>
+    <string name="wol_fail"> 无法发送Wake-On-LAN数据包 </string>
+    <!-- Unpair messages -->
+    <string name="unpairing"> 取消配对中…… </string>
+    <string name="unpair_success"> 成功取消配对 </string>
+    <string name="unpair_fail"> 无法配对 </string>
+    <string name="unpair_error"> 设备没有配对过 </string>
+    <!-- Errors -->
+    <string name="error_pc_offline"> 电脑离线中 </string>
+    <string name="error_manager_not_running">ComputerManager 服务未运行。请稍等几秒或重启App。</string>
+    <string name="error_unknown_host"> 无法解析主机地址 </string>
+    <string name="error_404">GFE返回了HTTP 404 错误，确保你的电脑显卡支持串流。使用远程桌面软件同样会引起此错误，请尝试重启电脑或重装GFE。</string>
+    <string name="title_decoding_error"> 视频解码器崩溃 </string>
+    <string name="message_decoding_error">由于与该设备的视频解码器不兼容，Moonlight已崩溃。如果崩溃继续，请尝试调整串流设置。</string>
+    <string name="title_decoding_reset"> 重置视频设置 </string>
+    <string name="message_decoding_reset"> 由于设备的视频解码器在你选择的串流设置上持续崩溃，已重置你的串流设置。 </string>
+    <string name="error_usb_prohibited"> 设备管理员已禁止USB访问。请检查您的Knox或MDM设置。 </string>
+    <string name="unable_to_pin_shortcut"> 您当前的桌面启动器不允许创建长按子菜单。 </string>
+    <!-- Start application messages -->
+    <string name="conn_establishing_title"> 建立连接中 </string>
+    <string name="conn_establishing_msg"> 启动连接中 </string>
+    <string name="conn_metered"> 警告：你正在使用移动网络连接！ </string>
+    <string name="conn_client_latency"> 平均每帧解码延迟：</string>
+    <string name="conn_client_latency_hw"> 硬件解码器延迟：</string>
+    <string name="conn_hardware_latency"> 硬件解码器平均延迟：</string>
+    <string name="conn_starting">启动中</string>
+    <string name="conn_error_title"> 连接错误 </string>
+    <string name="conn_error_msg"> 启动失败 </string>
+    <string name="conn_terminated_title"> 连接终结 </string>
+    <string name="conn_terminated_msg">连接已被终结.</string>
+    <!-- General strings -->
+    <string name="ip_hint">串流电脑的IP地址</string>
+    <string name="yes"> 确定 </string>
+    <string name="no"> 取消 </string>
+    <string name="title_details"> 详情 </string>
+    <string name="help"> 帮助 </string>
+    <string name="delete_pc_msg"> 你确定要删除这台电脑？ </string>
+    <string name="perf_overlay_decoder">解码器： %1$s</string>
+    <string name="perf_overlay_fps">FPS in/render: %1$.2f / %2$.2f FPS (%3$+.1f%%)</string>
+    <string name="perf_overlay_netdrops">网络丢失帧： %1$.2f%%</string>
+    <string name="perf_overlay_dectime">平均解码时间： %1$.2f ms</string>
+    <!-- AppList activity -->
+    <string name="applist_connect_msg"> 正在连接电脑…… </string>
+    <string name="applist_menu_resume"> 恢复串流 </string>
+    <string name="applist_menu_quit_and_start"> 退出当前游戏并开始这个游戏 </string>
+    <string name="applist_menu_cancel"> 取消 </string>
+    <string name="applist_menu_details"> 查看详情 </string>
+    <string name="applist_menu_scut"> 创建快捷方式 </string>
+    <string name="applist_menu_tv_channel"> 添加到频道 </string>
+    <string name="applist_refresh_error_title"> 错误 </string>
+    <string name="applist_refresh_error_msg"> 获取列表失败 </string>
+    <string name="applist_quit_app"> 退出中 </string>
+    <string name="applist_quit_success"> 成功退出串流 </string>
+    <string name="applist_quit_fail"> 退出串流失败 </string>
+    <string name="applist_quit_confirmation">您确定要退出当前游戏？所有未保存的数据将丢失。</string>
+    <string name="applist_details_id">App ID：</string>
+    <!-- Add computer manually activity -->
+    <string name="title_add_pc"> 手动添加电脑 </string>
+    <string name="msg_add_pc"> 正在连接电脑…… </string>
+    <string name="addpc_fail">无法连接至指定电脑。请确保所需端口没有被防火墙阻止。</string>
+    <string name="addpc_success"> 成功添加电脑 </string>
+    <string name="addpc_unknown_host">无法解析电脑的IP地址，请确保IP地址输入无误。</string>
+    <string name="addpc_enter_ip">请输入一个IP地址</string>
+    <string name="addpc_wrong_sitelocal"> 该地址似乎不正确。 您必须使用路由器的公共IP地址通过Internet进行串流。 </string>
+    <!-- Preferences -->
+    <string name="dialog_title_reset_osc"> 重置按钮布局 </string>
+    <string name="dialog_text_reset_osc"> 你确定要删除所保存的屏幕按钮布局吗？ </string>
+    <string name="toast_reset_osc_success"> 屏幕按钮布局已经重置 </string>
+    <string name="nettest_text_failure">您设备的当前网络似乎正在阻止Moonlight。连接到该网络时，可能无法通过互联网串流。
+\n
+\n以下网络端口被阻止：
+\n</string>
+    <string name="nettest_text_inconclusive">网络测试无法执行，因为无法连接到Moonlight的连接测试服务器。检查您的互联网连接或稍后再试。</string>
+    <string name="nettest_text_success">您的网络似乎没有屏蔽Moonlight。如果您仍然无法连接，请检查您的电脑的防火墙设置。
+\n
+\n如果您想通过互联网进行流媒体传输，请在您的电脑上安装Moonlight互联网主机工具，并运行附带的互联网流媒体测试器来检查您的电脑的互联网连接。</string>
+    <string name="nettest_title_done">网络测试完成</string>
+    <string name="nettest_text_waiting">Moonlight正在测试你的网络连接，请确保所需端口没有被屏蔽。
+\n
+\n这可能需要几秒钟……</string>
+    <string name="nettest_title_waiting">测试网络连接中</string>
+    <string name="pcview_menu_test_network">测试网络连接</string>
+    <string name="resolution_prefix_native">本地</string>
+    <string name="text_native_res_dialog">流媒体服务器可能不支持原始分辨率或者 FPS。您可能需要手动为主机配置匹配的自定义显示模式。
+\n
+\n如果您选择在 NVIDIA 控制面板中创建与屏幕设置相匹配的自定义分辨率，请确保您已阅读并理解 NVIDIA 关于显示器可能损坏、电脑不稳定和其他潜在问题的警告。
+\n
+\n我们不对因在电脑上创建自定义分辨率而导致的任何问题负责。
+\n
+\n您的显示器可能不支持必要的显示配置。如果是这样，您可以尝试设置虚拟显示器。最后，如果您的设备或主机不支持以特定分辨率或刷新率进行流式传输，那就很不幸了。</string>
+    <string name="title_native_res_dialog">本地分辨率警告</string>
+    <string name="applist_menu_hide_app">隐藏游戏</string>
+    <string name="check_ports_msg">请检查您的防火墙和端口转发规则中的端口：</string>
+    <string name="early_termination_error">开始串流时您的主机电脑出了点问题。
+\n
+\n请确保没有在主机电脑上开启任何受DRM保护的内容。您也可以尝试重新启动主机电脑。</string>
+    <string name="no_frame_received_error">您的网络连接质量不佳。请降低视频码率设置或更换更快的网络连接。</string>
+    <string name="no_video_received_error">没有接收到来自主机的视频。</string>
+    <string name="video_decoder_init_failed">视频解码器初始化失败。您的设备可能不支持选定的分辨率或帧数。</string>
+    <string name="nettest_text_blocked">您设备当前的网络连接拦截了Moonlight。连接到该网络时可能无法通过互联网串流。</string>
+    <string name="perf_overlay_netlatency">平均网络延迟： %1$d ms (抖动： %2$d ms)</string>
+    <string name="perf_overlay_streamdetails">视频流： %1$s %2$.2f FPS</string>
+    <string name="resolution_prefix_native_fullscreen">原生全屏</string>
+    <!-- Array strings -->
+    <string name="audioconf_stereo">立体声</string>
+    <string name="audioconf_51surround">5.1环绕声</string>
+    <string name="audioconf_71surround">7.1环绕声</string>
+    <string name="videoformat_auto">自动（推荐）</string>
+    <string name="videoformat_hevcalways">首选 HEVC</string>
+    <string name="resolution_360p">360p</string>
+    <string name="resolution_480p">480p</string>
+    <string name="resolution_1440p">1440p</string>
+    <string name="resolution_4k">4K</string>
+    <string name="fps_30">30 FPS</string>
+    <string name="fps_60">60 FPS</string>
+    <string name="fps_90">90 FPS</string>
+    <string name="fps_120">120 FPS</string>
+    <string name="resolution_1080p">1080p</string>
+    <string name="resolution_720p">720p</string>
+    <string name="pacing_balanced">平衡</string>
+    <string name="pacing_smoothness">优先视频流畅度（可能会显著增大延迟）</string>
+    <string name="pacing_balanced_alt">有FPS限制的平衡</string>
+    <string name="pacing_latency">优先最低延迟</string>
+    <string name="resolution_prefix_native_landscape">（横向）</string>
+    <string name="resolution_prefix_native_portrait">（纵向）</string>
+    <string name="frame_conversion_error">主机 PC 报告了致命的视频编码错误。
+\n
+\n尝试禁用 HDR 模式、更改流分辨率或更改主机 PC 的显示分辨率。</string>
+    <string name="pair_pairing_help">如果你的主机运行的是 Sunshine，那请前往Sunshine的网页界面输入PIN码。</string>
+    <string name="perf_overlay_hostprocessinglatency">主机处理延迟最小值/最大值/平均值: %1$.1f/%2$.1f/%3$.1f ms</string>
+    <string name="fps_suffix_fps">FPS</string>
+    <string name="title_native_fps_dialog">原生 FPS 警告</string>
+    <string name="videoformat_av1always">首选 AV1（实验性）</string>
+    <string name="videoformat_h264always">首选 H.264</string>
+    <string name="toast_controller_type_changed">游戏手柄类型可能会因运动传感器模拟而改变</string>
+    <string name="error_code_prefix">错误代码:</string>
+    <string name="analogscroll_left">左摇杆</string>
+    <string name="analogscroll_right">右摇杆</string>
+    <string name="analogscroll_none">默认 (两个摇杆都控制鼠标)</string>
+</resources>

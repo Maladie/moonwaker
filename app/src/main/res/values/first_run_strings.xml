@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="first_run_step_names">
+        <item>Welcome</item>
+        <item>Computer</item>
+        <item>Pairing</item>
+        <item>Profile</item>
+        <item>Readiness</item>
+        <item>Picture</item>
+        <item>Family</item>
+        <item>Extras</item>
+        <item>Controls</item>
+        <item>Features</item>
+        <item>Done</item>
+    </string-array>
+    <string name="first_run_eyebrow">Step %1$d · %2$s</string>
+    <string name="first_run_next">Next</string>
+    <string name="first_run_skip">Skip</string>
+    <string name="first_run_back">Back</string>
+    <string name="first_run_cancel">Cancel</string>
+    <string name="first_run_toggle">Toggle</string>
+    <string name="first_run_help">Help</string>
+    <string name="first_run_retry">Try again</string>
+
+    <string name="first_run_welcome_title">Welcome to MoonWaker</string>
+    <string name="first_run_welcome_subtitle">Your computer becomes a console on this TV. It takes a few minutes.</string>
+    <string name="first_run_controller_section">Controller</string>
+    <string name="first_run_controller_found">A controller is connected. You are ready to play.</string>
+    <string name="first_run_controller_missing">Only the remote was found. Games play best with a controller.</string>
+    <string name="first_run_connect_controller">Connect a controller</string>
+    <string name="first_run_bluetooth_missing">This TV has no Bluetooth settings to open.</string>
+
+    <string name="first_run_install_title">Now on your PC: install MoonWaker Host</string>
+    <string name="first_run_install_subtitle">Go to your computer. This TV waits here and finds it by itself. Scan the code with your phone or type the address in a browser on the PC.</string>
+    <string name="first_run_install_step1">Download and run the installer</string>
+    <string name="first_run_install_step1_detail">Windows 10 or 11, an account with administrator rights</string>
+    <string name="first_run_install_step2">Install Vibepollo</string>
+    <string name="first_run_install_step2_detail">The host installer guides you through it</string>
+    <string name="first_run_install_step3">Make sure the computer is on the same network as the TV</string>
+    <string name="first_run_install_step3_detail">Leave the computer on</string>
+    <string name="first_run_searching">Looking for your computer on the network…</string>
+    <string name="first_run_found_title">Found: %1$s</string>
+    <string name="first_run_not_found">I can\'t see my computer</string>
+
+    <string name="first_run_not_found_title">I can\'t see my computer</string>
+    <string name="first_run_not_found_subtitle">The most common causes and what to do about them.</string>
+    <string-array name="first_run_not_found_reasons">
+        <item>Same network?</item>
+        <item>The network in Windows is \"Public\"</item>
+        <item>The host is not running</item>
+        <item>The PC is asleep or off</item>
+    </string-array>
+    <string-array name="first_run_not_found_fixes">
+        <item>The TV and the PC must be on one home network, not a guest network.</item>
+        <item>Settings › Network › Properties › Network profile type: Private.</item>
+        <item>Open Host Control on the PC. When something is red, use \"Repair\".</item>
+        <item>Turn it on. We set up waking it from the TV in a moment.</item>
+    </string-array>
+    <string name="first_run_enter_address">Enter IP address</string>
+    <string name="first_run_search_again">Search again</string>
+
+    <string name="first_run_searching_title">Looking for your computer</string>
+    <string name="first_run_choose_host_title">Choose a computer</string>
+    <string name="first_run_choose_host_subtitle">Add the others later with \"Add Host\".</string>
+    <string name="first_run_pair_title">Pair with \"%1$s\"</string>
+    <string name="first_run_code_subtitle">On the PC: Host Control › Devices › Pair new TV. Enter the code it shows.</string>
+    <string name="first_run_code_expiry">The code is valid for 10 minutes.</string>
+    <string name="first_run_type">Enter</string>
+    <string name="first_run_delete">Delete</string>
+    <string name="first_run_stream_only">The host is paired; streaming still needs pairing.</string>
+    <string name="first_run_stream_only_body">MoonWaker Host already knows this TV. Finish pairing the stream through Vibepollo.</string>
+    <string name="first_run_finish_pairing">Finish pairing</string>
+    <string name="first_run_host_asleep">The computer is asleep or off.</string>
+    <string name="first_run_host_asleep_body">Wake it from here or turn it on. Pairing starts once it is online.</string>
+    <string name="first_run_wake_host">Wake the computer</string>
+    <string name="first_run_change_host">Choose another computer</string>
+    <string name="first_run_pairing_title">Connecting to the computer…</string>
+    <string name="first_run_pairing_wait">This usually takes a few seconds.</string>
+    <string-array name="first_run_pairing_stages">
+        <item>Connection to MoonWaker Host</item>
+        <item>Pairing ticket</item>
+        <item>Stream pairing (Vibepollo)</item>
+        <item>Confirmation</item>
+    </string-array>
+    <string name="first_run_pairing_help">MoonWaker pairs the host first, then streaming through Vibepollo. If it stops at Vibepollo, start Vibepollo on the PC and try again.</string>
+    <string name="first_run_pairing_failed_title">Pairing did not work</string>
+    <string name="first_run_pairing_failed_stage">Stage: %1$s</string>
+    <string name="first_run_pairing_details">Details: %1$s</string>
+    <string name="first_run_paired_title">Paired with %1$s</string>
+    <string name="first_run_paired_subtitle">Nothing to do here: this TV already plays on this computer.</string>
+    <string name="first_run_paired_body">This TV is paired with %1$s.</string>
+    <string name="first_run_code_failed_title">The code did not work</string>
+    <string name="first_run_code_new_body">Make a new code on the PC: Host Control › \"Pair new TV\". A code works once and for 10 minutes.</string>
+    <string name="first_run_enter_new_code">Enter a new code</string>
+    <string name="first_run_unreachable_title">Can\'t connect to %1$s</string>
+    <string name="first_run_unreachable_body">Check that the computer is on and on the same network as the TV, then try again.</string>
+    <string name="first_run_vibepollo_failed_title">Vibepollo is not answering on the computer</string>
+    <string name="first_run_vibepollo_help_body">Start Vibepollo or press \"Repair\" in Host Control, then try again. The pairing code still works.</string>
+    <string name="first_run_pairing_other_title">Stream pairing did not finish</string>
+    <string name="first_run_pairing_other_body">Try again. If it keeps happening, pair streaming manually: the TV shows a PIN to enter in Vibepollo.</string>
+    <string name="first_run_pair_manually">Pair manually</string>
+
+    <string name="first_run_profile_title">Who\'s playing?</string>
+    <string name="first_run_profile_subtitle">Profiles are the Windows accounts on the computer.</string>
+    <string name="first_run_profile_adult">Windows account</string>
+    <string name="first_run_profile_child">Child profile</string>
+    <string name="first_run_profile_add">Not listed?</string>
+    <string name="first_run_profile_add_detail">Add a profile</string>
+    <string name="first_run_profile_refresh">The list updates itself when you add a profile in Host Control › Profiles.</string>
+    <string name="first_run_profile_none">The PC has no profile yet. The list updates itself.</string>
+    <string name="first_run_profile_adult_needed">There are only child profiles here: a parent picks or adds an adult profile.</string>
+
+    <string name="first_run_ready_title">Let\'s check the computer</string>
+    <string name="first_run_ready_subtitle">Fix what is yellow on the PC. The list updates itself.</string>
+    <string-array name="first_run_check_names">
+        <item>Vibepollo is running</item>
+        <item>Game library works</item>
+        <item>Steam: all your games</item>
+        <item>Epic Games</item>
+        <item>Windows sign-in from the TV</item>
+        <item>Waking the computer from the TV</item>
+    </string-array>
+    <string-array name="first_run_check_states">
+        <item>Streaming is ready</item>
+        <item>Required · not running</item>
+        <item>Steam and Epic visible</item>
+        <item>Required · unavailable</item>
+        <item>Your whole Steam library</item>
+        <item>No Steam Web API key: only installed games are visible</item>
+        <item>Signed in</item>
+        <item>Optional · not signed in</item>
+        <item>Set up</item>
+        <item>Recommended · not set up</item>
+        <item>Tested: works</item>
+        <item>Optional · not tested</item>
+    </string-array>
+    <string-array name="first_run_check_fixes">
+        <item>Start Vibepollo on the PC. If it is still missing, open Host Control and use \"Repair\".</item>
+        <item>The game library comes from the host. Open Host Control and use \"Repair\".</item>
+        <item>Without a key only games installed on the PC show. With one, your whole Steam library.\n\n1. Scan the code with your phone and copy the key.\n2. On the PC: Host Control › Integrations › Steam.\n3. Paste the key and save. This row turns green.</item>
+        <item>On the PC: Host Control › Integrations › Epic › Sign in.</item>
+        <item>So a locked PC signs in by itself: on the PC, Host Control › Remote sign-in. The Windows password stays on the PC.</item>
+        <item>OK puts the PC to sleep and wakes it with Wake-on-LAN. If it does not wake, turn on Wake-on-LAN in the BIOS and in the network adapter settings.</item>
+    </string-array>
+    <string name="first_run_check_unknown">The host has not answered yet</string>
+    <string name="first_run_steam_key_caption">You never type the key on the TV.</string>
+    <string name="first_run_epic_signed_in">Signed in as %1$s.</string>
+    <string name="first_run_wake_test_title">Wake test</string>
+    <string name="first_run_wake_test_confirm">%1$s goes to sleep now and MoonWaker wakes it again. Save your work on the PC first.</string>
+    <string name="first_run_wake_test_start">Sleep and wake</string>
+    <string name="first_run_wake_test_screen_title">Computer wake test</string>
+    <string name="first_run_wake_test_screen_subtitle">I put the computer to sleep and wake it from the TV.</string>
+    <string name="first_run_wake_sleeping">Putting the PC to sleep…</string>
+    <string name="first_run_wake_waking">Waking the PC…</string>
+    <string name="first_run_wake_sleeping_seconds">Going to sleep… %1$d s</string>
+    <string name="first_run_wake_waking_seconds">Waking… %1$d s</string>
+    <string name="first_run_wake_slept">The computer fell asleep</string>
+    <string name="first_run_wake_then">Waking from the TV</string>
+    <string name="first_run_wake_waking_of">Waking… %1$d s of %2$d s</string>
+    <string name="first_run_wake_failed">The PC did not wake up. Turn on Wake-on-LAN in the BIOS and in the network adapter\'s power settings, then try again. Waking is most reliable over a cable.</string>
+
+    <string name="first_run_network_title">Let\'s tune the picture</string>
+    <string name="first_run_network_subtitle">I measured the network and what the TV can do.</string>
+    <string name="first_run_network_measuring">Measuring the network and what the TV can do…</string>
+    <string name="first_run_network_metered">This network is metered and the network test downloads a fair amount of data. Run it or skip this step.</string>
+    <string name="first_run_network_connection">Connection</string>
+    <string name="first_run_network_tv">TV</string>
+    <string name="first_run_network_proposed">Suggested</string>
+    <string name="first_run_network_cable">Cable</string>
+    <string name="first_run_network_wireless">Wi-Fi</string>
+    <string name="first_run_network_speed">%1$.0f Mb/s</string>
+    <string name="first_run_network_unmeasured">network not measured</string>
+    <string name="first_run_network_fps_max">up to %1$d FPS</string>
+    <string name="first_run_network_mode">%1$s · %2$d FPS</string>
+    <string name="first_run_network_bitrate">%1$.0f Mb/s</string>
+    <string name="first_run_network_wifi_band">Wi-Fi %1$s GHz</string>
+    <string name="first_run_network_cable_speed">Cable %1$s</string>
+    <string name="first_run_network_mbps">%1$d Mb/s</string>
+    <string name="first_run_network_gbps">%1$s Gb/s</string>
+    <string name="first_run_network_wired_slow_speed">Your TV\'s Ethernet port is slow (%1$d Mb/s). A 5 GHz Wi-Fi connection may give a better picture.</string>
+    <string name="first_run_network_wired_slow">Your TV\'s Ethernet port may be slow. A 5 GHz Wi-Fi connection may give a better picture.</string>
+    <string name="first_run_network_wifi_faster">Your TV is on Wi-Fi, and MoonWaker (game stream, USB headset audio) depends heavily on its quality. Connect the TV to a 5 GHz network if you can.</string>
+    <string name="first_run_apply">Apply</string>
+
+    <string name="first_run_family_title">Do children play here?</string>
+    <string name="first_run_family_subtitle">You can do this now or later in Settings.</string>
+    <string name="first_run_family_pin_for">PIN for %1$s</string>
+    <string name="first_run_family_pin_detail">No one else gets into your profile.</string>
+    <string name="first_run_family_pin_done">PIN is set</string>
+    <string name="first_run_family_pin_done_detail">Change it in the profile settings.</string>
+    <string name="first_run_family_child">Add a child</string>
+    <string name="first_run_family_child_detail">Their own library and time limits.</string>
+    <string name="first_run_family_skip_detail">Only adults play on this TV.</string>
+
+    <string name="first_run_extras_title">A few conveniences</string>
+    <string name="first_run_extras_subtitle">You can change all of this later in Settings.</string>
+    <string name="first_run_extra_host">Straight to the computer</string>
+    <string name="first_run_extra_host_detail">Opens \"%1$s\" at start, without choosing a computer.</string>
+    <string name="first_run_auto_profile">Straight to the profile</string>
+    <string name="first_run_auto_profile_detail">Opens %1$s\'s profile without \"Who\'s playing?\". Not with a PIN.</string>
+    <string name="first_run_auto_profile_pin">Not available for a profile with a PIN</string>
+    <string name="first_run_extra_warm">Computer warm-up</string>
+    <string name="first_run_extra_warm_detail">Wakes the PC when you pick a profile, so games start faster.</string>
+    <string name="first_run_extra_freeze">Freeze when switching games</string>
+    <string name="first_run_extra_tile">\"Continue\" tile on the home screen</string>
+    <string name="first_run_extra_tile_detail">Return to a running game straight from Google TV.</string>
+    <string name="first_run_discord">Discord</string>
+    <string name="first_run_discord_detail">Voice chat and messages while you play.</string>
+    <string name="first_run_extra_sounds">Menu sounds</string>
+    <string name="first_run_extra_sounds_detail">Music and effects on the console screens.</string>
+
+    <string name="first_run_controls_title">How to play</string>
+    <string name="first_run_controls_pad">The most important buttons. The full list is in Settings › About and diagnostics › Help.</string>
+    <string name="first_run_controls_remote">With the remote, hold Back in a game. The full list is in Settings › About and diagnostics › Help.</string>
+    <string name="first_run_controls_home_title">%1$s</string>
+    <string name="first_run_controls_home">Back to the console from a game; holding it sends Guide to the PC</string>
+    <string name="first_run_controls_menu_title">Hold the menu button</string>
+    <string name="first_run_controls_menu">In-game menu: keyboard, mouse, quality, session</string>
+    <string name="first_run_controls_remote_title">Hold Back on the remote</string>
+    <string name="first_run_controls_remote_menu">The same menu when you play with the remote</string>
+    <string name="first_run_controls_tabs_ps">L1 / R1</string>
+    <string name="first_run_controls_tabs_xbox">LB / RB</string>
+    <string name="first_run_controls_tabs">Tabs: Menu and Discord</string>
+    <string name="first_run_controls_options_title">Options on a game tile</string>
+    <string name="first_run_controls_options">Install, update, game settings, sharing with a child</string>
+
+    <string name="first_run_features_open">Show features</string>
+
+    <string name="first_run_done_title">All set!</string>
+    <string name="first_run_done_title_named">All set, %1$s!</string>
+    <string name="first_run_done_subtitle">%1$s · %2$s · %3$d FPS</string>
+    <string name="first_run_done_no_host">Add a computer any time with \"Add Host\".</string>
+    <string name="first_run_done_play">Go to games</string>
+    <string name="first_run_done_parent_panel">Go to the parent panel</string>
+    <string name="first_run_todo_title">To finish</string>
+    <string name="first_run_todo_where">You find these in Settings › About and diagnostics.</string>
+
+    <string name="first_run_settings_entry">Run the first-run setup</string>
+    <string name="first_run_settings_entry_detail">See or repeat the setup; it shows what is set and changes nothing by itself</string>
+    <string name="first_run_todo_row">To finish: %1$s</string>
+    <string name="first_run_todo_status">Setup to finish</string>
+    <string name="first_run_finish_setup">Finish setup</string>
+    <string name="first_run_dismiss_setup">Don\'t remind me about setup</string>
+</resources>

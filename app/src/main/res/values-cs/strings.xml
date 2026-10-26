@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="conn_establishing_title">Připojování</string>
+    <string name="conn_metered">Varování: Vaše aktivní připojení je měřené!</string>
+    <string name="conn_error_msg">Spouštění se nezdařilo</string>
+    <string name="conn_client_latency_hw">zpoždění hardwarového dekodéru:</string>
+    <string name="conn_terminated_title">Spojení ukončeno</string>
+    <string name="resolution_prefix_native_fullscreen">Nativní celá obrazovka</string>
+    <string name="early_termination_error">Na hostitelském PC se něco pokazilo při spouštění streamu.
+\n
+\nUjistěte se, že na hostitelském počítači neběží žádný obsah chráněný DRM. Můžete také zkusit restartovat hostitelský PC.
+\n
+\nPokud problém přetrvává, zkuste přeinstalovat ovladače GPU a GeForce Experience.</string>
+    <string name="wol_waking_pc">Probouzení PC…</string>
+    <string name="nettest_text_success">Vypadá to, že vaše síť Moonlight neblokuje. Pokud máte i tak potíže s připojením, zkontrolujte nastavení firewallu vašeho PC.
+\n
+\nPokud se pokoušíte streamovat po internetu, nainstalujte si na svůj počítač Moonlight Internet Hosting Tool a spusťte přiložený program Internet Streaming Tester pro kontrolu vašeho připojení k Internetu.</string>
+    <string name="error_unknown_host">Nezdařilo se zjistit hostitele</string>
+    <string name="nettest_text_waiting">Moonlight testuje vaše síťové připojení, aby zjistil, jestli je NVIDIA GameStream zablokován.
+\n
+\nTo může chvilku zabrat…</string>
+    <string name="nettest_title_waiting">Testování připojení k síti</string>
+    <string name="pairing">Párování…</string>
+    <string name="pair_pc_offline">Počítač je offline</string>
+    <string name="unpairing">Rušení párování…</string>
+    <string name="unpair_success">Párování úspěšně zrušeno</string>
+    <string name="unpair_error">Zařízení nebylo spárováno</string>
+    <string name="error_manager_not_running">Služba ComputerManager neběží. Vyčkejte prosím chvíli nebo restartujte aplikaci.</string>
+    <string name="error_pc_offline">Počítač je offline</string>
+    <string name="unpair_fail">Zrušení párování se nezdařilo</string>
+    <string name="error_404">GFE vrátilo HTTP chybu 404. Ujistěte se, že vaše PC má podporované GPU. Tato chyba může být způsobena i použitím softwaru pro vzdálenou plochu. Zkuste restartovat počítač, nebo přeinstalujte GFE.</string>
+    <string name="title_decoding_error">Dekodér videa spadnul</string>
+    <string name="error_usb_prohibited">Správce zařízení neumožňuje přístup k USB. Zkontrolujte nastavení Knoxu nebo MDM.</string>
+    <string name="message_decoding_error">Moonlight spadnul kvůli nekompatibilnímu video dekodéru na tomto zařízení. Ujistěte se, že je GeForce Experience na vašem PC aktualizováno na nejnovější verzi. Zkuste upravit nastavení streamování, pokud aplikace padá opakovaně.</string>
+    <string name="message_decoding_reset">Video dekodér vašeho zařízení při současných nastaveních streamování padá. Vaše nastavení streamování byla resetována na výchozí.</string>
+    <string name="video_decoder_init_failed">Nezdařilo se spustit video dekodér. Vaše zařízení nemusí podporovat zvolené rozlišení nebo snímkovou frekvenci.</string>
+    <string name="no_video_received_error">Od hostitele nebylo přijato žádné video.</string>
+    <string name="no_frame_received_error">Vaše připojení k síti není dost rychlé. Zkuste snížit datový tok videa nebo použijte rychlejší připojení.</string>
+    <string name="applist_menu_hide_app">Skrýt aplikaci</string>
+    <string name="title_add_pc">Přidat PC ručně</string>
+    <string name="applist_menu_quit_and_start">Ukončit současnou hru a spustit</string>
+    <string name="applist_menu_cancel">Zrušit</string>
+    <string name="applist_menu_tv_channel">Přidat do kanálu</string>
+    <string name="applist_menu_resume">Pokračovat</string>
+    <string name="applist_menu_details">Zobrazit detaily</string>
+    <string name="applist_menu_scut">Vytvořit zkratku</string>
+    <string name="addpc_success">Počítač přidán úspěšně</string>
+    <string name="applist_details_id">ID aplikace:</string>
+    <string name="addpc_fail">K zadanému počítači se nepodařilo připojit. Ujistěte se, že jsou ve firewallu povoleny nezbytné porty.</string>
+    <string name="addpc_enter_ip">Musíte zadat IP adresu</string>
+    <string name="title_native_res_dialog">Varování pro nativní rozlišení</string>
+    <string name="check_ports_msg">Zkontrolujte svůj firewall a pravidla přesměrování pro tyto porty:</string>
+    <string name="conn_terminated_msg">Spojení bylo ukončeno</string>
+    <string name="ip_hint">IP adresa GeForce PC</string>
+    <string name="conn_hardware_latency">Průměrné zpoždění hardwarového dekodéru:</string>
+    <string name="conn_client_latency">Průměrné zpoždění při dekódování snímků:</string>
+    <string name="perf_overlay_netlatency">Průměrné zpoždění sítě: %1$d ms (odchylka: %2$d ms)</string>
+    <string name="perf_overlay_dectime">Průměrný čas pro dekódování: %1$.2f ms</string>
+    <string name="applist_connect_msg">Připojování k PC…</string>
+    <string name="resolution_4k">4K</string>
+    <string name="fps_30">30 FPS</string>
+    <string name="resolution_720p">720p</string>
+    <string name="resolution_1080p">1080p</string>
+    <string name="resolution_1440p">1440p</string>
+    <string name="videoformat_auto">Automaticky</string>
+    <string name="audioconf_71surround">7.1 prostorový zvuk</string>
+    <string name="pacing_balanced">Vyvážené</string>
+    <string name="pacing_smoothness">Preferovat plynulejší video (může výrazně zvýšit zpoždění)</string>
+    <string name="resolution_prefix_native_landscape">(na šířku)</string>
+    <string name="resolution_prefix_native_portrait">(na výšku)</string>
+    <string name="fps_60">60 FPS</string>
+    <string name="fps_90">90 FPS</string>
+    <string name="fps_120">120 FPS</string>
+    <string name="audioconf_stereo">Stereo</string>
+    <string name="audioconf_51surround">5.1 prostorový zvuk</string>
+    <string name="help_loading_msg">Načítání stránky s nápovědou…</string>
+    <string name="pcview_menu_unpair_pc">Zrušit párování</string>
+    <string name="pcview_menu_test_network">Otestovat připojení k síti</string>
+    <string name="nettest_title_done">Test sítě dokončen</string>
+    <string name="nettest_text_inconclusive">Test sítě nemohl být proveden, protože se nezdařilo připoojení k žádným z testovacíh serverů Moonlight. Zkontrolujte své připojení k Internetu, nebo to zkuste znovu později.</string>
+    <string name="nettest_text_failure">Současná síť vašeho počítače nejspíš blokuje Moonlight. Streamování přes Internet nemusí během připojení k této síti fungovat.
+\n
+\nNásledující porty byly zablokovány:
+\n</string>
+    <string name="nettest_text_blocked">Vaše současné připojení k síti blokuje Moonlight. Streamování přes Internet nemusí fungovat, dokud jste připojeni k této síti.</string>
+    <string name="pair_pc_ingame">Na počítači momentálně běží hra. Před párováním musíte hru zavřít.</string>
+    <string name="pair_pairing_title">Párování</string>
+    <string name="pair_pairing_msg">Vložte prosím následující PIN na cílovém PC:</string>
+    <string name="pair_incorrect_pin">Nesprávný PIN</string>
+    <string name="pair_fail">Párování selhalo</string>
+    <string name="pair_already_in_progress">Párování již probíhá</string>
+    <string name="wol_pc_online">Počítač je online</string>
+    <string name="wol_no_mac">Nezdařilo se probudit PC, protože GFE nezaslalo MAC adresu</string>
+    <string name="title_decoding_reset">Reset nastavení videa</string>
+    <string name="unable_to_pin_shortcut">Váš současný launcher neumožňuje vytváření zástupců.</string>
+    <string name="conn_establishing_msg">Připojování</string>
+    <string name="conn_starting">Spouštění</string>
+    <string name="conn_error_title">Chyba připojení</string>
+    <string name="frame_conversion_error">Hostitelský počítač hlásí fatální chybu enkódování videa.
+\n
+\nZkuste vypnout HDR, změňte rozlišení streamu nebo rozlišení displeje hostitelského PC.</string>
+    <string name="yes">Ano</string>
+    <string name="no">Ne</string>
+    <string name="title_details">Detaily</string>
+    <string name="perf_overlay_netdrops">Snímky zahozeny vašim připojením: %1$.2f%%</string>
+    <string name="applist_refresh_error_title">Chyba</string>
+    <string name="applist_refresh_error_msg">Nezdařilo se získat seznam aplikací</string>
+    <string name="applist_quit_app">Ukončování</string>
+    <string name="applist_quit_success">Úspěšně ukončeno</string>
+    <string name="applist_quit_fail">Ukončení se nezdařilo</string>
+    <string name="applist_quit_confirmation">Určitě chcete ukončit běžící aplikaci\? Neuložená data budou ztracena.</string>
+    <string name="msg_add_pc">Připojování k PC…</string>
+    <string name="addpc_unknown_host">Nezdařilo se připojit k adrese PC. Ujistěte se, že v adrese není překlep.</string>
+    <string name="addpc_wrong_sitelocal">Tahle adresa nevypadá správně. Musíte zadat veřejnou IP vašeho routeru, pokud chcete streamovat přes Internet.</string>
+    <string name="toast_reset_osc_success">Ovladač na obrazovce resetován</string>
+    <string name="dialog_title_reset_osc">Reset rozložení</string>
+    <string name="dialog_text_reset_osc">Jste si jisti, že chcete smazat vaše uložené rozložení ovladače\?</string>
+    <string name="resolution_360p">360p</string>
+    <string name="resolution_480p">480p</string>
+    <string name="pacing_balanced_alt">Vyvážené s limitem FPS</string>
+    <string name="scut_deleted_pc">PC smazán</string>
+    <string name="scut_not_paired">PC nespárován</string>
+    <string name="scut_pc_not_found">PC nenalezen</string>
+    <string name="scut_invalid_uuid">Zadaný počítač není platný</string>
+    <string name="scut_invalid_app_id">Zadaná aplikace není platná</string>
+    <string name="help_loading_title">Zobrazení nápovědy</string>
+    <string name="wol_waking_msg">Může trvat pár sekund, než se váš počítač probudí. Pokud se tak nestane, ujistěte se, že máte správně nastaveno Wake-On-LAN.</string>
+    <string name="wol_fail">Nezdařilo se odeslat Wake-On-LAN pakety</string>
+    <string name="help">Nápověda</string>
+    <string name="delete_pc_msg">Určitě chcete smazat tento PC\?</string>
+    <string name="perf_overlay_streamdetails">Video stream: %1$s %2$.2f FPS</string>
+    <string name="perf_overlay_decoder">Dekodér: %1$s</string>
+    <string name="perf_overlay_fps">FPS in/render: %1$.2f / %2$.2f FPS (%3$+.1f%%)</string>
+    <string name="text_native_res_dialog">GeForce Experience oficiálně nepodporuje nativní rozlišení a proto nenastaví rozlišení displeje vašeho hostitelského PC. Musíte jej nastavit ručně ve hře.
+\n
+\nPokud v NVIDIA Control Panelu vytvoříte vlastní rozlišení pro vaše zařízení, prosím ujistěte se, že jste si přečetli a že chápete varování od NVIDIE ohledně možného poškození monitoru, nestability PC a dalších možných problémů.
+\n
+\nNejsme zodpovědni za žádné problémy, které vzniknou používáním vlastního rozlišení na vašem PC.
+\n
+\nA nakonec, vaše zařízení nebo hostitelský počítač nemusí podporovat streamování v nativním rozlišení. Pokud vám to nefunguje, bohužel se s tím nedá nic dělat.</string>
+    <string name="resolution_prefix_native">Nativní</string>
+    <string name="videoformat_hevcalways">Vždy použít HEVC (může padat)</string>
+    <string name="pacing_latency">Preferovat nejnižší zpoždění</string>
+</resources>

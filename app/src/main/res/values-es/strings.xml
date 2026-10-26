@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- PC view menu entries -->
+    <string name="pcview_menu_unpair_pc">Desemparejar</string>
+    <!-- Pair messages -->
+    <string name="pairing">Emparejando…</string>
+    <string name="pair_pc_offline">El ordenador está apagado</string>
+    <string name="pair_pc_ingame">El ordenador está actualmente en un juego. Debes cerrar el juego antes de emparejar.</string>
+    <string name="pair_pairing_title">Emparejando</string>
+    <string name="pair_pairing_msg">Por favor, introduce el siguiente PIN en el PC destino:</string>
+    <string name="pair_incorrect_pin">PIN incorrecto</string>
+    <string name="pair_fail">Fallo al emparejar</string>
+    <!-- WOL messages -->
+    <string name="wol_pc_online">Ordenador encendido</string>
+    <string name="wol_no_mac">No se puede activar el PC porque no hay ninguna dirección MAC almacenada</string>
+    <string name="wol_waking_pc">Iniciando PC…</string>
+    <string name="wol_waking_msg">Puede tomar algunos segundos iniciar tu PC.
+	    Si no se inicia asegúrate que está configurado correctamente para Wake-On-LAN.
+    </string>
+    <string name="wol_fail">Fallo al enviar paquetes Wake-On-LAN</string>
+    <!-- Unpair messages -->
+    <string name="unpairing">Desemparejando…</string>
+    <string name="unpair_success">Desemparejado con éxito</string>
+    <string name="unpair_fail">Error al desemparejar</string>
+    <string name="unpair_error">El dispositivo no estaba emparejado</string>
+    <!-- Errors -->
+    <string name="error_pc_offline">El ordenador está apagado</string>
+    <string name="error_manager_not_running">El servicio "ComputerManager" no está en ejecución. Por favor, espera unos segundos o reinicia la aplicación.</string>
+    <string name="error_unknown_host">Fallo al resolver el host</string>
+    <string name="error_404">GFE ha devuelto un error HTTP 404. Asegúrate que el PC tiene una GPU soportada.
+	    Usar software de Escritorio Remoto puede causar este error. Intenta reiniciar el equipo o reinstalar GFE.
+    </string>
+    <!-- Start application messages -->
+    <string name="conn_establishing_title">Estableciendo conexión</string>
+    <string name="conn_establishing_msg">Iniciando conexión</string>
+    <string name="conn_metered">Aviso: ¡Tu conexión de red está siendo medida!</string>
+    <string name="conn_client_latency">Latencia media decodificando frames:</string>
+    <string name="conn_client_latency_hw">latencia decodificación por hardware:</string>
+    <string name="conn_hardware_latency">Latencia media decodificando por hardware:</string>
+    <string name="conn_starting">Iniciando</string>
+    <string name="conn_error_title">Error de conexión</string>
+    <string name="conn_error_msg">Fallo al iniciar</string>
+    <string name="conn_terminated_title">Conexión finalizada</string>
+    <string name="conn_terminated_msg">La conexión ha finalizado.</string>
+    <!-- General strings -->
+    <string name="ip_hint">Dirección IP del host del ordenador</string>
+    <string name="yes">Si</string>
+    <string name="no">No</string>
+    <!-- AppList activity -->
+    <string name="applist_menu_resume">Reanudar sesión</string>
+    <string name="applist_menu_quit_and_start">Cerrar juego actual e iniciar</string>
+    <string name="applist_menu_cancel">Cancelar</string>
+    <string name="applist_refresh_error_title">Error</string>
+    <string name="applist_refresh_error_msg">Error al cargar lista de aplicaciones</string>
+    <string name="applist_quit_app">Cerrando</string>
+    <string name="applist_quit_success">Cerrado satisfactoriamente</string>
+    <string name="applist_quit_fail">Error al cerrar</string>
+    <string name="applist_quit_confirmation">¿Estás seguro que deseas quitar la aplicación en ejecución? Todo dato sin salvar se perderá.</string>
+    <!-- Add computer manually activity -->
+    <string name="title_add_pc">Añadir PC manualmente</string>
+    <string name="msg_add_pc">Conectando al PC…</string>
+    <string name="addpc_fail">Imposible conectar al ordenador indicado. Asegurate que los puertos necesarios están permitidos a través del firewall.</string>
+    <string name="addpc_success">Ordenador añadido satisfactoriamente</string>
+    <string name="addpc_unknown_host">Imposible resolver la dirección del PC. Asegúrate que no hay ningún error en la dirección.</string>
+    <string name="addpc_enter_ip">Debes introducir una dirección IP</string>
+    <!-- Preferences -->
+    <!-- Array strings -->
+    <string name="videoformat_auto">Automático (Recomendado)</string>
+    <string name="videoformat_hevcalways">Preferir HEVC</string>
+    <string name="nettest_title_done">Prueba de Red Completada</string>
+    <string name="scut_not_paired">PC no emparejado</string>
+    <string name="scut_invalid_uuid">El PC proporcionado no es válido</string>
+    <string name="scut_invalid_app_id">La App proporcionada no es válida</string>
+    <string name="help_loading_title">Visor de ayuda</string>
+    <string name="pcview_menu_test_network">Probar Conexión de Red</string>
+    <string name="nettest_title_waiting">Probando Conexión de Red</string>
+    <string name="nettest_text_waiting">Moonlight está probando tu conexión a la red para determinar si algún puerto necesario está bloqueado.
+\n
+\nEsto puede tardar unos segundos…</string>
+    <string name="nettest_text_inconclusive">La prueba de red no pudo ejecutarse debido a que no se pudo alcanzar ningún servidor de prueba de conexión de Moonlight. Revisa tu conexión a internet o prueba nuevamente mas tarde.</string>
+    <string name="nettest_text_failure">La actual conexión de red de tu dispositivo parece estar bloqueando Moonlight. La Transmisión mediante Internet puede no funcionar mientras estes conectado a esta red.
+\n
+\nSe han bloqueado los siguientes puertos de red:
+\n</string>
+    <string name="title_decoding_error">Falló el Decodificador de Video</string>
+    <string name="scut_deleted_pc">PC eliminado</string>
+    <string name="scut_pc_not_found">PC no encontrado</string>
+    <string name="help_loading_msg">Cargando página de ayuda…</string>
+    <string name="nettest_text_success">Tu red parece no estar bloqueando Moonlight. Si aun tienes problemas de conexión, comprueba la configuración del firewall de tu PC.
+\n
+\nSi estas intentado transmitir mediante Internet, instala en tu pc la Moonlight Internet Hosting Tool y ejecuta el Internet Streaming Tester incluido para comprobar la conexión de tu PC a internet.</string>
+    <string name="nettest_text_blocked">La conexión de red actual de tu dispositivo esta bloqueando Moonlight. La Transmisión mediante Internet puede no funcionar mientras estés conectado a esta red.</string>
+    <string name="pair_already_in_progress">Emparejamiento ya en progreso</string>
+    <string name="resolution_prefix_native_fullscreen">Pantalla Completa Nativa</string>
+    <string name="title_decoding_reset">Reiniciar Opciones de Video</string>
+    <string name="no_video_received_error">No se recibe video desde el equipo anfitrión.</string>
+    <string name="applist_details_id">ID de Aplicación:</string>
+    <string name="pacing_latency">Preferir la menor latencia posible</string>
+    <string name="pacing_balanced">Equilibrado</string>
+    <string name="pacing_smoothness">Preferir mayor fluidez de video (puede incrementar significativamente la latencia)</string>
+    <string name="perf_overlay_decoder">Decodificador: %1$s</string>
+    <string name="perf_overlay_fps">FPS in/render: %1$.2f / %2$.2f FPS (%3$+.1f%%)</string>
+    <string name="perf_overlay_netdrops">Cuadros perdidos por tu conexión de internet: %1$.2f%%</string>
+    <string name="perf_overlay_netlatency">Latencia promedio de red:%1$d ms (variación: %2$d ms)</string>
+    <string name="perf_overlay_dectime">Tiempo promedio de descodificado: %1$.2f ms</string>
+    <string name="perf_overlay_streamdetails">Transmisión video: %1$s %2$.2f FPS</string>
+    <string name="resolution_360p">360p</string>
+    <string name="resolution_1440p">1440p</string>
+    <string name="resolution_4k">4K</string>
+    <string name="resolution_720p">720p</string>
+    <string name="fps_120">120 FPS</string>
+    <string name="audioconf_71surround">7.1 Sonido Envolvente</string>
+    <string name="resolution_1080p">1080p</string>
+    <string name="pacing_balanced_alt">Equilibrado con limitador de FPS (Cuadros por Segundo)</string>
+    <string name="audioconf_51surround">5.1 Sonido Envolvente</string>
+    <string name="audioconf_stereo">Estéreo</string>
+    <string name="check_ports_msg">Revisa la configuración de tu firewall, así como, las reglas de redireccionamiento para él(los) puerto(s):</string>
+    <string name="error_usb_prohibited">El acceso a USB está restringido en tu dispositivo por el administrador. Revisar tus ajustes en MDM o Knox.</string>
+    <string name="message_decoding_error">Moonlight se ha bloqueado debido a una incompatibilidad con el descodificador de vídeo de este dispositivo. Intenta ajustar la configuración de streaming si los bloqueos continúan.</string>
+    <string name="message_decoding_reset">La decodificación de video de tu equipo sigue fallando con las opciones elegidas. Las opciones de la transmisión han sido revertidas a las predeterminadas.</string>
+    <string name="video_decoder_init_failed">El descodificador de video no pudo ser iniciado. Tu dispositivo puede no soportar la resolución elegida o la tasa de cuadros por segundo.</string>
+    <string name="no_frame_received_error">La conexión de internet no está teniendo un buen desempeño. Reduce la tasa de bits de video o prueba en una conexión de mayor velocidad.</string>
+    <string name="unable_to_pin_shortcut">Tu lanzador predeterminado no permite la creación de accesos directos anclados.</string>
+    <string name="early_termination_error">Algo ha fallado en tu ordenador al iniciar la transmisión.
+\n
+\nAsegúrate de que no tienes ningún contenido protegido por DRM abierto en tu ordenador. También puedes probar a reiniciar el ordenador.</string>
+    <string name="title_details">Detalles</string>
+    <string name="applist_menu_details">Ver Detalles</string>
+    <string name="applist_menu_scut">Crear Acceso Directo</string>
+    <string name="applist_menu_tv_channel">Agregar al Canal</string>
+    <string name="applist_menu_hide_app">Esconder Aplicación</string>
+    <string name="applist_connect_msg">Conectando al Equipo…</string>
+    <string name="text_native_res_dialog">Es posible que la resolución nativa y/o los FPS no sean compatibles con el servidor de streaming. Es probable que tengas que configurar manualmente un modo de visualización personalizado para el PC host.
+\n
+\nSi decides crear una resolución personalizada en el Panel de control de NVIDIA para que coincida con la configuración de tu pantalla, asegúrate de haber leído y comprendido la advertencia de NVIDIA sobre posibles daños en el monitor, inestabilidad del PC y otros problemas potenciales.
+\n
+\nNo nos hacemos responsables de ningún problema derivado de la creación de una resolución personalizada en tu PC.
+\n
+\nEs posible que tu monitor no admita la configuración de pantalla necesaria. Si es así, puede intentar configurar un monitor virtual. Por último, si tu dispositivo o PC anfitrión no soporta streaming a una resolución o frecuencia de refresco específica, lamentablemente no tienes suerte.</string>
+    <string name="resolution_prefix_native">Nativo</string>
+    <string name="help">Ayuda</string>
+    <string name="delete_pc_msg">¿Estás seguro de eliminar este PC\?</string>
+    <string name="addpc_wrong_sitelocal">La dirección no luce correcta. Debes usar la dirección IP Pública de tu Rúter para la transmisión por Internet.</string>
+    <string name="title_native_res_dialog">Advertencia Resolución Nativa</string>
+    <string name="dialog_title_reset_osc">Reiniciar a Plantilla Predeterminada</string>
+    <string name="dialog_text_reset_osc">¿Estás seguro de que quieres eliminar tus configuraciones guardadas para las plantillas de los controles en pantalla\?</string>
+    <string name="toast_reset_osc_success">Establecer Controles en Pantalla en modo Predeterminado</string>
+    <string name="resolution_480p">480p</string>
+    <string name="fps_30">30 FPS</string>
+    <string name="fps_60">60 FPS</string>
+    <string name="fps_90">90 FPS</string>
+    <string name="resolution_prefix_native_portrait">(Retrato)</string>
+    <string name="frame_conversion_error">El PC anfitrión ha reportado un error fatal en el codificador de video.
+\n
+\nIntenta deshabilitar el modo HDR, cambiar la resolución de la transmisión, o cambiar la resolución de pantalla del PC anfitrión.</string>
+    <string name="resolution_prefix_native_landscape">(Panorama)</string>
+    <string name="pair_pairing_help">Si el hostal del ordenador ejecuta Sunshine, navegue a la interfaz de usuario web de Sunshine para ingresar el PIN.</string>
+    <string name="fps_suffix_fps">FPS</string>
+    <string name="title_native_fps_dialog">Advertencia sobre FPS nativos</string>
+    <string name="videoformat_av1always">Preferir AV1 (Experimental)</string>
+    <string name="videoformat_h264always">Prefiero H.264</string>
+    <string name="perf_overlay_hostprocessinglatency">Latencia de procesamiento del host mín/máx/promedio: %1$.1f/%2$.1f/%3$.1f ms</string>
+    <string name="toast_controller_type_changed">El tipo del Gamepad puede cambiar debido a la emulación del sensor de movimiento</string>
+    <string name="analogscroll_none">Ninguno (ambos joysticks mueven el mouse)</string>
+    <string name="analogscroll_right">Joystick analógico derecho</string>
+    <string name="analogscroll_left">Joystick analógico izquierdo</string>
+    <string name="error_code_prefix">Código del error:</string>
+</resources>

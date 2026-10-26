@@ -1,0 +1,272 @@
+package com.limelight.console;
+
+import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+public class PlayniteSessionPresentationTest {
+    @Test public void activeAndReconnectProjectAsResumeActive() {
+        PlayniteDashboardItem game = item("game", 42);
+        for (SessionSnapshot.State state : Arrays.asList(
+                SessionSnapshot.State.ACTIVE,
+                SessionSnapshot.State.RECONNECT_REQUIRED)) {
+            PlayniteSessionPresentation.Projection projection =
+                    PlayniteSessionPresentation.project(
+                            snapshot(state, 42, "game"),
+                            Collections.singletonList(game), "");
+            assertEquals(PlayniteSessionPresentation.State.RESUME_ACTIVE,
+                    projection.stateFor("game"));
+        }
+    }
+
+    @Test public void suspendedProjectsAsResumeSuspended() {
+        PlayniteSessionPresentation.Projection projection =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.SUSPENDED, 42, "game"),
+                        Collections.singletonList(item("game", 42)), "");
+
+        assertEquals(PlayniteSessionPresentation.State.RESUME_SUSPENDED,
+                projection.stateFor("game"));
+    }
+
+    @Test public void theFrozenGameProjectsAsFrozenOverAGameStillShownRunning() {
+        List<PlayniteDashboardItem> items = Arrays.asList(item("game-a", 42), item("game-b", 42));
+        SessionSnapshot frozen = new SessionSnapshot("host", "default", "default",
+                SessionSnapshot.State.ACTIVE, 42, "", true, false, false, false, false,
+                "", true, SessionSnapshot.ObservationState.PENDING, false,
+                "", 0L, 0L, 0L, 0L, 0L, "", "",
+                "UNAVAILABLE", 0, "", "UNAVAILABLE", "observation_stale", 0, false,
+                new SessionSnapshot.Display("game-a", 3L, 3L), false, false,
+                new SessionSnapshot.FrozenGame(true, true, "Game-A", "user_switch", 5L, ""));
+        PlayniteSessionPresentation.Projection projection =
+                PlayniteSessionPresentation.project(frozen, items, "");
+        assertEquals(PlayniteSessionPresentation.State.FROZEN, projection.stateFor("game-a"));
+        assertEquals(PlayniteSessionPresentation.State.READY, projection.stateFor("game-b"));
+        assertTrue(projection.signature().endsWith("|game-a"));
+    }
+
+    @Test public void noneTerminatingAndUncertainProjectAsReady() {
+        for (SessionSnapshot.State state : Arrays.asList(
+                SessionSnapshot.State.NONE, SessionSnapshot.State.TERMINATING,
+                SessionSnapshot.State.UNCERTAIN)) {
+            PlayniteSessionPresentation.Projection projection =
+                    PlayniteSessionPresentation.project(snapshot(state, 42, "game"),
+                            Collections.singletonList(item("game", 42)), "");
+            assertEquals(PlayniteSessionPresentation.State.READY,
+                    projection.stateFor("game"));
+        }
+    }
+
+    @Test public void exactPlayniteIdWinsOverSharedSunshineTarget() {
+        List<PlayniteDashboardItem> items = Arrays.asList(
+                item("game-a", 42), item("game-b", 42));
+        PlayniteSessionPresentation.Projection projection =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.ACTIVE, 42, "game-b"),
+                        items, "game-a");
+
+        assertEquals(PlayniteSessionPresentation.State.READY,
+                projection.stateFor("game-a"));
+        assertEquals(PlayniteSessionPresentation.State.RESUME_ACTIVE,
+                projection.stateFor("game-b"));
+    }
+
+    @Test public void missingExactPlayniteIdNeverFallsBackToSharedTarget() {
+        PlayniteSessionPresentation.Projection projection =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.ACTIVE, 42, "missing"),
+                        Arrays.asList(item("game-a", 42), item("game-b", 42)),
+                        "game-a");
+
+        assertEquals("", projection.resumeGameId);
+    }
+
+    @Test public void uniqueSunshineAppIdIsUsedAsFallback() {
+        PlayniteSessionPresentation.Projection projection =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.ACTIVE, 42, ""),
+                        Arrays.asList(item("game-a", 7), item("game-b", 42)), "");
+
+        assertEquals("game-b", projection.resumeGameId);
+    }
+
+    @Test public void previousSelectionDoesNotGuessSharedSunshineTarget() {
+        PlayniteSessionPresentation.Projection projection =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.ACTIVE, 42, ""),
+                        Arrays.asList(item("game-a", 42), item("game-b", 42)),
+                        "GAME-B");
+
+        assertEquals("", projection.resumeGameId);
+    }
+
+    @Test public void ambiguousSharedSunshineTargetWithoutSelectionStaysUnselected() {
+        PlayniteSessionPresentation.Projection projection =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.ACTIVE, 42, ""),
+                        Arrays.asList(item("game-a", 42), item("game-b", 42)), "other");
+
+        assertEquals("", projection.resumeGameId);
+    }
+
+    @Test public void neutralTargetWithoutGameNeverProjectsResume() {
+        for (SessionSnapshot.State state : Arrays.asList(
+                SessionSnapshot.State.ACTIVE,
+                SessionSnapshot.State.RECONNECT_REQUIRED)) {
+            PlayniteSessionPresentation.Projection projection =
+                    PlayniteSessionPresentation.project(
+                            snapshot(state, 42, "", true),
+                            Collections.singletonList(item("game", 42)), "");
+            assertEquals(PlayniteSessionPresentation.State.READY,
+                    projection.stateFor("game"));
+            assertEquals("", projection.resumeGameId);
+        }
+    }
+
+    @Test public void neutralTargetWithRealGameStillProjectsResume() {
+        PlayniteSessionPresentation.Projection projection =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.ACTIVE, 42, "game", true),
+                        Collections.singletonList(item("game", 42)), "");
+
+        assertEquals(PlayniteSessionPresentation.State.RESUME_ACTIVE,
+                projection.stateFor("game"));
+    }
+
+    @Test public void neutralWarmUpWithoutGameDoesNotInvalidateCardPresentation() {
+        PlayniteDashboardItem game = item("game", 42);
+        PlayniteSessionPresentation.Projection idle =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.NONE, 0, ""),
+                        Collections.singletonList(game), "");
+        PlayniteSessionPresentation.Projection preparing =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.PREPARING, 42, "", true),
+                        Collections.singletonList(game), "");
+        PlayniteSessionPresentation.Projection active =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.ACTIVE, 42, "", true),
+                        Collections.singletonList(game), "");
+
+        assertEquals(idle.signature(), preparing.signature());
+        assertEquals(idle.signature(), active.signature());
+    }
+
+    @Test public void signatureChangesOnlyWhenTheVisibleResumeStateChanges() {
+        PlayniteDashboardItem game = item("game", 42);
+        PlayniteSessionPresentation.Projection active =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.ACTIVE, 42, "game"),
+                        Collections.singletonList(game), "");
+        PlayniteSessionPresentation.Projection reconnect =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.RECONNECT_REQUIRED, 42, "game"),
+                        Collections.singletonList(game), "");
+        PlayniteSessionPresentation.Projection suspended =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.SUSPENDED, 42, "game"),
+                        Collections.singletonList(game), "");
+
+        assertEquals(active.signature(), reconnect.signature());
+        org.junit.Assert.assertNotEquals(active.signature(), suspended.signature());
+    }
+
+    @Test public void presentationSignatureComesFromOneSessionProjection() {
+        PlayniteDashboardItem game = item("game", 42);
+        PlayniteSessionPresentation.Projection active =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.ACTIVE, 42, "game"),
+                        Collections.singletonList(game), "");
+        PlayniteSessionPresentation.Projection idle =
+                PlayniteSessionPresentation.project(
+                        snapshot(SessionSnapshot.State.NONE, 0, ""),
+                        Collections.singletonList(game), "");
+        assertTrue(active.signature().contains("game"));
+        assertFalse(idle.signature().contains("game"));
+    }
+
+    /**
+     * Between host observations the session's game goes empty while the session stays: its
+     * tile keeps showing Resume from the game last observed running, also behind a neutral
+     * stream target shared by every game.
+     */
+    @Test public void sessionKeepsItsTileBetweenObservations() {
+        List<PlayniteDashboardItem> items = Arrays.asList(
+                item("game-a", 42), item("game-b", 42));
+        for (SessionSnapshot.State state : Arrays.asList(SessionSnapshot.State.ACTIVE,
+                SessionSnapshot.State.RECONNECT_REQUIRED, SessionSnapshot.State.SUSPENDED)) {
+            PlayniteSessionPresentation.Projection projection =
+                    PlayniteSessionPresentation.project(
+                            between(state, "GAME-B"), items, "");
+            assertEquals(state == SessionSnapshot.State.SUSPENDED
+                            ? PlayniteSessionPresentation.State.RESUME_SUSPENDED
+                            : PlayniteSessionPresentation.State.RESUME_ACTIVE,
+                    projection.stateFor("game-b"));
+            assertEquals(PlayniteSessionPresentation.State.READY,
+                    projection.stateFor("game-a"));
+        }
+        // No session: a game last seen running is not a Resume tile.
+        assertEquals("", PlayniteSessionPresentation.project(
+                between(SessionSnapshot.State.UNCERTAIN, "game-b"), items, "").resumeGameId);
+    }
+
+    private static SessionSnapshot between(SessionSnapshot.State state, String shownGameId) {
+        return new SessionSnapshot("host", "default", "default", state, 42, "",
+                state == SessionSnapshot.State.ACTIVE, false, false, false, false,
+                "", true, SessionSnapshot.ObservationState.PENDING, false,
+                "", 0L, 0L, 0L, 0L, 0L, "", "",
+                "UNAVAILABLE", 0, "", "UNAVAILABLE", "observation_stale", 0, false,
+                new SessionSnapshot.Display(shownGameId, 3L, 3L), false, false);
+    }
+
+    private static SessionSnapshot snapshot(SessionSnapshot.State state, int appId,
+                                            String gameId) {
+        return snapshot(state, appId, gameId, false);
+    }
+
+    private static SessionSnapshot snapshot(SessionSnapshot.State state, int appId,
+                                            String gameId, boolean neutralStreamTarget) {
+        return new SessionSnapshot("host", "default", "default", state, appId, gameId,
+                state == SessionSnapshot.State.ACTIVE, false, false, false, false,
+                "", neutralStreamTarget, SessionSnapshot.ObservationState.PENDING, false,
+                "", 0L, 0L, 0L, 0L, 0L, "", "",
+                "UNAVAILABLE", 0, "", "UNAVAILABLE", "test", 0, false);
+    }
+
+    /**
+     * A warm-up into the host's running game carries that game's title and cover for the Play
+     * that takes it over, from the transition's own host and profile library only.
+     */
+    @Test public void takenOverWarmUpKeepsItsGamesTitleAndArtwork() {
+        PlayniteDashboardItem game = item("ABC-Game", 42);
+        List<PlayniteDashboardItem> library = Collections.singletonList(game);
+        com.limelight.console.transition.LaunchTransitionSpec warmUp =
+                com.limelight.console.transition.LaunchTransitionSpec.create(
+                        "Host-1", "parent",
+                        com.limelight.console.transition.LaunchTransitionType.GAME_CONNECTION,
+                        42, "abc-game", 1L);
+
+        // One id rule (trimmed, case-insensitive) for title and artwork alike.
+        assertEquals(game, ConsoleActivity.transitionLibraryItem(
+                new HostProfileKey("host-1", "parent"), library, warmUp));
+        // Another profile's (or host's) loaded library never names it: neutral instead.
+        assertEquals(null, ConsoleActivity.transitionLibraryItem(
+                new HostProfileKey("host-1", "child"), library, warmUp));
+        assertEquals(null, ConsoleActivity.transitionLibraryItem(
+                new HostProfileKey("host-2", "parent"), library, warmUp));
+        assertEquals(null, ConsoleActivity.transitionLibraryItem(null, library, warmUp));
+    }
+
+    private static PlayniteDashboardItem item(String gameId, int appId) {
+        PlayniteLibraryGame game = new PlayniteLibraryGame(gameId, gameId, true,
+                false, 0L, "", "", "", "Steam");
+        return new PlayniteDashboardItem(game, appId,
+                PlayniteDashboardItem.MappingState.MAPPED);
+    }
+}

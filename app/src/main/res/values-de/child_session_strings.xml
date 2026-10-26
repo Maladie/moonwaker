@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="child_session_remaining">Verbleibende Zeit: %1$s</string>
+    <string name="child_session_remaining_hours_minutes">%1$d Std. %2$d Min.</string>
+    <string name="child_session_remaining_hours">%1$d Std.</string>
+    <string name="child_session_remaining_minutes">%1$d Min.</string>
+    <string name="child_session_time_expired_title">Die Zeit ist abgelaufen</string>
+    <string name="child_session_time_expired_message">Die Kindersitzung wurde beendet. Speichere dein Spiel, bevor die Zeit abläuft.</string>
+    <string name="child_session_ended_title">Kindersitzung beendet</string>
+    <string name="child_session_ended_message">Die Kindersitzung wurde beendet.</string>
+    <string name="child_session_game_access_revoked_message">Ein Elternteil hat den Zugriff auf dieses Spiel entfernt.</string>
+    <string name="child_session_game_ended_message">Das Spiel wurde geschlossen. Die Kindersitzung wurde beendet.</string>
+    <string name="child_session_game_replaced_message">Auf dem PC wurde ein anderes Spiel gestartet. Die Kindersitzung wurde beendet.</string>
+    <string name="child_session_game_unobservable_message">Der PC konnte das Spiel zu lange nicht prüfen. Die Kindersitzung wurde beendet.</string>
+    <string name="child_session_retry_from_library">Der Stream wurde getrennt. Kehre zur Bibliothek zurück und starte das Spiel erneut.</string>
+</resources>

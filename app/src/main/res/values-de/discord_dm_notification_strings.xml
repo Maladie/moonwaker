@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="discord_dm_toast_message">%1$s\n“%2$s”</string>
+    <string name="discord_dm_toast_neutral">%1$s\nNeue Nachricht oder neuer Anhang</string>
+    <string name="discord_dm_toast_shortcut">%1$s gedrückt halten zum Öffnen</string>
+    <string name="discord_dm_notifications_setting">Benachrichtigungen für Direktnachrichten</string>
+    <plurals name="discord_dm_toast_more">
+        <item quantity="one">+%1$d Nachricht</item>
+        <item quantity="other">+%1$d Nachrichten</item>
+    </plurals>
+</resources>
