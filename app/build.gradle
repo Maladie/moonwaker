@@ -14,8 +14,8 @@ android {
 
         // MoonWaker's own version (owner 2026-10-23); every release raises versionCode, which
         // Publish-Release.ps1 checks against the last published one.
-        versionName "0.8.1"
-        versionCode = 801
+        versionName "0.8.2"
+        versionCode = 802
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'
