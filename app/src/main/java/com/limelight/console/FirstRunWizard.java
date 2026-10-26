@@ -67,7 +67,7 @@ import java.util.function.Consumer;
  */
 final class FirstRunWizard {
     /** Step B's download link (design 5.2); the QR is generated from it at runtime. */
-    static final String INSTALLER_URL = "https://is.gd/moonwaker_host_082";
+    static final String INSTALLER_URL = "https://is.gd/moonwaker_host_083";
     static final String STEAM_KEY_URL = "https://steamcommunity.com/dev/apikey";
     static final String PREFS = "first_run_wizard";
     static final long REFRESH_MS = 3_000L;
