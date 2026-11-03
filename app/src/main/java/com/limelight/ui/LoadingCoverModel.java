@@ -112,14 +112,6 @@ public final class LoadingCoverModel {
         return true;
     }
 
-    /** A connection stage while loading; it never overwrites a failure's text. */
-    public boolean connectionStage(String status, int progress) {
-        if (phase != Phase.LOADING) return false;
-        stage = status == null ? "" : status.trim();
-        step = Math.max(step, Math.min(STEPS, progress));
-        return true;
-    }
-
     public boolean error(String title, String details, String reason, boolean allowReveal,
                          boolean allowRetry) {
         if (phase == Phase.CLOSING) return false;

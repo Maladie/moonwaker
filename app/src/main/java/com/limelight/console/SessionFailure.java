@@ -56,17 +56,28 @@ public enum SessionFailure {
     SWITCH_REFUSED("switch.refused_not_eligible",
             R.string.applist_quit_fail, R.string.console_previous_session_close_failed),
     // Quick Resume: the host refused to freeze (or swap out) the switched game; it plays on.
-    // The replacement question follows, then the ordinary stop.
+    // The replacement follows with the ordinary stop (SessionOrchestrator.switchRefusal).
     SWITCH_FREEZE_REFUSED("switch.freeze_refused",
             R.string.applist_quit_fail, R.string.overlay_menu_freeze_failed),
     SWITCH_INTERRUPTED("switch.interrupted",
             R.string.applist_quit_fail, R.string.console_previous_session_close_failed),
     SWITCH_TIMEOUT("switch.timeout",
             R.string.applist_quit_fail, R.string.console_previous_session_close_failed),
-    SWITCH_PROVIDER_STOP_TIMEOUT("switch.provider_stop_timeout",
-            R.string.applist_quit_fail, R.string.console_provider_stop_waiting_for_process),
+    // The host could not confirm that the game the switch leaves ended: it may still run.
+    SWITCH_STOP_UNCONFIRMED("switch.stop_unconfirmed",
+            R.string.applist_quit_fail, R.string.control_previous_game_unconfirmed),
+    // Its screen shows only a switch meant to keep the running game (the same game, a freeze
+    // or a swap): no session close was attempted.
     SWITCH_FAILED("switch.failed",
-            R.string.applist_quit_fail, R.string.console_previous_session_close_failed),
+            R.string.playnite_launch_unavailable, R.string.console_switch_failed),
+    // The stream still ran the switch of an earlier Play: this one changed nothing and closes
+    // nothing; its Retry asks again once that switch ended.
+    SWITCH_IN_PROGRESS("switch.in_progress",
+            R.string.playnite_launch_unavailable, R.string.console_switch_failed),
+    // The host refused the child's own play (time, schedule, sharing) before anything stopped:
+    // the stream keeps its game and the child's message shows.
+    SWITCH_CHILD_REFUSED("switch.child_refused",
+            R.string.playnite_launch_unavailable, R.string.console_child_launch_unavailable),
     // A switch would attach to a game the host runs for another actor: never taken over (a
     // replacement the user confirms closes it instead).
     SESSION_HELD_BY_OTHER_ACTOR("session.held_by_other_actor",
@@ -114,12 +125,6 @@ public enum SessionFailure {
             R.string.console_presentation_launch_failed_title,
             R.string.console_reconnect_actor_handoff_failed),
 
-    // ConsoleActivity beginInstallationSupportStream (does not use the orchestrator).
-    SUPPORT_PREVIOUS_NOT_CLOSED("support.previous_not_closed",
-            R.string.applist_quit_fail, R.string.console_previous_session_close_failed),
-    SUPPORT_HOST_NOT_READY("support.host_not_ready",
-            R.string.console_host_not_ready, R.string.console_host_timeout),
-
     // Game stream start: a Gateway control operation (acquire, reconcile or complete) answered HTTP 409.
     CONTROL_STREAM_CONFLICT("control.managed_stream_conflict",
             R.string.conn_error_title, R.string.control_stream_conflict),
@@ -159,12 +164,24 @@ public enum SessionFailure {
     public static SessionFailure fromControlRejection(String reason) {
         String value = reason == null ? "" : reason;
         switch (value) {
-            case "managed_stream_conflict": return CONTROL_STREAM_CONFLICT;
+            // Another stream holds the host (another owner's, or an app MoonWaker did not
+            // start): close it, then try again.
+            case "managed_stream_conflict":
+            case "stream_owner_mismatch":
+            case "unmanaged_stream": return CONTROL_STREAM_CONFLICT;
             case "child_game_not_entitled": return CONTROL_CHILD_GAME_NOT_ENTITLED;
+            // The previous game or child session is still ending: wait, then try again.
             case "retained_process_unconfirmed":
-            case "retained_owner_unconfirmed": return CONTROL_PREVIOUS_GAME_UNCONFIRMED;
+            case "retained_owner_unconfirmed":
+            case "child_cleanup_required":
+            case "child_cleanup_in_progress": return CONTROL_PREVIOUS_GAME_UNCONFIRMED;
+            // What this start was bound to changed on the host: try again.
             case "stale_operation":
-            case "stale_session": return CONTROL_STATE_CHANGED;
+            case "stale_session":
+            case "operation_id_reused":
+            case "stream_generation_superseded":
+            case "managed_stream_unavailable":
+            case "child_session_unmanaged": return CONTROL_STATE_CHANGED;
             case "terminal_result_timeout":
             case "terminal_owner_required":
             case "reconcile_required":
@@ -205,10 +222,18 @@ public enum SessionFailure {
     /** The stream's refusal of a switch whose actor does not hold what the host runs. */
     public static final String SWITCH_OTHER_ACTOR_REASON = "retained_switch_other_actor";
     public static final String SWITCH_FREEZE_REFUSED_REASON = "retained_switch_freeze_refused";
+    /** The stream refused a handed-off switch while it still runs an earlier one. */
+    public static final String SWITCH_IN_PROGRESS_REASON = "retained_switch_in_progress";
 
     /** Classifies the failure reason reported by the attached stream for a retained switch. */
     static Raised switchFailed(String reason) {
         return new Raised(ofSwitchFailure(reason), reason == null ? "" : reason);
+    }
+
+    /** As {@link #switchFailed(String)}; a child's own host refusal (time, schedule, sharing) is its own. */
+    static Raised switchFailed(boolean child, String reason) {
+        return child && ConsoleActivity.childRefusalMessage(reason) != 0
+                ? new Raised(SWITCH_CHILD_REFUSED, reason) : switchFailed(reason);
     }
 
     public static SessionFailure ofSwitchFailure(String reason) {
@@ -216,7 +241,8 @@ public enum SessionFailure {
         return "retained_switch_not_eligible".equals(value) ? SWITCH_REFUSED
                 : SWITCH_FREEZE_REFUSED_REASON.equals(value) ? SWITCH_FREEZE_REFUSED
                 : SWITCH_OTHER_ACTOR_REASON.equals(value) ? SESSION_HELD_BY_OTHER_ACTOR
-                : value.contains("game_stop_timeout") ? SWITCH_PROVIDER_STOP_TIMEOUT
+                : SWITCH_IN_PROGRESS_REASON.equals(value) ? SWITCH_IN_PROGRESS
+                : value.contains("game_stop_unconfirmed") ? SWITCH_STOP_UNCONFIRMED
                 : SWITCH_FAILED;
     }
 

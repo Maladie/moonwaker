@@ -1,5 +1,6 @@
 package com.limelight.console;
 
+import com.limelight.gateway.GatewayTransport;
 import com.limelight.gateway.GatewayConnection;
 
 import org.junit.Test;
@@ -42,7 +43,7 @@ public class OfflineProfilePinFlowTest {
     @Test public void onlineWrongPinNeverUsesCacheOrWakes() {
         FakeCache cache = new FakeCache(result(OfflineProfilePinStore.Status.MATCH, 0));
         FakeGateway gateway = new FakeGateway();
-        gateway.verifyResponses.add(new HostGatewayClient.GatewayException(
+        gateway.verifyResponses.add(new GatewayTransport.GatewayException(
                 "invalid_pin", 401));
         FakeWake wake = new FakeWake();
 
@@ -55,10 +56,29 @@ public class OfflineProfilePinFlowTest {
         assertEquals(0, wake.calls);
     }
 
+    @Test public void pinRemovedOnHostReopensTheGateWithFreshProfiles() {
+        FakeCache cache = new FakeCache(result(OfflineProfilePinStore.Status.MATCH, 0));
+        FakeGateway gateway = new FakeGateway();
+        gateway.verifyResponses.add(new GatewayTransport.GatewayException(
+                "pin_not_required", 400));
+        HostGatewayClient.IntegrationProfiles fresh = profiles(true, false);
+        gateway.profileResponses.add(fresh);
+        FakeWake wake = new FakeWake();
+
+        OfflineProfilePinFlow.Result result = run(cache, gateway, wake);
+
+        assertEquals(OfflineProfilePinFlow.Status.PROFILE_DENIED, result.status);
+        assertEquals(fresh, result.profiles);
+        assertEquals(1, cache.forgetCalls);
+        assertEquals(0, cache.checkCalls);
+        assertEquals(0, cache.rememberCalls);
+        assertEquals(0, wake.calls);
+    }
+
     @Test public void pinVerificationContractErrorDoesNotEraseCachedVerifier() {
         FakeCache cache = new FakeCache(result(OfflineProfilePinStore.Status.MATCH, 0));
         FakeGateway gateway = new FakeGateway();
-        gateway.verifyResponses.add(new HostGatewayClient.GatewayException(
+        gateway.verifyResponses.add(new GatewayTransport.GatewayException(
                 "pin_verification_failed", 502));
         FakeWake wake = new FakeWake();
 
@@ -139,7 +159,7 @@ public class OfflineProfilePinFlowTest {
         FakeCache cache = new FakeCache(result(OfflineProfilePinStore.Status.MATCH, 0));
         FakeGateway gateway = offlineFirstGateway();
         gateway.profileResponses.add(profiles(true, true));
-        gateway.verifyResponses.add(new HostGatewayClient.GatewayException(
+        gateway.verifyResponses.add(new GatewayTransport.GatewayException(
                 "invalid_pin", 401));
         FakeWake wake = new FakeWake();
 

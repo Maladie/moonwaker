@@ -495,7 +495,6 @@ public final class GatewayTransport {
             headers.put("Authorization", "Bearer " + connection.token());
             headers.put("X-WakePlay-Profile", connection.profileId());
             headers.put("X-MoonWaker-Profile-Session", PROFILE_SESSION_ID);
-            headers.put("X-MoonWaker-Capabilities", "child_profiles_v1");
         }
         if (post) {
             headers.put("Content-Type", "application/json; charset=utf-8");
@@ -988,8 +987,8 @@ public final class GatewayTransport {
             this(message, statusCode, retryAfterSeconds, null);
         }
 
-        GatewayException(String message, int statusCode, int retryAfterSeconds,
-                         JSONObject responseBody) {
+        public GatewayException(String message, int statusCode, int retryAfterSeconds,
+                                JSONObject responseBody) {
             super(message);
             this.statusCode = statusCode;
             this.retryAfterSeconds = retryAfterSeconds;

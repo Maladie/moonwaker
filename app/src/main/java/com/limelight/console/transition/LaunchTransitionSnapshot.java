@@ -104,8 +104,6 @@ public final class LaunchTransitionSnapshot {
             return false;
         }
         return state == LaunchTransitionState.GAME_STOPPING
-                || state == LaunchTransitionState.PLAYNITE_RETURNING
-                || state == LaunchTransitionState.PLAYNITE_STOPPING
                 || state == LaunchTransitionState.CLOSING_STREAM
                 || state == LaunchTransitionState.RETURNING_TO_DASHBOARD
                 || spec.type == LaunchTransitionType.GAME_CONNECTION

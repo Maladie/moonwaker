@@ -134,14 +134,6 @@ public final class DiscordDmToastView extends FrameLayout
         updateMetadata();
     }
 
-    /** Keeps the Game card beside the pinned Discord dock, never on top of it. */
-    public void setAvoidView(View avoidView) {
-        detachAvoidListener();
-        this.avoidView = avoidView;
-        attachAvoidListener();
-        post(this::updatePlacement);
-    }
-
     @Override protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         if (avoidView == null && getParent() instanceof View) {

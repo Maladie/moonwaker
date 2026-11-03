@@ -359,7 +359,8 @@ public final class SessionModelDriver {
     }
     public void seedReconnectRecord(String sessionId) {
         resume.edit().putBoolean("pending", true).putString("streamSessionId", sessionId)
-                .putString("pcUuid", "host").putString("profileId", "p").apply();
+                .putString("pcUuid", "host").putString("profileId", "p")
+                .putString(com.limelight.Game.EXTRA_EXECUTION_PROFILE_ID, "p").apply();
     }
     public boolean hasReconnectRecord() { drain(); return resume.getBoolean("pending", false); }
     public boolean hardResetIfHostMatches(String hostId) {

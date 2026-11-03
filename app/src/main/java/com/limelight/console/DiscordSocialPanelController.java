@@ -16,7 +16,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /** Data and action coordinator for the dedicated Community presentation. */
@@ -30,6 +29,8 @@ final class DiscordSocialPanelController {
         void requestVoice(DiscordPanelController.CommunityVoiceCallback callback);
         void voiceAction(DiscordPanelController.CommunityVoiceAction action,
                          DiscordPanelController.CommunityVoiceCallback callback);
+        void setFavorite(HostGatewayClient.DiscordChannel channel, boolean favorite,
+                         DiscordPanelController.CommunityFavoriteCallback callback);
         /** The selected host profile's Gateway, which carries Discord friends and messages. */
         GatewayConnection connection();
     }
@@ -44,6 +45,8 @@ final class DiscordSocialPanelController {
         /** The DM shortcut's trigger ("select", "start" or "lb_rb"). */
         String dmShortcutTrigger();
         void toast(String message);
+        /** A failed action: {@code title} and why, with Retry running {@code retry}. */
+        void showRetry(String title, String message, Runnable retry);
         void backPanel();
         void requestCommunityDictation(long recipientId, long directMessageGeneration);
         void dismissCommunityForAuthorization();
@@ -53,7 +56,6 @@ final class DiscordSocialPanelController {
         default void visiblePeerChanged(long peerId) { }
     }
 
-    enum SummaryState { CONNECTED, AUTHORIZATION_REQUIRED, CONNECTING, UNAVAILABLE }
     private static final long SNAPSHOT_REFRESH_MS = 500L;
     private static final String FRIEND_TAG_PREFIX = "discord.social.friend:";
 
@@ -80,6 +82,7 @@ final class DiscordSocialPanelController {
     private HostGatewayClient.DiscordChannel joinedVoiceChannel;
     private boolean voiceLoading;
     private boolean voiceBusy;
+    private boolean favoriteBusy;
     private DiscordCommunityView communityView;
     private final DiscordDirectMessageState directMessages = new DiscordDirectMessageState();
     private long directMessageGeneration;
@@ -121,6 +124,7 @@ final class DiscordSocialPanelController {
         joinedVoiceChannel = null;
         voiceLoading = true;
         voiceBusy = false;
+        favoriteBusy = false;
         attachSilently();
         render(DiscordSocialClient.getSnapshot());
         acquireMessageEventLeaseIfPresented();
@@ -423,10 +427,20 @@ final class DiscordSocialPanelController {
             }
             @Override public void onCloseDirectMessage() { prepareForPanelBack(); }
             @Override public void onJoin(HostGatewayClient.DiscordChannel channel) { join(channel); }
+            @Override public void onToggleFavorite(HostGatewayClient.DiscordChannel channel) {
+                setFavorite(channel, !channel.favorite);
+            }
             @Override public void onAuthorize() { authorize(); }
             @Override public void onOptions() { ui.openDiscordSettings(); }
             @Override public void onVoiceAction(DiscordPanelController.CommunityVoiceAction action) {
                 voiceAction(action);
+            }
+            @Override public void onRetryHome() {
+                if (!visible || homeLoading) return;
+                homeLoading = true;
+                homeUnavailableText = 0;
+                render(DiscordSocialClient.getSnapshot());
+                requestHome(generation);
             }
         });
     }
@@ -618,6 +632,44 @@ final class DiscordSocialPanelController {
         });
     }
 
+    /**
+     * Asks for {@code wanted} (the opposite of the shown state); its Retry asks for that same
+     * state again. The host's answer marks the channel where it is listed; the home reloads.
+     */
+    private void setFavorite(HostGatewayClient.DiscordChannel channel, boolean wanted) {
+        if (favoriteBusy) return;
+        favoriteBusy = true;
+        final int expected = generation;
+        source.setFavorite(channel, wanted, new DiscordPanelController.CommunityFavoriteCallback() {
+            @Override public void onFavorite(boolean favorite) {
+                if (!visible || expected != generation) return;
+                favoriteBusy = false;
+                guildChannels = withFavorite(guildChannels, channel.id, favorite);
+                ui.toast(activity.getString(favorite ? R.string.discord_favorite_added
+                        : R.string.discord_favorite_removed, channel.name));
+                render(DiscordSocialClient.getSnapshot());
+                requestHome(expected);
+            }
+            @Override public void onError(String safeMessage) {
+                if (!visible || expected != generation) return;
+                favoriteBusy = false;
+                ui.showRetry(activity.getString(R.string.discord_favorite_failed), safeMessage,
+                        () -> setFavorite(channel, wanted));
+            }
+        });
+    }
+
+    static List<HostGatewayClient.DiscordChannel> withFavorite(
+            List<HostGatewayClient.DiscordChannel> channels, String channelId, boolean favorite) {
+        List<HostGatewayClient.DiscordChannel> result = new ArrayList<>(channels.size());
+        for (HostGatewayClient.DiscordChannel channel : channels) {
+            result.add(!channel.id.equals(channelId) ? channel : new HostGatewayClient.DiscordChannel(
+                    channel.id, channel.guildId, channel.guildName, channel.name, channel.people,
+                    favorite));
+        }
+        return result;
+    }
+
     private void refreshVoice(final int expected) {
         source.requestVoice(new DiscordPanelController.CommunityVoiceCallback() {
             @Override public void onVoice(HostGatewayClient.DiscordVoice voice) {
@@ -699,7 +751,7 @@ final class DiscordSocialPanelController {
         return new DiscordCommunityPresentation.Destination(
                 "discord.community.channel:" + joinedVoiceChannel.id,
                 DiscordCommunityPresentation.Kind.CHANNEL,
-                "# " + joinedVoiceChannel.name,
+                DiscordCommunityPresentation.channelTitle(joinedVoiceChannel),
                 activity.getString(R.string.discord_community_connected), "", true,
                 joinedVoice.participants, joinedVoiceChannel);
     }
@@ -759,7 +811,6 @@ final class DiscordSocialPanelController {
                 && !activeVoiceId.isEmpty() && (selectedId == null || selectedId.isEmpty()
                 || activeVoiceId.equals(selectedId));
     }
-    static String friendFocusTag(String userId) { return FRIEND_TAG_PREFIX + (userId == null ? "" : userId); }
     static int adjacentTabIndex(int index, int keyCode, int count) {
         return DiscordCommunityState.adjacentTabIndex(index, keyCode, count);
     }
@@ -767,13 +818,6 @@ final class DiscordSocialPanelController {
                                                      HostGatewayClient.DiscordVoice voice) {
         return action == DiscordPanelController.CommunityVoiceAction.LEAVE
                 && voice != null && !voice.connected;
-    }
-    static SummaryState summaryState(boolean connected, boolean authorizationRequired, String status) {
-        if (connected) return SummaryState.CONNECTED;
-        if (authorizationRequired) return SummaryState.AUTHORIZATION_REQUIRED;
-        String normalized = status == null ? "" : status.toLowerCase(Locale.US);
-        return normalized.contains("unavailable") || normalized.startsWith("unable")
-                ? SummaryState.UNAVAILABLE : SummaryState.CONNECTING;
     }
     private static String readableError(Throwable error) {
         String message = error.getMessage();

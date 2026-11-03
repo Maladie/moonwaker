@@ -103,7 +103,7 @@ final class ConsoleEntryShell extends FrameLayout {
     Page addPage() {
         Page page = new Page(getContext());
         if (current == null) current = page;
-        else page.setVisibility(INVISIBLE);
+        else hide(page);
         addBelowClock(page);
         return page;
     }
@@ -139,11 +139,15 @@ final class ConsoleEntryShell extends FrameLayout {
         current = target;
         target.animate().cancel();
         target.setVisibility(VISIBLE);
+        target.setDescendantFocusability(FOCUS_AFTER_DESCENDANTS);
         if (previous == target) {
             target.setAlpha(1f);
             return;
         }
         previous.animate().cancel();
+        // Only the page on screen takes focus: a late requestFocus in a page behind (the host
+        // row updating under the first-run wizard) would leave the remote moving nothing.
+        previous.setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
         pageChanged = true;
         if (!animate || !previous.isShown()) {
             target.setAlpha(1f);
@@ -173,6 +177,7 @@ final class ConsoleEntryShell extends FrameLayout {
         // A hidden page stays laid out so its row keeps the scroll position.
         page.setVisibility(INVISIBLE);
         page.setAlpha(1f);
+        page.setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
     }
 
     /** Header, content row and legend of one screen (mockup "gate_header", "legend_v4"). */

@@ -46,7 +46,6 @@ public final class SessionResumeManager {
     /** A variant's stream test the reconnect starts (Autopilot, mockups O3 and O7). */
     private static final String KEY_AUTOPILOT_TEST = "autopilotTest";
     private static final String KEY_AUTOPILOT_VARIANT = "autopilotVariant";
-    private static final String KEY_CONSOLE_LOADING = "consoleLoading";
     private static final String KEY_LOADING_MESSAGE = "loadingMessage";
     private static final String KEY_LOADING_STEP = "loadingStep";
     private static final String KEY_LOADING_STATUS = "loadingStatus";
@@ -77,14 +76,13 @@ public final class SessionResumeManager {
         private final Values values;
 
         private PendingSession(String streamSessionId, String hostUuid, String profileId,
-                               int appId,
+                               String executionProfileId, int appId,
                                String playniteGameId, boolean autoResume,
                                long createdAt, long updatedAt, Values prefs) {
             this.streamSessionId = streamSessionId;
             this.hostUuid = hostUuid;
             this.profileId = GatewayConnection.normalizeProfileId(profileId);
-            this.executionProfileId = GatewayConnection.normalizeProfileId(
-                    prefs.getString(Game.EXTRA_EXECUTION_PROFILE_ID, this.profileId));
+            this.executionProfileId = GatewayConnection.normalizeProfileId(executionProfileId);
             this.appId = appId;
             this.playniteGameId = normalize(playniteGameId);
             this.neutralStreamTarget = prefs.getBoolean(KEY_NEUTRAL_STREAM_TARGET, false);
@@ -93,8 +91,7 @@ public final class SessionResumeManager {
             this.updatedAt = updatedAt;
             this.controlGeneration = Math.max(0L,
                     prefs.getLong(KEY_CONTROL_GENERATION, 0L));
-            this.childProfile = prefs.getBoolean(Game.EXTRA_CHILD_PROFILE,
-                    prefs.getString(Game.EXTRA_CHILD_SESSION_ID, null) != null);
+            this.childProfile = prefs.getBoolean(Game.EXTRA_CHILD_PROFILE, false);
             this.childSessionId = normalize(
                     prefs.getString(Game.EXTRA_CHILD_SESSION_ID, null));
             this.values = prefs;
@@ -167,7 +164,6 @@ public final class SessionResumeManager {
         editor.putString(KEY_STREAM_SESSION_ID, sessionId);
         editor.putLong(KEY_CONTROL_GENERATION,
                 gameIntent.getLongExtra(Game.EXTRA_CONTROL_GENERATION, 0L));
-        putString(editor, Game.EXTRA_CONTROL_INTENT, "reconnect");
         editor.putLong(KEY_CREATED_AT, createdAt);
         editor.putLong(KEY_UPDATED_AT, now);
         editor.putString(KEY_HOST, gameIntent.getStringExtra(Game.EXTRA_HOST));
@@ -200,8 +196,6 @@ public final class SessionResumeManager {
                 gameIntent.getStringExtra(Game.EXTRA_AUTOPILOT_CALIBRATION_APP_KEY));
         putString(editor, KEY_AUTOPILOT_VARIANT,
                 gameIntent.getStringExtra(Game.EXTRA_AUTOPILOT_VARIANT));
-        editor.putBoolean(KEY_CONSOLE_LOADING,
-                gameIntent.getBooleanExtra(Game.EXTRA_CONSOLE_LOADING, false));
         putString(editor, KEY_QUICK_LAUNCH,
                 gameIntent.getStringExtra(Game.EXTRA_QUICK_LAUNCH_APP_KEY));
         putString(editor, KEY_LOADING_MESSAGE,
@@ -230,8 +224,8 @@ public final class SessionResumeManager {
                 gameIntent.getStringExtra(Game.EXTRA_SOURCE_SUSPEND_PLAYNITE_GAME_ID));
         putString(editor, Game.EXTRA_EXECUTION_PROFILE_ID,
                 gameIntent.getStringExtra(Game.EXTRA_EXECUTION_PROFILE_ID));
-        editor.putBoolean(Game.EXTRA_CHILD_PROFILE, gameIntent.getBooleanExtra(
-                Game.EXTRA_CHILD_PROFILE, gameIntent.hasExtra(Game.EXTRA_CHILD_SESSION_ID)));
+        editor.putBoolean(Game.EXTRA_CHILD_PROFILE,
+                gameIntent.getBooleanExtra(Game.EXTRA_CHILD_PROFILE, false));
         editor.putBoolean(Game.EXTRA_CAPTURES,
                 gameIntent.getBooleanExtra(Game.EXTRA_CAPTURES, true));
         putString(editor, Game.EXTRA_CHILD_SESSION_ID,
@@ -258,8 +252,7 @@ public final class SessionResumeManager {
         intent.putExtra(Game.EXTRA_STREAM_SESSION_ID, current.streamSessionId);
         intent.putExtra(Game.EXTRA_CONTROL_GENERATION,
                 prefs.getLong(KEY_CONTROL_GENERATION, 0L));
-        intent.putExtra(Game.EXTRA_CONTROL_INTENT,
-                prefs.getString(Game.EXTRA_CONTROL_INTENT, "reconnect"));
+        intent.putExtra(Game.EXTRA_CONTROL_INTENT, "reconnect");
         intent.putExtra(Game.EXTRA_HOST, prefs.getString(KEY_HOST, null));
         intent.putExtra(Game.EXTRA_PORT, prefs.getInt(KEY_PORT, 0));
         intent.putExtra(Game.EXTRA_HTTPS_PORT, prefs.getInt(KEY_HTTPS_PORT, 0));
@@ -293,42 +286,38 @@ public final class SessionResumeManager {
         putExtra(intent, Game.EXTRA_AUTOPILOT_CALIBRATION_APP_KEY,
                 prefs.getString(KEY_AUTOPILOT_TEST, null));
         putExtra(intent, Game.EXTRA_AUTOPILOT_VARIANT, prefs.getString(KEY_AUTOPILOT_VARIANT, null));
-        if (prefs.getBoolean(KEY_CONSOLE_LOADING, false)) {
-            intent.putExtra(Game.EXTRA_CONSOLE_LOADING, true);
-            putExtra(intent, Game.EXTRA_CONSOLE_LOADING_MESSAGE,
-                    prefs.getString(KEY_LOADING_MESSAGE, null));
-            // A resume is a new transition: its cover counts from now, never from the parked
-            // stream's own start (TV 2026-10-16: a resumed cover showed 8 h).
-            intent.putExtra(Game.EXTRA_CONSOLE_LOADING_EPOCH, SystemClock.elapsedRealtime());
-            intent.putExtra(Game.EXTRA_CONSOLE_LOADING_STEP,
-                    prefs.getInt(KEY_LOADING_STEP, 2));
-            putExtra(intent, Game.EXTRA_CONSOLE_LOADING_STATUS,
-                    prefs.getString(KEY_LOADING_STATUS, null));
-            putExtra(intent, Game.EXTRA_CONSOLE_LOADING_ARTWORK,
-                    prefs.getString(KEY_LOADING_ARTWORK, null));
-            intent.putExtra(Game.EXTRA_CONSOLE_REDUCED_MOTION,
-                    prefs.getBoolean(KEY_REDUCED_MOTION, false));
-            putExtra(intent, Game.EXTRA_TRANSITION_ID,
-                    prefs.getString(KEY_TRANSITION_ID, null));
-            String transitionType = reconnectTransitionType(
-                    prefs.getString(KEY_TRANSITION_TYPE, null));
-            putExtra(intent, Game.EXTRA_TRANSITION_TYPE,
-                    transitionType);
-            putExtra(intent, Game.EXTRA_TRANSITION_HOST_ID,
-                    prefs.getString(KEY_TRANSITION_HOST_ID, null));
-            putExtra(intent, Game.EXTRA_TRANSITION_PLAYNITE_GAME_ID,
-                    prefs.getString(KEY_TRANSITION_GAME_ID, null));
-            intent.putExtra(Game.EXTRA_TRANSITION_CREATED_AT,
-                    prefs.getLong(KEY_TRANSITION_CREATED_AT, 0L));
-        }
+        putExtra(intent, Game.EXTRA_CONSOLE_LOADING_MESSAGE,
+                prefs.getString(KEY_LOADING_MESSAGE, null));
+        // A resume is a new transition: its cover counts from now, never from the parked
+        // stream's own start (TV 2026-10-16: a resumed cover showed 8 h).
+        intent.putExtra(Game.EXTRA_CONSOLE_LOADING_EPOCH, SystemClock.elapsedRealtime());
+        intent.putExtra(Game.EXTRA_CONSOLE_LOADING_STEP,
+                prefs.getInt(KEY_LOADING_STEP, 2));
+        putExtra(intent, Game.EXTRA_CONSOLE_LOADING_STATUS,
+                prefs.getString(KEY_LOADING_STATUS, null));
+        putExtra(intent, Game.EXTRA_CONSOLE_LOADING_ARTWORK,
+                prefs.getString(KEY_LOADING_ARTWORK, null));
+        intent.putExtra(Game.EXTRA_CONSOLE_REDUCED_MOTION,
+                prefs.getBoolean(KEY_REDUCED_MOTION, false));
+        putExtra(intent, Game.EXTRA_TRANSITION_ID,
+                prefs.getString(KEY_TRANSITION_ID, null));
+        String transitionType = reconnectTransitionType(
+                prefs.getString(KEY_TRANSITION_TYPE, null));
+        putExtra(intent, Game.EXTRA_TRANSITION_TYPE,
+                transitionType);
+        putExtra(intent, Game.EXTRA_TRANSITION_HOST_ID,
+                prefs.getString(KEY_TRANSITION_HOST_ID, null));
+        putExtra(intent, Game.EXTRA_TRANSITION_PLAYNITE_GAME_ID,
+                prefs.getString(KEY_TRANSITION_GAME_ID, null));
+        intent.putExtra(Game.EXTRA_TRANSITION_CREATED_AT,
+                prefs.getLong(KEY_TRANSITION_CREATED_AT, 0L));
         putExtra(intent, Game.EXTRA_SOURCE_SUSPEND_ID,
                 prefs.getString(KEY_SOURCE_SUSPEND_ID, null));
         putExtra(intent, Game.EXTRA_SOURCE_SUSPEND_PLAYNITE_GAME_ID,
                 prefs.getString(KEY_SOURCE_SUSPEND_GAME_ID, null));
         putExtra(intent, Game.EXTRA_EXECUTION_PROFILE_ID,
                 prefs.getString(Game.EXTRA_EXECUTION_PROFILE_ID, null));
-        intent.putExtra(Game.EXTRA_CHILD_PROFILE, prefs.getBoolean(Game.EXTRA_CHILD_PROFILE,
-                prefs.getString(Game.EXTRA_CHILD_SESSION_ID, null) != null));
+        intent.putExtra(Game.EXTRA_CHILD_PROFILE, current.childProfile);
         intent.putExtra(Game.EXTRA_CAPTURES, prefs.getBoolean(Game.EXTRA_CAPTURES, true));
         putExtra(intent, Game.EXTRA_CHILD_SESSION_ID,
                 prefs.getString(Game.EXTRA_CHILD_SESSION_ID, null));
@@ -359,26 +348,29 @@ public final class SessionResumeManager {
                 ? LaunchTransitionType.GAME_CONNECTION.name() : transitionType;
     }
 
-    /** The stored record; one without a stream session id or profile is not a record. */
+    /**
+     * The stored record; one without a stream session id, profile or execution profile is not
+     * a record.
+     */
     static PendingSession read(Map<String, ?> stored) {
         Values prefs = new Values(stored);
         if (!prefs.getBoolean(KEY_PENDING, false)) return null;
-        if (prefs.getString(KEY_PROFILE_ID, null) == null) return null;
+        String profile = prefs.getString(KEY_PROFILE_ID, null);
+        String execution = prefs.getString(Game.EXTRA_EXECUTION_PROFILE_ID, null);
+        if (profile == null || execution == null) return null;
         String hostUuid = normalize(prefs.getString(KEY_PC_UUID, null));
-        String profileId;
-        try {
-            profileId = GatewayConnection.normalizeProfileId(
-                    prefs.getString(KEY_PROFILE_ID, null));
-        } catch (IllegalArgumentException invalidProfile) {
-            return null;
-        }
         int appId = prefs.getInt(KEY_APP_ID, 0);
         String streamSessionId = normalize(prefs.getString(KEY_STREAM_SESSION_ID, null));
         if (streamSessionId.isEmpty()) return null;
-        return new PendingSession(streamSessionId, hostUuid, profileId, appId,
-                prefs.getString(KEY_TRANSITION_GAME_ID, null),
-                prefs.getBoolean(KEY_AUTO_RESUME, true),
-                prefs.getLong(KEY_CREATED_AT, 0L), prefs.getLong(KEY_UPDATED_AT, 0L), prefs);
+        try {
+            return new PendingSession(streamSessionId, hostUuid, profile, execution, appId,
+                    prefs.getString(KEY_TRANSITION_GAME_ID, null),
+                    prefs.getBoolean(KEY_AUTO_RESUME, false),
+                    prefs.getLong(KEY_CREATED_AT, 0L), prefs.getLong(KEY_UPDATED_AT, 0L),
+                    prefs);
+        } catch (IllegalArgumentException invalidProfile) {
+            return null;
+        }
     }
 
     static SharedPreferences prefs(Context context) {

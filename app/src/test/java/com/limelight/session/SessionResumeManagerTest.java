@@ -67,6 +67,7 @@ public class SessionResumeManagerTest {
         Map<String, Object> stored = new HashMap<>();
         stored.put("pending", true);
         stored.put("profileId", "parent");
+        stored.put(com.limelight.Game.EXTRA_EXECUTION_PROFILE_ID, "parent");
         stored.put("pcUuid", "host");
         stored.put("appId", 42);
         if (streamSessionId != null) stored.put("streamSessionId", streamSessionId);
@@ -85,6 +86,10 @@ public class SessionResumeManagerTest {
         Map<String, Object> noProfile = record("stream-a");
         noProfile.remove("profileId");
         assertNull(SessionResumeManager.read(noProfile));
+        // A-11: no execution profile is no record; it never falls back to the actor's.
+        Map<String, Object> noExecution = record("stream-a");
+        noExecution.remove(com.limelight.Game.EXTRA_EXECUTION_PROFILE_ID);
+        assertNull(SessionResumeManager.read(noExecution));
     }
 
     @Test public void clearingRemovesOnlyTheMatchingRecord() {
@@ -97,7 +102,7 @@ public class SessionResumeManagerTest {
 
     @Test public void reconnectDoesNotRestartProviderGame() {
         assertEquals("GAME_CONNECTION", SessionResumeManager.reconnectTransitionType("GAME"));
-        assertEquals("PLAYNITE", SessionResumeManager.reconnectTransitionType("PLAYNITE"));
+        assertEquals("GENERIC", SessionResumeManager.reconnectTransitionType("GENERIC"));
     }
 
     @Test public void reconnectPersistsExactNeutralTargetIdentity() throws IOException {

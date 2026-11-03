@@ -16,7 +16,6 @@ import com.limelight.R;
 import com.limelight.discord.DiscordSocialClient;
 import com.limelight.gateway.GatewayConnection;
 import com.limelight.preferences.PreferenceConfiguration;
-import com.limelight.ui.overlay.DiscordGatewayClient;
 import com.limelight.ui.overlay.OverlayMenuView;
 
 import java.util.ArrayList;
@@ -49,8 +48,6 @@ public final class DiscordOverlayController {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final AtomicBoolean refreshInFlight = new AtomicBoolean();
     private final AtomicBoolean actionInFlight = new AtomicBoolean();
-    // Keep the proven overlay voice controls separate from Community browsing.
-    private final DiscordGatewayClient client = new DiscordGatewayClient();
     private final HostGatewayClient gatewayClient = new HostGatewayClient();
     private final HostGatewayStore store;
     private final String hostUuid;
@@ -64,9 +61,10 @@ public final class DiscordOverlayController {
     private final Map<Long, SentDraft> directMessageSentDrafts = new HashMap<>();
 
     private GatewayConnection connection;
-    private DiscordGatewayClient.VoiceState voice;
-    private DiscordGatewayClient.ChannelTarget recentChannel;
-    private HostGatewayClient.DiscordVoice communityVoiceOverride;
+    private HostGatewayClient.DiscordVoice voice;
+    private HostGatewayClient.DiscordChannel recentChannel;
+    /** A join or leave set {@link #voice}; polls confirm it before they replace it. */
+    private boolean voiceExpected;
     private boolean expectedVoiceConnected;
     private String expectedVoiceChannelId = "";
     private int voiceReconcileAttempts;
@@ -219,16 +217,15 @@ public final class DiscordOverlayController {
 
     public void toggleMute() {
         if (voice == null || !voice.connected) { unavailable(R.string.overlay_discord_unavailable); return; }
-        runAction(() -> client.toggleMute(connection));
+        runAction(() -> gatewayClient.setDiscordVoiceFlag(connection, "mute", "toggle"));
     }
 
     public void leave() {
         if (voice == null || !voice.connected) { unavailable(R.string.overlay_discord_unavailable); return; }
-        recentChannel = new DiscordGatewayClient.ChannelTarget(voice.channelId, voice.channelName,
-                voice.guildId, "Discord");
-        runAction(() -> client.leaveVoice(connection), () -> {
-            communityVoiceOverride = new HostGatewayClient.DiscordVoice(false, "", "", "", false,
-                    false, 0);
+        recentChannel = new HostGatewayClient.DiscordChannel(voice.channelId, voice.guildId,
+                "Discord", voice.channelName, -1, false);
+        runAction(() -> gatewayClient.leaveDiscordChannel(connection), () -> {
+            voice = new HostGatewayClient.DiscordVoice(false, "", "", "", false, false, 0);
             expectVoice(false, "");
             renderCommunity();
         });
@@ -236,7 +233,7 @@ public final class DiscordOverlayController {
 
     public void rejoin() {
         if (recentChannel == null) { unavailable(R.string.overlay_discord_no_recent_channel); return; }
-        runAction(() -> client.joinChannel(connection, recentChannel));
+        runAction(() -> gatewayClient.joinDiscordChannel(connection, recentChannel));
     }
 
     public void toggleDock() {
@@ -351,7 +348,7 @@ public final class DiscordOverlayController {
                     joinFailed = true;
                     Toast.makeText(activity, R.string.discord_join_not_confirmed, Toast.LENGTH_SHORT).show();
                 } else {
-                    communityVoiceOverride = finalVerified;
+                    voice = finalVerified;
                     expectVoice(true, channel.id);
                 }
                 renderCommunity();
@@ -412,6 +409,47 @@ public final class DiscordOverlayController {
         renderCommunity();
     }
 
+    /**
+     * Y on a listed voice channel asks for {@code favorite}, the opposite of its shown mark; the
+     * host's favorites gain or lose it and the lists reload.
+     */
+    public void onDiscordCommunityFavorite(String channelId, boolean favorite) {
+        if (!isCommunityVisible() || communityActionInFlight) return;
+        HostGatewayClient.DiscordChannel channel = findKnownChannel(channelId);
+        if (channel == null || connection == null) return;
+        communityActionInFlight = true;
+        final GatewayConnection captured = connection;
+        final int generation = communityGeneration;
+        final int guildRequest = guildGeneration;
+        executor.execute(() -> {
+            Boolean now = null;
+            String error = "";
+            try { now = gatewayClient.setDiscordFavorite(captured, channel, favorite); }
+            catch (Exception failure) { error = failureText(failure); }
+            final Boolean result = now;
+            final String reason = error == null || error.isEmpty()
+                    ? activity.getString(R.string.overlay_discord_unavailable) : error;
+            handler.post(() -> {
+                if (!acceptsGuildResult(captured, generation, guildRequest)) return;
+                communityActionInFlight = false;
+                // Y again is the Retry: the row stays focused.
+                if (result == null) {
+                    Toast.makeText(activity, activity.getString(
+                            R.string.discord_favorite_failed_details, reason),
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
+                guildChannels = DiscordSocialPanelController.withFavorite(guildChannels,
+                        channel.id, result);
+                Toast.makeText(activity, activity.getString(result
+                        ? R.string.discord_favorite_added : R.string.discord_favorite_removed,
+                        channel.name), Toast.LENGTH_SHORT).show();
+                renderCommunity();
+                loadHome();
+            });
+        });
+    }
+
     /** Releases DM ownership before the overlay hides; auth starts only from onOverlayClosed(). */
     public void authorizeDirectMessages() {
         if (destroyed) return;
@@ -447,34 +485,38 @@ public final class DiscordOverlayController {
         if (!communityActive) overlay.setDiscordState(voice, null, true);
         GatewayConnection current = connection;
         executor.execute(() -> {
-            DiscordGatewayClient.VoiceState result = null;
-            DiscordGatewayClient.ChannelTarget recent = recentChannel;
+            HostGatewayClient.DiscordVoice result = null;
+            HostGatewayClient.DiscordChannel recent = recentChannel;
             String error = null;
             try {
-                result = client.getVoice(current, force);
+                result = gatewayClient.getDiscordVoice(current, force);
                 if (result.connected && !result.channelId.isEmpty() && !result.guildId.isEmpty()) {
-                    recent = new DiscordGatewayClient.ChannelTarget(result.channelId, result.channelName,
-                            result.guildId, "Discord");
+                    recent = new HostGatewayClient.DiscordChannel(result.channelId, result.guildId,
+                            "Discord", result.channelName, -1, false);
                 } else if (recent == null) {
                     HostGatewayStore.DiscordChannelSelection saved = store.loadLastDiscordChannel(hostUuid, currentProfile());
-                    if (saved != null) recent = new DiscordGatewayClient.ChannelTarget(saved.channelId,
-                            saved.channelName, saved.guildId, saved.guildName);
-                    else recent = client.getRecentChannel(current);
+                    if (saved != null) {
+                        recent = new HostGatewayClient.DiscordChannel(saved.channelId,
+                                saved.guildId, saved.guildName, saved.channelName, -1, false);
+                    } else {
+                        List<HostGatewayClient.DiscordChannel> recents =
+                                gatewayClient.getDiscordHome(current, false).recent;
+                        recent = recents.isEmpty() ? null : recents.get(0);
+                    }
                 }
-            } catch (Exception failure) { error = failure.getMessage(); }
-            final DiscordGatewayClient.VoiceState finalResult = result;
-            final DiscordGatewayClient.ChannelTarget finalRecent = recent;
+            } catch (Exception failure) { error = failureText(failure); }
+            final HostGatewayClient.DiscordVoice finalResult = result;
+            final HostGatewayClient.DiscordChannel finalRecent = recent;
             final String finalError = error;
             final boolean finalForce = force;
             handler.post(() -> {
                 refreshInFlight.set(false);
                 if (destroyed || current != connection) return;
-                if (finalResult != null) voice = finalResult;
+                if (finalResult != null && acceptVoice(finalForce, finalResult)) voice = finalResult;
                 if (finalRecent != null) recentChannel = finalRecent;
-                reconcileExpectedVoice(finalForce, finalResult);
-                boolean connected = effectiveVoiceConnected(communityVoiceOverride, voice);
+                boolean connected = voice != null && voice.connected;
                 overlay.setDiscordRejoinTarget(!connected && recentChannel != null,
-                        recentChannel == null ? "" : recentChannel.channelName);
+                        recentChannel == null ? "" : recentChannel.name);
                 if (overlay.getVisibility() == View.VISIBLE) {
                     overlay.setDiscordState(voice, finalError, false);
                 }
@@ -489,31 +531,35 @@ public final class DiscordOverlayController {
     }
 
     private void expectVoice(boolean connected, String channelId) {
+        voiceExpected = true;
         expectedVoiceConnected = connected;
         expectedVoiceChannelId = channelId == null ? "" : channelId;
         voiceReconcileAttempts = 0;
     }
 
-    private void reconcileExpectedVoice(boolean fresh, DiscordGatewayClient.VoiceState result) {
-        if (communityVoiceOverride == null || !fresh) return;
-        if (legacyVoiceMatchesExpected(expectedVoiceConnected, expectedVoiceChannelId, result)) {
-            communityVoiceOverride = null;
-            expectedVoiceChannelId = "";
-            voiceReconcileAttempts = 0;
-            return;
+    /**
+     * Whether a polled voice replaces the one a join or leave set: a fresh poll that agrees,
+     * or the last of a bounded number that does not (the host's answer then wins).
+     */
+    private boolean acceptVoice(boolean fresh, HostGatewayClient.DiscordVoice result) {
+        if (!voiceExpected) return true;
+        if (!fresh) return false;
+        if (voiceMatchesExpected(expectedVoiceConnected, expectedVoiceChannelId, result)) {
+            voiceExpected = false;
+            return true;
         }
         voiceReconcileAttempts++;
         if (shouldRetryVoiceReconciliation(voiceReconcileAttempts, VOICE_RECONCILE_LIMIT)) {
             handler.postDelayed(() -> refresh(true), VOICE_RECONCILE_MS);
-            return;
+            return false;
         }
-        communityVoiceOverride = null;
-        expectedVoiceChannelId = "";
+        voiceExpected = false;
         Toast.makeText(activity, R.string.overlay_discord_unavailable, Toast.LENGTH_SHORT).show();
+        return true;
     }
 
-    static boolean legacyVoiceMatchesExpected(boolean expectedConnected, String expectedChannelId,
-                                               DiscordGatewayClient.VoiceState value) {
+    static boolean voiceMatchesExpected(boolean expectedConnected, String expectedChannelId,
+                                        HostGatewayClient.DiscordVoice value) {
         if (value == null || value.connected != expectedConnected) return false;
         return !expectedConnected || (expectedChannelId != null && expectedChannelId.equals(value.channelId));
     }
@@ -522,14 +568,14 @@ public final class DiscordOverlayController {
         return attempts > 0 && attempts < limit;
     }
 
-    static boolean effectiveVoiceConnected(HostGatewayClient.DiscordVoice override,
-                                           DiscordGatewayClient.VoiceState legacyVoice) {
-        return override != null ? override.connected : legacyVoice != null && legacyVoice.connected;
+    private void loadHomeIfNeeded() {
+        if (home == null) loadHome();
     }
 
-    private void loadHomeIfNeeded() {
-        if (connection == null || home != null || homeLoadInFlight) return;
-        homeLoading = true; homeFailed = false; homeLoadInFlight = true;
+    /** Reads the voice places; the ones shown stay until the answer replaces them. */
+    private void loadHome() {
+        if (connection == null || homeLoadInFlight) return;
+        homeLoading = home == null; homeFailed = false; homeLoadInFlight = true;
         final GatewayConnection captured = connection;
         final int generation = communityGeneration;
         executor.execute(() -> {
@@ -819,7 +865,8 @@ public final class DiscordOverlayController {
                 : (snapshot.authorizationRequired ? activity.getString(R.string.discord_social_state_authorization_required)
                 : activity.getString(R.string.discord_social_state_connecting)));
         OverlayMenuView.CommunityModel model = new OverlayMenuView.CommunityModel(communityRevision + 1,
-                gatewayStatus, gatewayMessage, socialStatus, socialMessage, projectVoice(snapshot), projectFriends(snapshot),
+                gatewayStatus, gatewayMessage, socialStatus, socialMessage, projectVoice(voice,
+                voice == null ? "" : guildNameFor(voice.guildId), snapshot), projectFriends(snapshot),
                 projectChannels(home == null ? null : home.favorites), projectChannels(home == null ? null : home.recent),
                 projectGuilds(), projectChannels(guildChannels), selectedGuildId,
                 DiscordSocialClient.canUseDirectMessages(), projectChat(snapshot));
@@ -925,27 +972,8 @@ public final class DiscordOverlayController {
     private static void append(StringBuilder value, boolean part) { append(value, part ? "1" : "0"); }
     private static void append(StringBuilder value, int part) { append(value, Integer.toString(part)); }
 
-    private OverlayMenuView.VoiceSummary projectVoice(DiscordSocialClient.Snapshot snapshot) {
-        if (communityVoiceOverride != null) {
-            return projectVerifiedVoice(communityVoiceOverride,
-                    guildNameFor(communityVoiceOverride.guildId), snapshot);
-        }
-        if (voice == null) return null;
-        List<OverlayMenuView.VoiceParticipant> participants = new ArrayList<>();
-        for (DiscordGatewayClient.Participant value : voice.participants) participants.add(
-                new OverlayMenuView.VoiceParticipant(value.id, value.name, value.volume, value.muted,
-                        value.speaking, value.self, voiceParticipantAvatarUrl(value.id, value.self, snapshot)));
-        return new OverlayMenuView.VoiceSummary(voice.connected, guildNameFor(voice.guildId), voice.channelName,
-                voice.muted, voice.deafened, participants);
-    }
-
-    static OverlayMenuView.VoiceSummary projectVerifiedVoice(HostGatewayClient.DiscordVoice value,
-                                                              String guildName) {
-        return projectVerifiedVoice(value, guildName, null);
-    }
-
-    static OverlayMenuView.VoiceSummary projectVerifiedVoice(HostGatewayClient.DiscordVoice value,
-                                                              String guildName, DiscordSocialClient.Snapshot snapshot) {
+    static OverlayMenuView.VoiceSummary projectVoice(HostGatewayClient.DiscordVoice value,
+                                                      String guildName, DiscordSocialClient.Snapshot snapshot) {
         if (value == null) return null;
         List<OverlayMenuView.VoiceParticipant> participants = new ArrayList<>();
         for (HostGatewayClient.DiscordParticipant participant : value.participantList) {
@@ -1077,9 +1105,10 @@ public final class DiscordOverlayController {
             if (autoJoin) {
                 HostGatewayStore.DiscordChannelSelection saved = store.loadLastDiscordChannel(hostUuid, stored.profileId());
                 if (saved != null) try {
-                    DiscordGatewayClient.VoiceState current = client.getVoice(connection, true);
-                    if (!current.connected) client.joinChannel(connection, new DiscordGatewayClient.ChannelTarget(
-                            saved.channelId, saved.channelName, saved.guildId, saved.guildName));
+                    if (!gatewayClient.getDiscordVoice(stored, true).connected) {
+                        gatewayClient.joinDiscordChannel(stored, saved.channelId, saved.guildId,
+                                saved.guildName, saved.channelName);
+                    }
                 } catch (Exception ignored) { }
             }
             handler.post(() -> { if (!destroyed) refresh(true); });
@@ -1103,13 +1132,20 @@ public final class DiscordOverlayController {
     private interface Action { void run() throws Exception; }
     private interface ActionSuccess { void run(); }
 
+    /** A Discord Bridge that did not answer reads as Discord on the host not being ready. */
+    private String failureText(Exception failure) {
+        return DiscordPanelController.discordNotReady(failure)
+                ? activity.getString(R.string.discord_community_host_not_ready)
+                : failure.getMessage();
+    }
+
     private void runAction(Action action) { runAction(action, null); }
 
     private void runAction(Action action, ActionSuccess success) {
         if (connection == null || !actionInFlight.compareAndSet(false, true)) return;
         executor.execute(() -> {
             String error = null;
-            try { action.run(); } catch (Exception failure) { error = failure.getMessage(); }
+            try { action.run(); } catch (Exception failure) { error = failureText(failure); }
             final String finalError = error;
             handler.post(() -> {
                 actionInFlight.set(false);
@@ -1135,7 +1171,6 @@ public final class DiscordOverlayController {
             iterator.next(); iterator.remove();
         }
     }
-    static String directMessageDraftAfterSendResult(String draft, boolean successful) { return successful ? "" : (draft == null ? "" : draft); }
     private static long safeLong(String value) { try { return Long.parseLong(value); } catch (RuntimeException ignored) { return 0; } }
     private void unavailable(int stringId) { Toast.makeText(activity, stringId, Toast.LENGTH_SHORT).show(); }
 
@@ -1147,7 +1182,7 @@ public final class DiscordOverlayController {
         dock.addView(line(connected ? "DISCORD  ·  " + voice.channelName : "DISCORD", 14, 0xFFB69CFF, true));
         if (!connected) { dock.addView(line(activity.getString(R.string.overlay_discord_disconnected), 13, 0xFFC5C8D3, false)); return; }
         int shown = 0;
-        for (DiscordGatewayClient.Participant participant : voice.participants) {
+        for (HostGatewayClient.DiscordParticipant participant : voice.participantList) {
             if (shown++ >= 6) break;
             dock.addView(line((participant.speaking ? "●  " : "   ") + participant.name + (participant.self ? "  ·  YOU" : ""),
                     13, participant.speaking ? 0xFF69F0AE : Color.WHITE, false));

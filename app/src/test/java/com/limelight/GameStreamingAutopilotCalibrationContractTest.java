@@ -66,11 +66,19 @@ public class GameStreamingAutopilotCalibrationContractTest {
         assertTrue(overlay.contains("SystemClock.uptimeMillis() < promptActionsAtMs"));
         assertTrue(result.contains("completed.adjustedSettings(result)"));
         assertTrue(result.contains("showPromptMidGame(new OverlayMenuView.Prompt("));
-        assertTrue(result.contains("setInputGrabState(false)"));
+        assertTrue(result.contains("promptOpen = true;"));
         assertTrue(result.contains("controllerHandler.releaseAllControllerInputsAndSuppress()"));
-        assertTrue(result.contains("setInputGrabState(promptRestoreGrab)"));
-        // Whether input reaches the host again is LaunchTransitionController's, as of now.
-        assertTrue(result.contains("setInputSuppressed(isTransitionInputBlocked())"));
+        // Whether input reaches the host again is LaunchTransitionController's, as of now,
+        // also for a prompt whose test or try ended meanwhile (Home, PiP): no early return
+        // leaves the pads suppressed or the pointer ungrabbed.
+        String answer = between(game, "private void answerPrompt(",
+                "private void finishAutopilotResult(");
+        SourceText.assertOrdered(answer, "promptOpen = false;",
+                "setInputSuppressed(isTransitionInputBlocked())", "updateInputGrab();",
+                "if (autopilotResultKey != null)");
+        assertFalse(answer.contains("return;"));
+        assertTrue(between(game, "private void updateInputGrab()",
+                "private final Runnable toggleGrab").contains("!promptOpen"));
         // Discarding (Back, or the menu closing unanswered) keeps nothing.
         assertTrue(finish.indexOf("OverlayMenuView.PROMPT_DISMISSED")
                 < finish.indexOf("AppPreferences.applyStreamSettings"));

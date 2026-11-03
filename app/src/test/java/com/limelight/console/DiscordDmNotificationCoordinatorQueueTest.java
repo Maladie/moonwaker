@@ -48,10 +48,10 @@ public class DiscordDmNotificationCoordinatorQueueTest {
         }
         emit(messageId++, 2, false, true, "offline", false,
                 DiscordSocialClient.MessageEvent.Type.CREATED);
-        coordinator.acceptForTest(messageId++, 0, 2, 1, true, "Ada", "avatar", "no self",
-                false, true, DiscordSocialClient.MessageEvent.Type.CREATED);
-        coordinator.acceptForTest(messageId, 1, 1, 2, true, "Me", "avatar", "outgoing",
-                false, true, DiscordSocialClient.MessageEvent.Type.CREATED);
+        coordinator.receive(messageId++, 0, 2, 1, true, "Ada", "avatar", "no self",
+                false, true, true, DiscordSocialClient.MessageEvent.Type.CREATED);
+        coordinator.receive(messageId, 1, 1, 2, true, "Me", "avatar", "outgoing",
+                false, true, true, DiscordSocialClient.MessageEvent.Type.CREATED);
 
         assertEquals(0, coordinator.queuedCountForTest());
         scheduler.runCurrent();
@@ -88,7 +88,7 @@ public class DiscordDmNotificationCoordinatorQueueTest {
     }
 
     @Test public void knownPeerWithoutDirectMessageScopeIsNotActionable() {
-        coordinator.acceptForTest(1, 1, 2, 1, true, "Ada", "avatar", "hello",
+        coordinator.receive(1, 1, 2, 1, true, "Ada", "avatar", "hello",
                 false, true, false, DiscordSocialClient.MessageEvent.Type.CREATED);
         scheduler.runCurrent();
 
@@ -225,11 +225,9 @@ public class DiscordDmNotificationCoordinatorQueueTest {
         assertEquals(0, coordinator.queuedCountForTest());
     }
 
-    @Test public void pipOauthScreenSaverAndBackgroundEachClearNotifications() {
+    @Test public void pipScreenSaverAndBackgroundEachClearNotifications() {
         assertGuardClears(() -> coordinator.setPictureInPicture(token, true));
         coordinator.setPictureInPicture(token, false);
-        assertGuardClears(() -> coordinator.setAuthorizationActive(token, true));
-        coordinator.setAuthorizationActive(token, false);
         assertGuardClears(() -> coordinator.setScreenSaverActive(token, true));
         coordinator.setScreenSaverActive(token, false);
         assertGuardClears(() -> coordinator.deactivateHost(token));
@@ -422,8 +420,8 @@ public class DiscordDmNotificationCoordinatorQueueTest {
     private void emit(long messageId, long peerId, boolean connected, boolean knownPeer,
                       String content, boolean neutral,
                       DiscordSocialClient.MessageEvent.Type type) {
-        coordinator.acceptForTest(messageId, 1, peerId, 1, connected, "Ada", "avatar",
-                content, neutral, knownPeer, type);
+        coordinator.receive(messageId, 1, peerId, 1, connected, "Ada", "avatar",
+                content, neutral, knownPeer, true, type);
     }
 
     private static final class FakeHost implements DiscordDmNotificationCoordinator.Host {

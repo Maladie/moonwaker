@@ -1,5 +1,6 @@
 package com.limelight.console;
 
+import com.limelight.gateway.GatewayTransport;
 import com.limelight.SourceText;
 import org.junit.Test;
 
@@ -31,7 +32,7 @@ public class ConsoleChildProfileUiContractTest {
                 "static HostGatewayClient.IntegrationProfile activeAuthorizedProfile(");
         String panel = source("src/main/java/com/limelight/console/ConsoleHostPanel.java");
         for (String action : new String[]{"WAKE", "DESKTOP", "CLOSE_SESSION", "HARD_TERMINATE",
-                "UNPAIR", "TEST_CONNECTION", "SLEEP"}) {
+                "UNPAIR", "SLEEP"}) {
             assertTrue(menu.contains("case " + action + ":"));
         }
         assertFalse(menu.contains("childProfile"));
@@ -191,17 +192,6 @@ public class ConsoleChildProfileUiContractTest {
                 Collections.singletonList(first), Collections.emptyList()));
     }
 
-    @Test public void childScheduleRejectsImpossibleWindowsAndLimits() {
-        assertTrue(ConsoleChildProfileEditor.validSchedule(780, 840, 60));
-        assertFalse(ConsoleChildProfileEditor.validSchedule(780, 840, 120));
-        assertFalse(ConsoleChildProfileEditor.validSchedule(900, 480, 0));
-        assertFalse(ConsoleChildProfileEditor.validSchedule(0, 1680, 60));
-        assertFalse(ConsoleChildProfileEditor.validSchedule(840, 840, 0));
-        assertFalse(ConsoleChildProfileEditor.validSchedule(0, 60, -1));
-        assertTrue(ConsoleChildProfileEditor.validSchedule(1439, 1440, 1));
-        assertTrue(ConsoleChildProfileEditor.validSchedule(0, 1440, 1440));
-    }
-
     @Test public void childDayKeepsItsLimitInsideTheWindow() {
         ConsoleChildProfileEditor.Day hour = new ConsoleChildProfileEditor.Day(
                 true, 960, 1140, 60 * 60);
@@ -214,8 +204,6 @@ public class ConsoleChildProfileUiContractTest {
         ConsoleChildProfileEditor.Day opened =
                 ConsoleChildProfileEditor.Day.disabled().withEnabled(true);
         assertTrue(opened.enabled && opened.unlimited());
-        assertTrue(ConsoleChildProfileEditor.validSchedule(opened.startMinute,
-                opened.endMinute, opened.limitMinutes()));
         assertEquals("19:05", ConsoleChildProfileEditor.clock(1145));
         assertEquals("24:00", ConsoleChildProfileEditor.clock(1440));
     }
@@ -242,14 +230,26 @@ public class ConsoleChildProfileUiContractTest {
         assertFalse(authorize.contains("consoleFeedback.showInput("));
     }
 
-    @Test public void onlyChildAuthorizationFailuresDropReusableLease() {
+    @Test public void onlyChildAuthorizationFailuresDropReusableLease() throws Exception {
         assertTrue(ConsoleActivity.isChildManagementAuthorizationFailure(
-                new HostGatewayClient.GatewayException("authorization_required", 403)));
+                new GatewayTransport.GatewayException(
+                        "child_management_authorization_required", 403, 0,
+                        new org.json.JSONObject()
+                                .put("error", "child_management_authorization_required")
+                                .put("reason", "child_management_authorization_required"))));
+        // R3-7: a revoked grant drops the lease too; only machine codes count.
         assertTrue(ConsoleActivity.isChildManagementAuthorizationFailure(
-                new HostGatewayClient.GatewayException(
-                        "A fresh child management session is required.", 403)));
+                new GatewayTransport.GatewayException(
+                        "child_management_not_authorized", 403, 0,
+                        new org.json.JSONObject()
+                                .put("error", "child_management_not_authorized")
+                                .put("reason", "child_management_not_authorized"))));
         assertFalse(ConsoleActivity.isChildManagementAuthorizationFailure(
-                new HostGatewayClient.GatewayException("revision_conflict", 409)));
+                new GatewayTransport.GatewayException("Child management not authorized", 403)));
+        assertFalse(ConsoleActivity.isChildManagementAuthorizationFailure(
+                new GatewayTransport.GatewayException("authorization_required", 409)));
+        assertFalse(ConsoleActivity.isChildManagementAuthorizationFailure(
+                new GatewayTransport.GatewayException("revision_conflict", 409)));
         assertFalse(ConsoleActivity.isChildManagementAuthorizationFailure(
                 new IOException("timeout")));
     }

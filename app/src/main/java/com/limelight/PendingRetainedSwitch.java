@@ -17,6 +17,7 @@ final class PendingRetainedSwitch {
     final String artwork;
     /** The user's Play on the Home (elapsedRealtime): the switch's cover counts from it. */
     final long coverStartedAtMillis;
+    /** The console's handoff id: the switch's failure is reported back with it (PlayQueue). */
     final long orchestrationId;
     /** How the switch ends the current game (the orchestrator decided before the attach). */
     final SessionOrchestrator.SwitchStop stop;
@@ -37,13 +38,6 @@ final class PendingRetainedSwitch {
         this.coverStartedAtMillis = coverStartedAtMillis;
         this.orchestrationId = orchestrationId;
         this.stop = stop;
-    }
-
-    /** The same switch after the user confirmed the replacement a refused freeze asked for. */
-    PendingRetainedSwitch stopping() {
-        return new PendingRetainedSwitch(hostId, executionProfileId, targetProfileId,
-                targetIsChild, appId, gameId, gameName, streamTarget, artwork,
-                coverStartedAtMillis, orchestrationId, SessionOrchestrator.SwitchStop.STOP);
     }
 
     static PendingRetainedSwitch from(Intent intent) {

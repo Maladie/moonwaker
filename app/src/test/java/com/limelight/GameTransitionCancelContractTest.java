@@ -32,15 +32,22 @@ public class GameTransitionCancelContractTest {
         assertTrue(confirmation.contains("() -> closeStreamWithPrivacy(true)"));
     }
 
-    /** A switch submitted from the stream's Home that failed tells the user why on that Home. */
-    @Test public void failedPendingSwitchShowsItsReason() throws IOException {
+    /**
+     * #5: a switch handed to this stream that failed (or could not start) goes back to its
+     * request, whose table decides on the Home it opens: no toast, no decision here.
+     */
+    @Test public void failedPendingSwitchIsHandedBackToItsRequest() throws IOException {
         String text = source();
         String submit = text.substring(text.indexOf("private void submitPendingRetainedSwitch()"),
                 text.indexOf("private void logLaunchMilestone("));
-        String failed = submit.substring(submit.indexOf("SwitchOutcome.FAILED"),
-                submit.indexOf("returnFromStreamHome();"));
-        assertTrue(failed.contains("SessionFailure.ofSwitchFailure(error).details"));
-        assertTrue(failed.contains(".show()"));
+        assertOrdered(submit, "if (outcome == SessionModel.SwitchOutcome.FAILED) {",
+                "handBackFailedSwitch(pending, error);", "return;", "returnFromStreamHome();",
+                "handBackFailedSwitch(pending, \"retained_switch_not_eligible\");");
+        assertFalse(submit.contains("Toast."));
+        assertFalse(submit.contains("SessionFailure"));
+        String handBack = submit.substring(submit.indexOf("private void handBackFailedSwitch("));
+        assertOrdered(handBack, "PlayQueue.of(this).switchFailed(pending.orchestrationId, error);",
+                "if (!streamHomeVisible && !isFinishing() && !isDestroyed()) showConsoleHome();");
     }
 
     @Test public void retainedStreamDisconnectDoesNotStopTheProviderGame() throws IOException {
@@ -387,8 +394,8 @@ public class GameTransitionCancelContractTest {
         String request = "private void requestTerminateSession(ComputerDetails host, String";
         assertFalse(console.substring(console.indexOf(request), console.indexOf(
                 "sessionModel.dispatch(", console.indexOf(request))).contains("showSidePanelBusy("));
-        String cancel = console.substring(console.indexOf("@Override public void onCancel()"),
-                console.indexOf("@Override public void onRetry()"));
+        String cancel = console.substring(console.indexOf("private void cancelLoading()"),
+                console.indexOf("private static final String LOADING_COVER_FENCE"));
         assertTrue(cancel.contains("onRequestedStreamClosed();"));
         assertTrue(cancel.contains("launchedExtra(EXTRA_RETAINED_STREAM_SESSION_ID)"));
         String terminated = text.substring(text.indexOf(
@@ -635,15 +642,17 @@ public class GameTransitionCancelContractTest {
         assertFalse(rejected.contains("terminateWholeSessionVerified("));
         assertFalse(rejected.contains("TerminationUnconfirmed"));
         assertOrdered(rejected, "cleanupUnrevealedProviderLaunch(",
-                "if (!displayedFailureDialog) {");
-        int dialog = rejected.indexOf("if (!displayedFailureDialog) {");
-        // The screen stays until the user answers it: both dialogs finish Game themselves.
-        String shown = rejected.substring(dialog);
-        assertTrue(shown.contains("if (rejection != null && rejection.offersHardTerminate()) {"));
-        assertTrue(shown.contains("Dialog.displayDialog(Game.this, title, dialogText, true);"));
-        // A host's refusal is never titled as a connection error.
-        assertTrue(shown.contains("? R.string.control_rejected_title : R.string.conn_error_title"));
-        assertFalse(shown.contains("finish();"));
+                "if (failureHandled || isFinishing() || isDestroyed()) return;");
+        int handled = rejected.indexOf("if (failureHandled || isFinishing() || isDestroyed())");
+        // The cover's error stays until the user answers it (Retry or Cancel): it names the
+        // host's refusal, and the hard close is one optional step that never finishes Game.
+        String shown = rejected.substring(handled);
+        assertOrdered(shown, "getString(rejection.details)",
+                "transitionController.error(transitionSpec.id, text);",
+                "if (rejection != null && rejection.offersHardTerminate()) {",
+                "R.string.control_rejected_title");
+        assertFalse(shown.contains("Dialog.displayDialog("));
+        assertFalse(shown.contains("finish"));
 
         // What each refused acquire shows: only an uncertain host operation offers the hard
         // close; a running one, a stream conflict and a child without a session do not.
@@ -874,7 +883,7 @@ public class GameTransitionCancelContractTest {
         String eligibility = text.substring(text.indexOf("private boolean canEndManagedGame()"),
                 text.indexOf("private void confirmEndManagedGame()"));
         String stop = text.substring(text.indexOf("private void endManagedGameKeepingStream()"),
-                text.indexOf("private void clearResumedSuspendedSession()"));
+                text.indexOf("private void suspendSessionAndSleep()"));
 
         assertTrue(eligibility.contains("isTransportConnected() && streamEverRevealed"));
         assertTrue(eligibility.contains("EXTRA_NEUTRAL_STREAM_TARGET"));
@@ -911,7 +920,7 @@ public class GameTransitionCancelContractTest {
     @Test public void failedEndGameOrSuspendRestoresThePresentationBeforeIt() throws IOException {
         String text = source();
         String stop = text.substring(text.indexOf("private void endManagedGameKeepingStream()"),
-                text.indexOf("private void clearResumedSuspendedSession()"));
+                text.indexOf("private void suspendSessionAndSleep()"));
         String failure = stop.substring(stop.indexOf("catch (IOException | RuntimeException error)"));
         String suspend = text.substring(text.indexOf("private void suspendSessionAndSleep()"),
                 text.indexOf("private void applyRuntimeStreamSettings("));
@@ -1046,7 +1055,7 @@ public class GameTransitionCancelContractTest {
         String stopped = text.substring(text.indexOf("private void afterRetainedGameStopped("),
                 text.indexOf("private void beginNewRetainedGameAttempt("));
         String exited = text.substring(text.indexOf("public void onProviderGameStopped("),
-                text.indexOf("hasProviderGameTransition() && !providerStopInFlight"));
+                text.indexOf("if (hasProviderGameTransition()\n"));
         String frame = text.substring(text.indexOf("private void onFirstVideoFrameRendered()"),
                 text.indexOf("private void onTransitionChanged("));
         // Back from the Home: the controller's Home-return cover comes off (on a fresh frame).
@@ -1082,7 +1091,7 @@ public class GameTransitionCancelContractTest {
     @Test public void refusedEndGameNeitherCoversNorStops() throws IOException {
         String text = source();
         String stop = text.substring(text.indexOf("private void endManagedGameKeepingStream()"),
-                text.indexOf("private void clearResumedSuspendedSession()"));
+                text.indexOf("private void suspendSessionAndSleep()"));
         String begin = stop.substring(0, stop.indexOf("new Thread("));
         assertOrdered(begin,
                 "if (!transitionController.gameStopping(", ")) return;", "stopChildMonitoring();",
@@ -1098,7 +1107,7 @@ public class GameTransitionCancelContractTest {
             throws IOException {
         String text = source();
         String stop = text.substring(text.indexOf("private void endManagedGameKeepingStream()"),
-                text.indexOf("private void clearResumedSuspendedSession()"));
+                text.indexOf("private void suspendSessionAndSleep()"));
         String failure = stop.substring(stop.indexOf("catch (IOException | RuntimeException error)"));
         assertOrdered(failure, "if (current && providerStopConfirmed) {",
                 "providerEndGameInFlight = false;", "retainNeutralStreamAfterNaturalGameStop(",
@@ -1455,9 +1464,8 @@ public class GameTransitionCancelContractTest {
         String text = SourceText.read(source);
         String failed = text.substring(text.indexOf("public void stageFailed("),
                 text.indexOf("public void connectionTerminated("));
-        int transitionStart = failed.indexOf("if (transitionController != null)");
-        String transitionError = failed.substring(transitionStart,
-                failed.indexOf("} else {", transitionStart));
+        String transitionError = failed.substring(failed.indexOf("String text = "),
+                failed.indexOf("transitionController.error(transitionSpec.id, text);"));
 
         assertTrue(transitionError.contains("consoleLoadingView.friendlyStage(stage)"));
         assertFalse(transitionError.contains("+ \" \" + stage"));
@@ -1484,7 +1492,7 @@ public class GameTransitionCancelContractTest {
         String reveal = game.substring(game.indexOf("private void revealTransitionNow()"),
                 game.indexOf("private void cancelPendingAutomaticReveal()"));
 
-        assertTrue(connected.contains("if (transitionController == null) showOverlayMenuHint()"));
+        assertFalse(connected.contains("showOverlayMenuHint()"));
         assertTrue(reveal.indexOf("transitionController.revealCompleted")
                 < reveal.indexOf("showOverlayMenuHint()"));
     }
@@ -1604,8 +1612,8 @@ public class GameTransitionCancelContractTest {
         assertTrue(render.contains("offersPreviousGameStop(isChildSession())"));
         assertTrue(render.contains("R.string.transition_previous_game_running_title_named"));
         assertTrue(text.contains("&& SessionOrchestrator.offersPreviousGameStop(\n"
-                + "                                            isChildSession())) {\n"
-                + "                                transitionCoordinator.stopPreviousGame();"));
+                + "                                    isChildSession())) {\n"
+                + "                        transitionCoordinator.stopPreviousGame();"));
     }
 
     @Test public void failedStartObservationSurvivesRecreation() throws IOException {
@@ -1672,8 +1680,8 @@ public class GameTransitionCancelContractTest {
                 game.indexOf("private SessionOrchestrator.ActionKind runStreamIntent("),
                 game.indexOf("private void endCancelledTransition("));
         // A repeated Retry of the same transition is decided by the table alone.
-        assertTrue(game.contains("state.retryStarted = transitionSpec != null\n"
-                + "                && transitionSpec.id.equals(retryTransitionId);"));
+        assertTrue(game.contains(
+                "state.retryStarted = transitionSpec.id.equals(retryTransitionId);"));
         assertTrue(cancel.contains("retryTransitionId = transitionSpec.id;"));
         assertFalse(cancel.contains("UserIntent.CANCEL;"));
         // An observation retry that could not begin leaves the offered Retry usable.
@@ -1712,8 +1720,8 @@ public class GameTransitionCancelContractTest {
                 "runtime.attachDecoder(");
         assertTrue(text.split("decoderDetachedBySurfaceLoss = false", -1).length - 1 >= 6);
         assertTrue(text.contains("public boolean canPark()"));
-        assertOrdered(restore, "if (!streamHomeVisible)",
-                "setInputGrabState(true)");
+        assertOrdered(restore, "if (!streamHomeVisible && controllerHandler != null)",
+                "updateInputGrab();");
         assertTrue(destroyed.contains("SessionEvent.ParkRequested.byOwner(runtime,"));
         assertTrue(destroyed.contains("if (decoderRenderer != null) decoderRenderer.prepareForStop()"));
         assertTrue(restore.contains("new SessionEvent.PresentationRestored(runtime, streamSessionId)"));

@@ -25,13 +25,27 @@ public class SessionFailureControlRejectionTest {
                 SessionFailure.fromControlRejection("child_game_not_entitled"));
         assertEquals(R.string.control_child_game_not_entitled,
                 SessionFailure.CONTROL_CHILD_GAME_NOT_ENTITLED.details);
+        // S1-X4: refusals whose remedy is "close it" or "try again" name it, never generic.
+        for (String reason : new String[] {"stream_owner_mismatch", "unmanaged_stream"}) {
+            assertEquals(reason, SessionFailure.CONTROL_STREAM_CONFLICT,
+                    SessionFailure.fromControlRejection(reason));
+        }
+        for (String reason : new String[] {"child_cleanup_required",
+                "child_cleanup_in_progress"}) {
+            assertEquals(reason, SessionFailure.CONTROL_PREVIOUS_GAME_UNCONFIRMED,
+                    SessionFailure.fromControlRejection(reason));
+        }
+        for (String reason : new String[] {"operation_id_reused",
+                "stream_generation_superseded", "managed_stream_unavailable",
+                "child_session_unmanaged"}) {
+            assertEquals(reason, SessionFailure.CONTROL_STATE_CHANGED,
+                    SessionFailure.fromControlRejection(reason));
+        }
     }
 
     @Test public void unknownOrMissingReasonIsTheGenericRejectionNotErrorZero() {
         assertEquals(SessionFailure.CONTROL_REJECTED, SessionFailure.fromControlRejection(null));
         assertEquals(SessionFailure.CONTROL_REJECTED, SessionFailure.fromControlRejection(""));
-        assertEquals(SessionFailure.CONTROL_REJECTED,
-                SessionFailure.fromControlRejection("unmanaged_stream"));
         // Another owner's operation that is simply running: try again, no hard close offered.
         assertEquals(SessionFailure.CONTROL_REJECTED,
                 SessionFailure.fromControlRejection("operation_in_progress"));

@@ -34,8 +34,8 @@
     <string name="first_run_install_subtitle">Geh jetzt an den Computer. Der Fernseher wartet hier und findet ihn selbst. Scanne den Code mit dem Handy oder gib die Adresse im Browser am PC ein.</string>
     <string name="first_run_install_step1">Installer herunterladen und starten</string>
     <string name="first_run_install_step1_detail">Windows 10 oder 11, Konto mit Administratorrechten</string>
-    <string name="first_run_install_step2">Vibepollo installieren</string>
-    <string name="first_run_install_step2_detail">Der Host-Installer führt dich durch</string>
+    <string name="first_run_install_step2">In Host Control einrichten</string>
+    <string name="first_run_install_step2_detail">Öffnet sich nach der Installation: Profil, Spielebibliotheken und dieser Fernseher</string>
     <string name="first_run_install_step3">Achte darauf, dass der Computer im selben Netzwerk wie der Fernseher ist</string>
     <string name="first_run_install_step3_detail">Computer eingeschaltet lassen</string>
     <string name="first_run_searching">Suche deinen Computer im Netzwerk…</string>
@@ -89,9 +89,22 @@
     <string name="first_run_paired_title">Gekoppelt mit %1$s</string>
     <string name="first_run_paired_subtitle">Hier ist nichts zu tun: Dieser Fernseher spielt schon auf diesem Computer.</string>
     <string name="first_run_paired_body">Dieser Fernseher ist mit %1$s gekoppelt.</string>
+    <string name="first_run_name_open">Computer benennen</string>
+    <string name="first_run_name_title">Diesen Computer benennen</string>
+    <string name="first_run_name_subtitle">Jeder Fernseher und jede Moonlight-App zeigt diesen Namen.</string>
+    <string name="first_run_name_hint">Zum Beispiel „Wohnzimmer-PC“. Aktueller Name: %1$s.</string>
+    <string name="first_run_name_save">Namen speichern</string>
+    <string name="first_run_name_saving">Wird gespeichert…</string>
+    <string name="first_run_name_invalid">Gib einen Namen mit bis zu 32 Zeichen ohne Sonderzeichen ein.</string>
+    <string name="first_run_name_failed">Der Computer hat den Namen nicht gespeichert. Versuche es erneut oder überspringe.</string>
+    <string name="first_run_name_saved">Name gespeichert. Andere Fernseher zeigen ihn nach der nächsten Aktualisierung.</string>
     <string name="first_run_code_failed_title">Der Code hat nicht funktioniert</string>
     <string name="first_run_code_new_body">Erzeuge am PC einen neuen Code: Host-Steuerung › „Neuen TV koppeln“. Ein Code gilt einmal und 10 Minuten lang.</string>
     <string name="first_run_enter_new_code">Neuen Code eingeben</string>
+    <string name="first_run_code_check_body">Prüfe die sechs Ziffern am PC in der Host-Steuerung › „Neuen TV koppeln“ und gib sie erneut ein.</string>
+    <string name="first_run_enter_code_again">Code erneut eingeben</string>
+    <string name="first_run_code_rate_limited_title">Zu viele Versuche</string>
+    <string name="first_run_code_rate_limited_body">Warte eine Minute und versuche es erneut: Derselbe Code gilt weiterhin.</string>
     <string name="first_run_unreachable_title">Keine Verbindung zu %1$s</string>
     <string name="first_run_unreachable_body">Prüfe, ob der Computer eingeschaltet und im selben Netzwerk wie der Fernseher ist, und versuche es erneut.</string>
     <string name="first_run_vibepollo_failed_title">Vibepollo antwortet nicht auf dem Computer</string>
@@ -105,7 +118,8 @@
     <string name="first_run_profile_adult">Windows-Konto</string>
     <string name="first_run_profile_child">Kinderprofil</string>
     <string name="first_run_profile_add">Fehlst du?</string>
-    <string name="first_run_profile_add_detail">Profil hinzufügen</string>
+    <string name="first_run_profile_add_detail">Am PC hinzufügen</string>
+    <string name="first_run_profile_add_on_pc">Neue Profile fügst du am PC hinzu: Host Control › Profile. Diese Liste aktualisiert sich selbst.</string>
     <string name="first_run_profile_refresh">Die Liste aktualisiert sich, wenn du in der Host-Steuerung › Profile ein Profil hinzufügst.</string>
     <string name="first_run_profile_none">Auf dem PC gibt es noch kein Profil. Die Liste aktualisiert sich selbst.</string>
     <string name="first_run_profile_adult_needed">Hier gibt es nur Kinderprofile: Ein Elternteil wählt oder ergänzt ein Erwachsenenprofil.</string>
@@ -126,28 +140,28 @@
         <item>Steam und Epic sichtbar</item>
         <item>Erforderlich · nicht verfügbar</item>
         <item>Deine ganze Steam-Bibliothek</item>
-        <item>Kein Steam-Web-API-Schlüssel: nur installierte Spiele sichtbar</item>
+        <item>Steam nicht verbunden: nur installierte Spiele sichtbar</item>
         <item>Angemeldet</item>
         <item>Optional · nicht angemeldet</item>
         <item>Eingerichtet</item>
-        <item>Empfohlen · nicht eingerichtet</item>
+        <item>Optional · wird in Host Control am PC aktiviert</item>
         <item>Geprüft: funktioniert</item>
         <item>Optional · nicht geprüft</item>
     </string-array>
     <string-array name="first_run_check_fixes">
         <item>Starte Vibepollo am PC. Fehlt es weiter, öffne die Host-Steuerung und nutze „Reparieren“.</item>
         <item>Die Spielebibliothek kommt vom Host. Öffne die Host-Steuerung und nutze „Reparieren“.</item>
-        <item>Ohne Schlüssel siehst du nur installierte Spiele, mit Schlüssel deine ganze Steam-Bibliothek.\n\n1. Code mit dem Handy scannen, Schlüssel kopieren.\n2. Am PC: Host-Steuerung › Integrationen › Steam.\n3. Schlüssel einfügen und speichern. Die Zeile wird grün.</item>
+        <item>Ohne Steam siehst du nur installierte Spiele, verbunden deine ganze Steam-Bibliothek.\n\n1. Am PC: Host-Steuerung › dein Profil › Steam › Verbinden.\n2. Mit deinem Steam-Konto anmelden und, falls gefragt, mit Steam Guard bestätigen.\n3. Die Zeile wird grün.\n\nFortgeschritten: Ein Steam-Web-API-Schlüssel geht auch.</item>
         <item>Am PC: Host-Steuerung › Integrationen › Epic › Anmelden.</item>
         <item>Damit sich ein gesperrter PC selbst anmeldet: am PC Host-Steuerung › Fernanmeldung. Das Windows-Passwort bleibt auf dem PC.</item>
-        <item>OK versetzt den PC in den Ruhezustand und weckt ihn per Wake-on-LAN. Wacht er nicht auf, aktiviere Wake-on-LAN im BIOS und beim Netzwerkadapter.</item>
+        <item>Optional: Die Einrichtung ist auch ohne ihn abgeschlossen. Der Test versetzt den PC in den Ruhezustand und weckt ihn vom Fernseher aus – speichere vorher deine Arbeit am PC. Starte ihn unten mit „Wecktest starten“ (oder OK auf dieser Zeile). Wacht er nicht auf, aktiviere Wake-on-LAN im BIOS und beim Netzwerkadapter.</item>
     </string-array>
-    <string name="first_run_check_unknown">Der Host hat noch nicht geantwortet</string>
-    <string name="first_run_steam_key_caption">Den Schlüssel gibst du nie am Fernseher ein.</string>
+    <string name="first_run_check_unknown">Wird geprüft…</string>
     <string name="first_run_epic_signed_in">Angemeldet als %1$s.</string>
     <string name="first_run_wake_test_title">Wecktest</string>
     <string name="first_run_wake_test_confirm">%1$s geht jetzt in den Ruhezustand und MoonWaker weckt ihn wieder. Speichere vorher deine Arbeit am PC.</string>
     <string name="first_run_wake_test_start">Schlafen und wecken</string>
+    <string name="first_run_wake_test_run">Wecktest starten</string>
     <string name="first_run_wake_test_screen_title">Wecktest des Computers</string>
     <string name="first_run_wake_test_screen_subtitle">Ich versetze den Computer in den Ruhezustand und wecke ihn vom Fernseher.</string>
     <string name="first_run_wake_sleeping">Versetze den PC in den Ruhezustand…</string>
@@ -187,8 +201,10 @@
     <string name="first_run_family_pin_for">PIN für %1$s</string>
     <string name="first_run_family_pin_detail">Niemand sonst kommt in dein Profil.</string>
     <string name="first_run_family_pin_done">PIN ist gesetzt</string>
-    <string name="first_run_family_pin_done_detail">Ändern kannst du sie in den Profileinstellungen.</string>
+    <string name="first_run_family_pin_done_detail">Ändern kannst du sie am PC: Host Control, in deinem Profil.</string>
     <string name="first_run_family_child">Kind hinzufügen</string>
+    <string name="first_run_family_child_on_pc">Kinder fügst du am PC hinzu: Host Control, in deinem Profil. Dort kannst du auch diesem Fernseher erlauben, Kinder zu verwalten.</string>
+    <string name="first_run_family_child_later">Der Elternbereich öffnet sich am Ende der Einrichtung. Dort fügst du das Kind hinzu.</string>
     <string name="first_run_family_child_detail">Eigene Bibliothek und Zeitlimits.</string>
     <string name="first_run_family_skip_detail">Auf diesem Fernseher spielen nur Erwachsene.</string>
 
@@ -237,6 +253,7 @@
 
     <string name="first_run_settings_entry">Ersteinrichtung starten</string>
     <string name="first_run_settings_entry_detail">Einrichtung ansehen oder wiederholen; zeigt, was eingestellt ist, und ändert selbst nichts</string>
+    <string name="first_run_settings_from_start">Von Anfang an</string>
     <string name="first_run_todo_row">Noch zu erledigen: %1$s</string>
     <string name="first_run_todo_status">Einrichtung abschließen</string>
     <string name="first_run_finish_setup">Einrichtung abschließen</string>

@@ -105,18 +105,6 @@ public class CustomCommandsManager {
     }
 
     /**
-     * Get a custom command by ID
-     */
-    public CustomCommand getCommandById(String id) {
-        for (CustomCommand command : customCommands) {
-            if (command.getId().equals(id)) {
-                return command;
-            }
-        }
-        return null;
-    }
-
-    /**
      * Move a command from one position to another (for reordering)
      */
     public void moveCommand(int fromPosition, int toPosition) {
@@ -128,20 +116,5 @@ public class CustomCommandsManager {
         CustomCommand command = customCommands.remove(fromPosition);
         customCommands.add(toPosition, command);
         saveCommands();
-    }
-
-    /**
-     * Clear all custom commands
-     */
-    public void clearAllCommands() {
-        customCommands.clear();
-        saveCommands();
-    }
-
-    /**
-     * Reload commands from SharedPreferences (useful after external changes)
-     */
-    public void reload() {
-        loadCommands();
     }
 }

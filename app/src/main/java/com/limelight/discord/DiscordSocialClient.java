@@ -25,6 +25,7 @@ import com.google.zxing.BarcodeFormat;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
+import com.limelight.R;
 import com.limelight.gateway.GatewayConnection;
 import com.limelight.gateway.GatewayTransport;
 
@@ -60,7 +61,7 @@ public final class DiscordSocialClient {
     private static final Object messageLock = new Object();
     private static final Object messageObserverLock = new Object();
     private static final AtomicLong nextDirectMessageRequestId = new AtomicLong();
-    private static final Snapshot EMPTY = new Snapshot(0, "Not connected", false, false,
+    private static final Snapshot EMPTY = new Snapshot(0, State.CHECKING, false, false,
             "", "", "", Collections.emptyList());
 
     private static Handler handler;
@@ -125,7 +126,7 @@ public final class DiscordSocialClient {
             messageChannels.clear();
         }
         dismissDeviceDialog();
-        replaceSnapshot("Not connected", false, false, "", "", Collections.emptyList());
+        replaceSnapshot(State.CHECKING, false, false, "", "", Collections.emptyList());
     }
 
     private static boolean sameProfile(GatewayConnection a, GatewayConnection b) {
@@ -150,7 +151,7 @@ public final class DiscordSocialClient {
             Activity target = activityReference.get();
             if (target != null) target.runOnUiThread(() ->
                     showDeviceDialog(activityReference, current, url, userCode));
-            setStatus("Awaiting Discord approval");
+            setState(State.AWAITING_APPROVAL);
         });
     }
 
@@ -161,7 +162,7 @@ public final class DiscordSocialClient {
         if (wasActive) {
             post((gateway, current) -> TRANSPORT.postJson(gateway,
                     ACTION_PATH + "authorize/cancel", new JSONObject(), READ_TIMEOUT_MS));
-            setStatus("Authorization canceled");
+            setState(State.NOT_LINKED);
         } else {
             notifyCurrentSocialState();
         }
@@ -171,7 +172,7 @@ public final class DiscordSocialClient {
     public static void unlink() {
         cancelAuthorization();
         linked = false;
-        replaceSnapshot("Discord authorization required", false, true, "", "",
+        replaceSnapshot(State.NOT_LINKED, false, true, "", "",
                 Collections.emptyList());
         post((gateway, current) -> TRANSPORT.postJson(gateway, ACTION_PATH + "unlink",
                 new JSONObject(), READ_TIMEOUT_MS));
@@ -180,17 +181,6 @@ public final class DiscordSocialClient {
     /** Returns the last immutable state. It never does I/O. */
     public static Snapshot getSnapshot() {
         return snapshot;
-    }
-
-    public static boolean canRetry(String status) {
-        return status.startsWith("Authorization canceled")
-                || status.startsWith("Authorization denied")
-                || status.startsWith("Discord code expired")
-                || status.startsWith("Unable to ");
-    }
-
-    public static boolean canRetry(Snapshot snapshot) {
-        return snapshot.authorizationRequired || canRetry(snapshot.status);
     }
 
     public static boolean canUseDirectMessages() {
@@ -362,14 +352,14 @@ public final class DiscordSocialClient {
             target = handler;
         }
         if (gateway == null || target == null) {
-            setStatus("Unable to reach the host");
+            setState(State.UNREACHABLE);
             return;
         }
         target.post(() -> {
             try {
                 call.run(gateway, current);
             } catch (Exception ignored) {
-                if (isCurrent(current)) setStatus("Unable to reach the host");
+                if (isCurrent(current)) setState(State.UNREACHABLE);
             }
         });
     }
@@ -404,7 +394,7 @@ public final class DiscordSocialClient {
                     READ_TIMEOUT_MS);
             apply(current, state);
         } catch (Exception ignored) {
-            if (isCurrent(current)) setStatus("Unable to reach the host");
+            if (isCurrent(current)) setState(State.UNREACHABLE);
         }
         synchronized (stateLock) {
             if (current == generation) handler.postDelayed(() -> pollLoop(current), POLL_MS);
@@ -521,16 +511,16 @@ public final class DiscordSocialClient {
         }
     }
 
-    private static void setStatus(String status) {
+    private static void setState(State state) {
         Snapshot current = snapshot;
-        replaceSnapshot(status, current.connected, current.authorizationRequired,
+        replaceSnapshot(state, current.connected, current.authorizationRequired,
                 current.userId, current.displayName, current.friendDetails);
     }
 
-    private static void replaceSnapshot(String status, boolean connected, boolean authorizationRequired,
+    private static void replaceSnapshot(State state, boolean connected, boolean authorizationRequired,
                                         String userId, String displayName, List<Friend> friends) {
         Snapshot previous = snapshot;
-        publishSnapshot(new Snapshot(previous.revision + 1, status, connected, authorizationRequired,
+        publishSnapshot(new Snapshot(previous.revision + 1, state, connected, authorizationRequired,
                 userId, displayName, userId.equals(previous.userId) ? previous.avatarUrl : "", friends));
     }
 
@@ -561,15 +551,16 @@ public final class DiscordSocialClient {
         background.setCornerRadius(dp(activity, 22));
         background.setStroke(dp(activity, 1), 0x99768B99);
         card.setBackground(background);
-        card.addView(label(activity, "Połącz Discord", 25, Color.WHITE, true), match());
-        TextView help = label(activity, "Zeskanuj kod QR telefonem i potwierdź w Discordzie.",
+        card.addView(label(activity, activity.getString(R.string.discord_social_connect_action),
+                25, Color.WHITE, true), match());
+        TextView help = label(activity, activity.getString(R.string.discord_social_device_help),
                 15, 0xFFC4CED5, false);
         LinearLayout.LayoutParams helpParams = match();
         helpParams.topMargin = dp(activity, 8);
         card.addView(help, helpParams);
         ImageView qr = new ImageView(activity);
         qr.setImageBitmap(qrCode(verificationUrl, dp(activity, 240)));
-        qr.setContentDescription("Kod QR Discord");
+        qr.setContentDescription(activity.getString(R.string.discord_social_device_qr));
         LinearLayout.LayoutParams qrParams = new LinearLayout.LayoutParams(dp(activity, 240), dp(activity, 240));
         qrParams.topMargin = dp(activity, 18);
         card.addView(qr, qrParams);
@@ -579,12 +570,14 @@ public final class DiscordSocialClient {
         LinearLayout.LayoutParams codeParams = match();
         codeParams.topMargin = dp(activity, 12);
         card.addView(code, codeParams);
-        TextView fallback = label(activity, "Lub wejdź na discord.com/activate", 14, 0xFFC4CED5, false);
+        TextView fallback = label(activity,
+                activity.getString(R.string.discord_social_device_fallback), 14, 0xFFC4CED5, false);
         fallback.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams fallbackParams = match();
         fallbackParams.topMargin = dp(activity, 6);
         card.addView(fallback, fallbackParams);
-        TextView cancel = label(activity, "Anuluj", 15, Color.WHITE, true);
+        TextView cancel = label(activity, activity.getString(R.string.console_cancel),
+                15, Color.WHITE, true);
         cancel.setGravity(Gravity.CENTER);
         cancel.setFocusable(true);
         cancel.setClickable(true);
@@ -801,9 +794,24 @@ public final class DiscordSocialClient {
         }
     }
 
+    /** Where the host profile's Discord link stands, as this TV last heard it. */
+    public enum State {
+        /** The host has not answered yet. */
+        CHECKING,
+        /** The host does not run Discord friends and messages. */
+        UNAVAILABLE,
+        /** The host could not be reached. */
+        UNREACHABLE,
+        /** The host waits for the phone to approve its code. */
+        AWAITING_APPROVAL,
+        /** Not linked: never, unlinked, or the last code was cancelled, denied or expired. */
+        NOT_LINKED,
+        LINKED
+    }
+
     public static final class Snapshot {
         public final long revision;
-        public final String status;
+        public final State state;
         public final boolean connected;
         public final boolean authorizationRequired;
         public final String userId;
@@ -813,10 +821,10 @@ public final class DiscordSocialClient {
         /** Friend names, for the compact panel. */
         public final List<String> friends;
 
-        Snapshot(long revision, String status, boolean connected, boolean authorizationRequired,
+        Snapshot(long revision, State state, boolean connected, boolean authorizationRequired,
                  String userId, String displayName, String avatarUrl, List<Friend> friendDetails) {
             this.revision = revision;
-            this.status = status;
+            this.state = state;
             this.connected = connected;
             this.authorizationRequired = authorizationRequired;
             this.userId = userId;
@@ -831,19 +839,14 @@ public final class DiscordSocialClient {
         /** The Gateway's {@code /discord/social} answer; unknown friend groups are skipped. */
         static Snapshot fromGateway(JSONObject state, long revision) {
             if (!state.optBoolean("available")) {
-                return new Snapshot(revision, "Unavailable on this host", false, false,
+                return new Snapshot(revision, State.UNAVAILABLE, false, false,
                         "", "", "", Collections.emptyList());
             }
             JSONObject authorization = state.optJSONObject("authorization");
             boolean active = authorization != null && authorization.optBoolean("active");
-            String flow = authorization == null ? "" : authorization.optString("status");
             boolean linked = state.optBoolean("linked");
-            String status = active ? "Awaiting Discord approval"
-                    : linked ? state.optString("status", "Connecting")
-                    : "denied".equals(flow) ? "Authorization denied"
-                    : "expired".equals(flow) ? "Discord code expired"
-                    : "failed".equals(flow) ? "Unable to contact Discord"
-                    : "Discord authorization required";
+            State linkState = active ? State.AWAITING_APPROVAL
+                    : linked ? State.LINKED : State.NOT_LINKED;
             JSONObject user = state.optJSONObject("user");
             List<Friend> friends = new ArrayList<>();
             JSONArray records = state.optJSONArray("friends");
@@ -858,14 +861,14 @@ public final class DiscordSocialClient {
                     // A group this TV does not know is not shown.
                 }
             }
-            return new Snapshot(revision, status, linked && state.optBoolean("connected"),
+            return new Snapshot(revision, linkState, linked && state.optBoolean("connected"),
                     !linked && !active, user == null ? "" : user.optString("id"),
                     user == null ? "" : user.optString("name"),
                     user == null ? "" : user.optString("avatar"), friends);
         }
 
         boolean sameData(Snapshot other) {
-            return status.equals(other.status) && connected == other.connected
+            return state == other.state && connected == other.connected
                     && authorizationRequired == other.authorizationRequired && userId.equals(other.userId)
                     && displayName.equals(other.displayName) && avatarUrl.equals(other.avatarUrl)
                     && friendDetails.equals(other.friendDetails);

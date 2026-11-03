@@ -34,8 +34,8 @@
     <string name="first_run_install_subtitle">Podejdź do komputera. Telewizor poczeka tutaj i sam go znajdzie. Zeskanuj kod telefonem albo wpisz adres w przeglądarce na PC.</string>
     <string name="first_run_install_step1">Pobierz i uruchom instalator</string>
     <string name="first_run_install_step1_detail">Windows 10 lub 11, konto z prawami administratora</string>
-    <string name="first_run_install_step2">Zainstaluj Vibepollo</string>
-    <string name="first_run_install_step2_detail">Instalator hosta poprowadzi Cię przez to</string>
+    <string name="first_run_install_step2">Skonfiguruj w Host Control</string>
+    <string name="first_run_install_step2_detail">Otworzy się sama po instalacji: profil, biblioteki gier i ten telewizor</string>
     <string name="first_run_install_step3">Upewnij się, że komputer jest w tej samej sieci co telewizor</string>
     <string name="first_run_install_step3_detail">Pozostaw komputer włączony</string>
     <string name="first_run_searching">Szukam komputera w sieci…</string>
@@ -89,9 +89,22 @@
     <string name="first_run_paired_title">Sparowano z %1$s</string>
     <string name="first_run_paired_subtitle">Nic tu do zrobienia: ten telewizor już gra na tym komputerze.</string>
     <string name="first_run_paired_body">Ten telewizor jest sparowany z komputerem %1$s.</string>
+    <string name="first_run_name_open">Nazwij komputer</string>
+    <string name="first_run_name_title">Nazwij ten komputer</string>
+    <string name="first_run_name_subtitle">Tę nazwę pokaże każdy telewizor i aplikacja Moonlight.</string>
+    <string name="first_run_name_hint">Na przykład „Salon PC”. Obecna nazwa: %1$s.</string>
+    <string name="first_run_name_save">Zapisz nazwę</string>
+    <string name="first_run_name_saving">Zapisuję…</string>
+    <string name="first_run_name_invalid">Wpisz nazwę do 32 znaków, bez znaków specjalnych.</string>
+    <string name="first_run_name_failed">Komputer nie zapisał nazwy. Spróbuj ponownie albo pomiń.</string>
+    <string name="first_run_name_saved">Nazwa zapisana. Inne telewizory pokażą ją po odświeżeniu.</string>
     <string name="first_run_code_failed_title">Kod nie zadziałał</string>
     <string name="first_run_code_new_body">Wygeneruj nowy kod na PC: Host Control › „Sparuj nowy TV”. Kod działa raz i przez 10 minut.</string>
     <string name="first_run_enter_new_code">Wpisz nowy kod</string>
+    <string name="first_run_code_check_body">Sprawdź sześć cyfr na PC w Host Control › „Sparuj nowy TV” i wpisz je ponownie.</string>
+    <string name="first_run_enter_code_again">Wpisz kod ponownie</string>
+    <string name="first_run_code_rate_limited_title">Za dużo prób</string>
+    <string name="first_run_code_rate_limited_body">Odczekaj minutę i spróbuj ponownie: ten sam kod nadal działa.</string>
     <string name="first_run_unreachable_title">Nie mogę połączyć się z %1$s</string>
     <string name="first_run_unreachable_body">Sprawdź, czy komputer jest włączony i w tej samej sieci co telewizor, potem spróbuj ponownie.</string>
     <string name="first_run_vibepollo_failed_title">Vibepollo nie odpowiada na komputerze</string>
@@ -105,7 +118,8 @@
     <string name="first_run_profile_adult">Konto Windows</string>
     <string name="first_run_profile_child">Profil dziecka</string>
     <string name="first_run_profile_add">Brakuje Cię?</string>
-    <string name="first_run_profile_add_detail">Dodaj profil</string>
+    <string name="first_run_profile_add_detail">Dodasz na PC</string>
+    <string name="first_run_profile_add_on_pc">Nowy profil dodasz na PC: Host Control › Profile. Ta lista odświeży się sama.</string>
     <string name="first_run_profile_refresh">Lista odświeża się sama, gdy dodasz profil w Host Control › Profile.</string>
     <string name="first_run_profile_none">Na PC nie ma jeszcze profilu. Lista odświeża się sama.</string>
     <string name="first_run_profile_adult_needed">Są tu tylko profile dzieci: rodzic wybiera albo dodaje profil dorosłego.</string>
@@ -126,28 +140,28 @@
         <item>Steam i Epic widoczne</item>
         <item>Wymagane · niedostępna</item>
         <item>Cała biblioteka Steam</item>
-        <item>Brak klucza Steam Web API — widać tylko zainstalowane</item>
+        <item>Steam niepołączony — widać tylko zainstalowane</item>
         <item>Zalogowany</item>
         <item>Opcjonalne · niezalogowany</item>
         <item>Skonfigurowane</item>
-        <item>Zalecane · nieskonfigurowane</item>
+        <item>Opcjonalne · włączasz w Host Control na PC</item>
         <item>Sprawdzone: działa</item>
         <item>Opcjonalne · niesprawdzone</item>
     </string-array>
     <string-array name="first_run_check_fixes">
         <item>Uruchom Vibepollo na PC. Jeśli nadal nie widać, otwórz Host Control i użyj „Napraw”.</item>
         <item>Biblioteka gier pochodzi z hosta. Otwórz Host Control i użyj „Napraw”.</item>
-        <item>Bez klucza widać tylko gry zainstalowane na PC. Z kluczem — całą Twoją bibliotekę Steam.\n\n1. Zeskanuj kod telefonem i skopiuj klucz.\n2. Na PC: Host Control › Integracje › Steam.\n3. Wklej klucz i zapisz. Ten wiersz zrobi się zielony.</item>
+        <item>Bez Steam widać tylko gry zainstalowane na PC. Po połączeniu — całą Twoją bibliotekę Steam.\n\n1. Na PC: Host Control › Twój profil › Steam › Połącz.\n2. Zaloguj się kontem Steam i potwierdź Steam Guard, jeśli poprosi.\n3. Ten wiersz zrobi się zielony.\n\nZaawansowane: działa też klucz Steam Web API.</item>
         <item>Na PC: Host Control › Integracje › Epic › Zaloguj.</item>
         <item>Żeby zablokowany PC logował się sam: na PC Host Control › Zdalne logowanie. Hasło Windows zostaje na PC.</item>
-        <item>OK usypia PC i budzi go przez Wake-on-LAN. Jeśli się nie obudzi, włącz Wake-on-LAN w BIOS-ie i w ustawieniach karty sieciowej.</item>
+        <item>Opcjonalne: konfiguracja jest kompletna i bez tego. Test usypia PC i budzi go z telewizora, więc najpierw zapisz pracę na PC. Uruchom go przyciskiem „Uruchom test budzenia” poniżej (albo OK na tym wierszu). Jeśli PC się nie obudzi, włącz Wake-on-LAN w BIOS-ie i w ustawieniach karty sieciowej.</item>
     </string-array>
-    <string name="first_run_check_unknown">Host jeszcze nie odpowiedział</string>
-    <string name="first_run_steam_key_caption">Klucza nie wpisujesz na TV.</string>
+    <string name="first_run_check_unknown">Sprawdzam…</string>
     <string name="first_run_epic_signed_in">Zalogowano jako %1$s.</string>
     <string name="first_run_wake_test_title">Test budzenia</string>
     <string name="first_run_wake_test_confirm">%1$s zaraz zaśnie, a MoonWaker go obudzi. Najpierw zapisz pracę na PC.</string>
     <string name="first_run_wake_test_start">Uśpij i obudź</string>
+    <string name="first_run_wake_test_run">Uruchom test budzenia</string>
     <string name="first_run_wake_test_screen_title">Test budzenia komputera</string>
     <string name="first_run_wake_test_screen_subtitle">Usypiam komputer i budzę go z telewizora.</string>
     <string name="first_run_wake_sleeping">Usypiam PC…</string>
@@ -187,8 +201,10 @@
     <string name="first_run_family_pin_for">PIN dla %1$s</string>
     <string name="first_run_family_pin_detail">Nikt inny nie wejdzie na Twój profil.</string>
     <string name="first_run_family_pin_done">PIN ustawiony</string>
-    <string name="first_run_family_pin_done_detail">Zmienisz go w Ustawieniach profilu.</string>
+    <string name="first_run_family_pin_done_detail">Zmienisz go na PC: Host Control, w Twoim profilu.</string>
     <string name="first_run_family_child">Dodaj dziecko</string>
+    <string name="first_run_family_child_on_pc">Dzieci dodasz na PC: Host Control, w Twoim profilu. Tam też pozwolisz temu telewizorowi zarządzać dziećmi.</string>
+    <string name="first_run_family_child_later">Panel rodzica otworzy się na koniec konfiguracji. Tam dodasz dziecko.</string>
     <string name="first_run_family_child_detail">Własna biblioteka i limity czasu.</string>
     <string name="first_run_family_skip_detail">Na tym telewizorze grają tylko dorośli.</string>
 
@@ -237,6 +253,7 @@
 
     <string name="first_run_settings_entry">Uruchom kreator pierwszego uruchomienia</string>
     <string name="first_run_settings_entry_detail">Zobacz albo powtórz konfigurację; pokazuje, co jest ustawione, i sama niczego nie zmienia</string>
+    <string name="first_run_settings_from_start">Od początku</string>
     <string name="first_run_todo_row">Do dokończenia: %1$s</string>
     <string name="first_run_todo_status">Konfiguracja do dokończenia</string>
     <string name="first_run_finish_setup">Dokończ konfigurację</string>

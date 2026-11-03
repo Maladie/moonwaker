@@ -1,32 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Shortcut strings -->
-    <string name="scut_deleted_pc">Host gelöscht</string>
     <string name="scut_not_paired">Host nicht gekoppelt</string>
-    <string name="scut_pc_not_found">Host nicht gefunden</string>
-    <string name="scut_invalid_uuid">Angegebener Host ist ungültig</string>
-    <string name="scut_invalid_app_id">Angegebene App ist unzulässig</string>
-    <!-- Help strings -->
-    <string name="help_loading_title">Hilfsanzeige</string>
-    <string name="help_loading_msg">Hilfe wird geladen…</string>
-    <!-- PC view menu entries -->
-    <string name="pcview_menu_unpair_pc">Kopplung trennen</string>
-    <string name="pcview_menu_test_network">Netzwerkverbindung testen</string>
-    <!-- Network test strings -->
-    <string name="nettest_title_waiting">Netzwerkverbindung wird getestet</string>
-    <string name="nettest_text_waiting">Moonlight testet Ihre Netzwerkverbindung, um festzustellen, ob NVIDIA GameStream blockiert ist.
-\n
-\nDies kann einige Sekunden dauern…</string>
-    <string name="nettest_title_done">Netzwerktest abgeschlossen</string>
-    <string name="nettest_text_success">Dein Netzwerk scheint Moonlight nicht zu blockieren. Wenn du weiterhin Probleme mit der Verbindung hast, überprüfe die Firewall-Einstellungen deines Hosts
-\n
-\nWenn du versuchst, über das Internet zu streamen, installiere das Moonlight Internet Hosting Tool auf deinem Host und führe den mitgelieferten Internet-Streaming-Tester aus, um die Internetverbindung des Hosts zu überprüfen.</string>
-    <string name="nettest_text_inconclusive">Der Netzwerktest konnte nicht durchgeführt werden, da keiner der Verbindungstestserver von Moonlight erreichbar war. Überprüfe deine Internetverbindung oder versuche es später noch einmal.</string>
-    <string name="nettest_text_failure">Die aktuelle Netzwerkverbindung deines Geräts scheint Moonlight zu blockieren. Das Streaming über das Internet funktioniert möglicherweise nicht, während du mit diesem Netzwerk verbunden bist.
-\n
-\nFolgende Netzwerkports wurden blockiert:
-\n</string>
-    <string name="nettest_text_blocked">Die aktuelle Netzwerkverbindung deines Geräts blockiert Moonlight. Das Streaming über das Internet funktioniert möglicherweise nicht, während du mit diesem Netzwerk verbunden bist.</string>
     <!-- Pair messages -->
     <string name="pairing">Koppeln…</string>
     <string name="pair_pc_offline">Host ist offline</string>
@@ -39,7 +14,6 @@
     <!-- WOL messages -->
     <string name="wol_pc_online">Host ist online</string>
     <string name="wol_no_mac">Host konnte nicht aufgeweckt werden, da GFE keine MAC-Adresse gesendet hat</string>
-    <string name="wol_waking_pc">Host wird aufgeweckt…</string>
     <string name="wol_waking_msg">Es kann einige Momente dauern deinen Host aufzuwecken. Sollte dies fehlschlagen, stelle bitte sicher, dass Wake-On-LAN korrekt konfiguriert ist.</string>
     <string name="wol_fail">Senden der Wake-On-LAN Pakete ist fehlgeschlagen</string>
     <!-- Unpair messages -->
@@ -52,34 +26,20 @@
     <string name="error_manager_not_running">Der ComputerManager Dienst läuft nicht. Bitte warte ein paar Sekunden oder starte die App neu.</string>
     <string name="error_unknown_host">Hostname konnte nicht aufgelöst werden</string>
     <string name="error_404">GFE ist auf einen HTTP 404 Fehler gestoßen. Stelle sicher, dass die GPU deines Hosts unterstützt wird. Die Verwendung von Remote-Desktop Software kann ebenso diesen Fehler verursachen. Starte deinen Host neu oder installiere GFE neu.</string>
-    <string name="title_decoding_error">Video Dekodierer ist abgestürzt</string>
-    <string name="message_decoding_error">Moonlight ist wegen einer Inkompatibilität zu dem Video Dekodierer deines Gerätes abgestürzt. Stelle sicher, dass die GeForce Experience Version auf deinem Host auf dem neuesten Stand ist. Sollten weiterin Abstürze auftreten, versuche deine Streaming Einstellungen zu ändern.</string>
-    <string name="title_decoding_reset">Video Einstellungen zurücksetzen</string>
-    <string name="message_decoding_reset">Der Video Dekodierer deines Geräts ist wiederholt mit den ausgewählten Einstellungen abgestürzt. Deine Streamingeinstellungen wurden zurückgesetzt.</string>
     <string name="error_usb_prohibited">USB Zugriff ist administrativ unterbunden. Bitte überprüfen sie ihre Knox oder MDM Einstellungen.</string>
-    <string name="unable_to_pin_shortcut">Deine momentane Launcher App ünterstützt das erstellen angehefteter Shortcuts nicht.</string>
     <string name="video_decoder_init_failed">Der Video Dekodierer konnte nicht initialisiert werden. Dein Gerät unterstützt möglicherweise die gewählte Auflösung oder Framerate nicht.</string>
-    <string name="no_video_received_error">Kein Video vom Host empfangen.</string>
-    <string name="no_frame_received_error">Deine Netzwerkverbindung funktioniert nicht gut. Reduziere die Einstellung der Videobitrate oder benutze eine schnellere Verbindung.</string>
     <!-- Start application messages -->
-    <string name="conn_establishing_title">Verbindung herstellen</string>
-    <string name="conn_establishing_msg">Verbindung starten</string>
     <string name="conn_metered">Warnung: Das Datentransfervolumen deiner Netzwerkverbindung ist limitiert!</string>
     <string name="conn_client_latency">Durchschnittliche Frame-Dekodierungslatenz:</string>
     <string name="conn_client_latency_hw">Hardware-Dekodierungslatenz:</string>
     <string name="conn_hardware_latency">Durchschnittliche Hardware-Dekodierungslatenz:</string>
-    <string name="conn_starting">Starten</string>
     <string name="conn_error_title">Verbindungsfehler</string>
     <string name="conn_error_msg">Start fehlgeschlagen</string>
-    <string name="conn_terminated_title">Verbindung beendet</string>
-    <string name="conn_terminated_msg">Die Verbindung wurde beendet</string>
     <!-- General strings -->
     <string name="ip_hint">IP-Adresse des GeForce Hosts</string>
     <string name="yes">Ja</string>
     <string name="no">Nein</string>
     <string name="title_details">Details</string>
-    <string name="help">Hilfe</string>
-    <string name="delete_pc_msg">Bist du sicher, dass du diesen Host löschen möchtest\?</string>
     <string name="perf_overlay_decoder">Decoder: %1$s</string>
     <string name="perf_overlay_fps">FPS in/render: %1$.2f / %2$.2f FPS (%3$+.1f%%)</string>
     <string name="perf_overlay_netdrops">Wegen Netzwerkübertragung ausgelassene Frames: %1$.2f%%</string>
@@ -90,21 +50,12 @@
     <string name="perf_overlay_host_vram_used">Host-VRAM: %1$.1f GB</string>
     <string name="perf_overlay_host_cpu">Host-CPU: %1$d%%</string>
     <!-- AppList activity -->
-    <string name="applist_connect_msg">Verbinde mit Host…</string>
     <string name="applist_menu_resume">Sitzung wiederherstellen</string>
     <string name="applist_menu_quit_and_start">Aktuelle App beenden und starten</string>
-    <string name="applist_menu_cancel">Abbrechen</string>
     <string name="applist_menu_details">Details anzeigen</string>
-    <string name="applist_menu_scut">Shortcut erstellen</string>
-    <string name="applist_menu_tv_channel">Zu Kanal hinzufügen</string>
     <string name="applist_menu_hide_app">App ausblenden</string>
-    <string name="applist_refresh_error_title">Fehler</string>
-    <string name="applist_refresh_error_msg">Die App-Liste konnte nicht geladen werden</string>
-    <string name="applist_quit_app">Beenden</string>
-    <string name="applist_quit_success">Erfolgreich beendet</string>
     <string name="applist_quit_fail">Beenden fehlgeschlagen</string>
     <string name="applist_quit_confirmation">Bist du sicher, dass du die laufende App schließen möchtest\? Ungespeicherte Daten gehen verloren.</string>
-    <string name="applist_details_id">App ID:</string>
     <!-- Add computer manually activity -->
     <string name="title_add_pc">Host manuell hinzufügen</string>
     <string name="msg_add_pc">Verbinde zum Host…</string>
@@ -126,12 +77,6 @@
 \n
 \nSchließlich kann es sein, dass dein Gerät oder dein Host das Streaming in nativer Auflösung nicht unterstützt. Wenn es auf deinem Gerät nicht funktioniert, hast du leider Pech gehabt.</string>
     <string name="title_native_res_dialog">Native Auflösungswarnung</string>
-    <string name="check_ports_msg">Überprüfe deine Firewall und Portweiterleitungsregeln für folgende(n) Port(s):</string>
-    <string name="early_termination_error">Beim Starten des Streams auf deinem Host ist etwas schief gelaufen.
-\n
-\nStelle sicher, dass du keine DRM-geschützten Inhalte auf deinem Host geöffnet hast. Du kannst auch versuchen, deinen Host neu zu starten.
-\n
-\nWenn das Problem weiterhin besteht, versuche deinen GPU-Treiber und GeForce Experience neu zu installieren.</string>
     <!-- Array strings -->
     <string name="videoformat_auto">Automatisch</string>
     <string name="videoformat_hevcalways">Immer HEVC verwenden (könnte Crashes verursachen)</string>
@@ -157,9 +102,6 @@
     <string name="pacing_balanced_alt">Ausbalanciert mit FPS-Limit</string>
     <string name="resolution_prefix_native_portrait">(Portrait)</string>
     <string name="resolution_prefix_native_landscape">(Landscape)</string>
-    <string name="frame_conversion_error">Der Host-PC hat einen schwerwiegenden Videocodierungsfehler gemeldet.
-\n
-\nVersuchen Sie, den HDR-Modus zu deaktivieren, die Streaming-Auflösung zu ändern oder die Bildschirmauflösung des Host-PCs zu ändern.</string>
     <string name="title_native_fps_dialog">Native FPS Warnung</string>
     <string name="videoformat_av1always">Immer AV1 verwenden (Experimentell)</string>
     <string name="videoformat_h264always">Immer H.264 verwenden</string>
@@ -311,7 +253,6 @@
     <string name="usb_forwarding_unsupported">Diese MoonWaker-Version kann keine USB-Geräte weitergeben</string>
     <string name="usb_forwarding_failed">Weitergabe fehlgeschlagen · zum erneuten Versuch auswählen</string>
     <!-- MoonWaker -->
-    <string name="error_code_prefix">Fehlercode:</string>
     <string name="perf_overlay_bandwidth">Netzwerkbandbreite: %1$.1f Mbit/s</string>
     <string name="controller_battery_low">Akku von Controller %1$d niedrig: %2$d%%</string>
     <string name="toast_controller_type_changed">Der Gamepad-Typ kann sich durch die Bewegungssensor-Emulation ändern</string>
@@ -325,9 +266,6 @@
     <string name="overlay_duration_2500">2,5 Sekunden</string>
     <string name="overlay_duration_3000">3 Sekunden</string>
     <string name="summary_actual_display_refresh_rate">Wenn die Bildwiederholrate deines Clients nicht genau zu der deines Hosts passt, fordere mit diesem Wert eine eigene Aufnahmerate am Host an. (Experimentell)</string>
-    <string name="quick_launch_error">Fehler beim Schnellstart</string>
-    <string name="quick_launch_rename_message">Gib einen neuen Namen für diesen Schnellstart-Eintrag ein:</string>
-    <string name="overlay_menu_disconnect">Trennen</string>
     <string name="overlay_menu_home">Home</string>
     <string name="console_stream_home_switch_blocked">Kehre zur aktuellen Sitzung zurück und beende sie, bevor du ein anderes Spiel startest.</string>
     <string name="background_stream_channel">Geparkter Spiel-Stream</string>
@@ -365,7 +303,6 @@
     <string name="overlay_menu_end_game">Spiel beenden</string>
     <string name="overlay_menu_end_game_confirmation">Das Spiel wird beendet, die MoonWaker-Streamsitzung bleibt jedoch aktiv.</string>
     <string name="overlay_menu_end_game_confirm">Spiel beenden</string>
-    <string name="overlay_menu_end_game_failed_title">Spiel konnte nicht beendet werden</string>
     <string name="overlay_menu_end_game_failed">Das aktive Spiel konnte nicht bestätigt oder gestoppt werden. Der Stream bleibt aktiv.</string>
     <string name="overlay_menu_suspend_session">Spiel pausieren und PC in den Ruhezustand versetzen</string>
     <string name="overlay_menu_suspend_confirmation">Das Spiel läuft weiter, während der PC im Ruhezustand ist. Du kannst es später von diesem Host aus fortsetzen.</string>
@@ -384,10 +321,6 @@
     <string name="overlay_menu_guide">Guide</string>
     <string name="overlay_bitrate_current">%1$d Mbit/s</string>
     <string name="overlay_menu_hint">Menü: &lt;b&gt;%s&lt;/b&gt;</string>
-    <string name="overlay_controller_battery">P%1$d %2$s · %3$d%%</string>
-    <string name="overlay_battery_charging">Lädt</string>
-    <string name="overlay_battery_full">Voll</string>
-    <string name="overlay_discord_title">DISCORD</string>
     <string name="overlay_discord_loading">Sprachverbindung wird geprüft…</string>
     <string name="overlay_discord_disconnected">Mit keinem Sprachkanal verbunden</string>
     <string name="overlay_discord_channel">%1$s · %2$d Personen</string>
@@ -439,23 +372,8 @@
     <string name="editor_then_sleep">Ruhezustand</string>
     <string name="sleep_admin_explanation">Erforderlich, um den Bildschirm zu sperren, wenn die Nachaktion „Ruhezustand“ in einem eigenen Befehl verwendet wird.</string>
     <string name="console_title">MoonWaker</string>
-    <string name="console_subtitle">Spiele von überall in deinem Zuhause</string>
     <string name="console_no_hosts">Keine Hosts</string>
-    <string name="console_no_hosts_details">Es wurden keine gespeicherten Hosts gefunden. Füge einen Host manuell hinzu oder warte, bis die Suche weiterläuft.</string>
-    <string name="console_host_choice">%1$s\n%2$s%3$s</string>
-    <string name="console_new_host_suffix"> · neu</string>
-    <string name="console_hosts_eyebrow">HOSTS</string>
-    <string name="console_hosts_title">Host auswählen</string>
-    <string name="console_hosts_scanning">Die Suche läuft. Neue Hosts übernehmen nicht den Fokus.</string>
-    <string name="console_hosts_ready">Wähle einen Host oder verwalte seine Verbindung.</string>
-    <string name="console_discovering">Hosts werden gesucht…</string>
     <string name="console_loading">Wird geladen…</string>
-    <string name="console_discovery_idle">Die Host-Suche ist inaktiv</string>
-    <string name="console_discovery_next_scan">Hosts aktuell · nächste Suche in einer Minute</string>
-    <plurals name="console_new_hosts">
-        <item quantity="one">● Neuer Host gefunden</item>
-        <item quantity="other">● %d neue Hosts gefunden</item>
-    </plurals>
     <string name="console_status_online">Online</string>
     <string name="console_status_offline">Offline</string>
     <string name="console_status_connecting">Verbindung wird aufgebaut</string>
@@ -556,29 +474,17 @@
     <string name="playnite_install_verifying">Installation wird geprüft…</string>
     <string name="playnite_install_verify_failed">Die Installation konnte nicht überprüft werden. Versuche es erneut.</string>
     <string name="playnite_install_still_needs_confirmation">Das Installationsprogramm wartet noch auf eine Bestätigung.</string>
-    <string name="console_more">⋯</string>
-    <string name="console_app_options">Optionen für %1$s</string>
     <string name="console_app_description">%1$s. %2$s. %3$s</string>
     <string name="console_app_stream_settings">App-Einstellungen</string>
     <string name="console_app_actions_details">Diese Anwendung starten, konfigurieren, ausblenden oder prüfen.</string>
     <string name="console_show_app">Anwendung anzeigen</string>
-    <string name="console_pair_discovered_host">Gefundenen Host koppeln</string>
-    <string name="console_pair_discovered_host_named">Gefundenen Host %1$s koppeln</string>
-    <string name="console_action_quick_launch">Schnellstart</string>
-    <string name="console_action_hidden_apps">Ausgeblendete Anwendungen</string>
     <string name="console_action_discord">Discord</string>
-    <string name="console_refresh">Status und Bibliothek aktualisieren</string>
     <string name="console_refresh_started">Status und Bibliothek werden aktualisiert</string>
-    <string name="console_add_host">Host manuell hinzufügen</string>
-    <string name="console_manage_quick_launch">Schnellstart verwalten  ›</string>
-    <string name="console_overrides_configure">Bitrate und Statistik konfigurieren  ›</string>
     <string name="console_on">AN</string>
     <string name="console_off">AUS</string>
     <string name="console_hidden_shown">Ausgeblendete Anwendungen werden angezeigt</string>
     <string name="console_hidden_filtered">Ausgeblendete Anwendungen werden gefiltert</string>
-    <string name="console_hidden_apps_setting">Ausgeblendete Anwendungen anzeigen · %1$s</string>
     <string name="console_host_eyebrow">HOST</string>
-    <string name="console_select_host">Diesen Host auswählen</string>
     <string name="console_sleep_host">Host in den Ruhezustand versetzen</string>
     <string name="console_auto_stream_warm_up">Automatische Stream-Vorbereitung</string>
     <string name="console_auto_stream_warm_up_description">Nachdem du diesen Host ausgewählt hast, kann MoonWaker ihn aufwecken und im Hintergrund einen Stream vorbereiten. Das erhöht die Auslastung von Netzwerk und Host-Ressourcen.</string>
@@ -605,19 +511,10 @@
     <string name="console_discord_voice_active">Discord · Sprachkanal %1$s</string>
     <string name="console_discord_error">Discord · Verbindungsfehler</string>
     <string name="console_discord_description">Discord. %1$s</string>
-    <string name="discord_disable_integration">Discord-Integration deaktivieren</string>
-    <string name="discord_paired_gateway">Gekoppeltes Gateway: %1$s</string>
-    <string name="discord_integration_disabled_details">Die Discord-Integration ist auf diesem Gerät deaktiviert.</string>
-    <string name="discord_back_to_host_integrations">Zurück zu den Host-Integrationen</string>
     <string name="discord_no_channels">Es wurden keine zugänglichen Sprachkanäle zurückgegeben.</string>
     <string name="discord_no_participants">In diesem Sprachkanal sind keine weiteren Teilnehmer.</string>
     <string name="discord_you_suffix"> · du</string>
     <string name="discord_muted_suffix"> · stumm</string>
-    <string name="gateway_pair_code_hint">6-stelliger Code</string>
-    <string name="gateway_pair_code_error">Gib alle sechs Ziffern ein</string>
-    <string name="gateway_pair_confirm">Koppeln</string>
-    <string name="console_pair_host_title">Host koppeln</string>
-    <string name="console_pair_host_details">Gib den sechsstelligen Code ein, den die Host-Steuerung auf %1$s anzeigt. MoonWaker koppelt außerdem das Streaming und richtet die nötigen Client-Berechtigungen ein.</string>
     <string name="console_pair_stream_manually">Streaming manuell koppeln</string>
     <string name="console_pair_host_gateway">Host-Gateway wird gekoppelt…</string>
     <string name="console_pair_host_stream">Streaming wird gekoppelt und Client-Berechtigungen werden eingerichtet…</string>
@@ -626,6 +523,7 @@
     <string name="console_pair_host_renew_details">MoonWaker erneuert die authentifizierte Streaming-Kopplung mit %1$s, damit Kinderprofile ihre Zugriffsregeln nutzen können. Die aktuelle Streaming-Kopplung wird ersetzt.</string>
     <string name="console_pair_host_renew_action">Kopplung erneuern</string>
     <string name="console_pair_host_timeout">Zeitüberschreitung bei der automatischen Streaming-Kopplung.</string>
+    <string name="console_pair_manual_timeout">Innerhalb von 2 Minuten wurde am PC keine PIN eingegeben. Versuche es erneut und gib die PIN in Vibepollo ein.</string>
     <string name="console_pair_stage_ticket">sicheres Kopplungsticket vom Gateway anfordern</string>
     <string name="console_pair_stage_host">Moonlight-Kopplungssitzung auf dem Host starten</string>
     <string name="console_pair_stage_vibepollo">auf Vibepollo warten und die PIN übermitteln</string>
@@ -635,9 +533,7 @@
     <string name="console_pair_host_failed_details">%1$s\n\nDie Gateway-Kopplung wurde, falls abgeschlossen, beibehalten. Du kannst das Streaming mit dem normalen PIN-Ablauf erneut versuchen.</string>
     <string name="gateway_profile_title">Integrationsprofil</string>
     <string name="console_profile_eyebrow">Windows-Profil</string>
-    <string name="console_profile_selector">Profil · %1$s</string>
     <string name="console_profile_selector_description">Aktives Windows-Profil: %1$s. Drücken zum Ändern.</string>
-    <string name="console_choose_moonwaker_profile">MoonWaker-Profil auswählen</string>
     <string name="console_use_profile_in_moonwaker">%1$s in MoonWaker verwenden</string>
     <string name="console_switch_windows_profile">Windows-Benutzer zu %1$s wechseln</string>
     <string name="console_switch_windows_profile_confirm">Zu %1$s wechseln</string>
@@ -649,11 +545,6 @@
     <string name="console_switch_windows_profile_attention">Der Anmeldebildschirm erfordert Aufmerksamkeit</string>
     <string name="console_switch_windows_profile_cancelled">Windows-Profilwechsel abgebrochen.</string>
     <string name="console_switch_windows_profile_failed">Das Windows-Profil konnte nicht gewechselt werden.</string>
-    <string name="console_profile_status_active">Profil: %1$s</string>
-    <string name="console_profile_status_other_named">MoonWaker: %1$s · PC: %2$s</string>
-    <string name="console_profile_status_other">%1$s · ein anderes PC-Profil ist aktiv</string>
-    <string name="console_profile_status_sign_in">%1$s · Anmeldung erforderlich</string>
-    <string name="console_profile_status_unknown">%1$s · PC-Profil prüfen</string>
     <string name="console_child_profile_title">Kinderprofil</string>
     <string name="console_child_profile_step_schedule">Spielzeit</string>
     <string name="console_child_profile_name">Name</string>
@@ -764,17 +655,8 @@
     <string name="console_adult_pin_first_unavailable">Eine erste PIN lässt sich am Fernseher nur direkt nach dem Koppeln festlegen. Lege sie in Host Control am PC fest.</string>
     <string name="console_adult_pin_changed_on_host">Die PIN wurde inzwischen am PC geändert. Gib die aktuelle PIN noch einmal ein.</string>
     <string name="console_adult_pin_failed">Die PIN konnte nicht gespeichert werden. Versuche es erneut.</string>
-    <string name="console_add_profile">Profil hinzufügen</string>
-    <string name="console_add_profile_details">Wähle das Windows-Konto des PCs, als das dieses Profil spielt. Neue Windows-Konten legst du am PC an.</string>
-    <string name="console_add_profile_no_accounts">Jedes Windows-Konto auf dem PC hat bereits ein Profil.</string>
-    <string name="console_add_profile_pin_details">Das neue Profil mit einer eigenen App-PIN schützen?</string>
-    <string name="console_add_profile_no_pin">Ohne PIN</string>
-    <string name="console_add_profile_creating">Profil wird erstellt…</string>
-    <string name="console_add_profile_created">Profil %1$s erstellt.</string>
-    <string name="console_add_profile_account_taken">Dieses Windows-Konto hat bereits ein Profil. Wähle ein anderes.</string>
-    <string name="console_add_profile_not_authorized">Füge ein Profil über ein Erwachsenenprofil oder direkt nach dem Koppeln dieses Fernsehers hinzu. Auch Host Control am PC kann es hinzufügen.</string>
-    <string name="console_add_profile_failed">Das Profil konnte nicht erstellt werden. Versuche es erneut.</string>
     <string name="console_child_management_pin_first">Kinder werden hinter deiner App-PIN verwaltet. Lege sie zuerst fest.</string>
+    <string name="console_pin_no_answer">Der PC hat nicht rechtzeitig geantwortet. Gib die PIN erneut ein.</string>
     <string name="console_pin_offline_waking">PC wird aufgeweckt…</string>
     <string name="console_pin_offline_waiting">Warten, bis der PC gestartet ist…</string>
     <string name="console_pin_offline_unavailable">Der PC war nach dem Aufwecken nicht erreichbar.</string>
@@ -794,10 +676,6 @@
     <string name="discord_state_connected">verbunden</string>
     <string name="discord_state_on">An</string>
     <string name="discord_state_off">Aus</string>
-    <string name="console_options_action">Konsolenoptionen  ›</string>
-    <string name="console_ui_sounds">UI-Töne · %1$s</string>
-    <string name="console_reduced_motion">Reduzierte Bewegung · %1$s</string>
-    <string name="console_carousel_game_description">Spielbeschreibung anzeigen (Karussell) · %1$s</string>
     <string name="console_ui_sounds_label">UI-Töne</string>
     <string name="console_ambient_sounds_label">Menü-Ambiente</string>
     <string name="console_host_music_volume_label">Musik der Host-Auswahl</string>
@@ -850,7 +728,7 @@
     <string name="user_menu_unknown">Unbekannt</string>
     <string name="user_menu_recheck">Erneut prüfen</string>
     <string name="user_menu_windows_grant_fix">Dieser Fernseher darf sich nicht bei Windows anmelden. Am PC: Host Control › Geräte › dieser Fernseher › bei dem Profil „Remote-Anmeldung“ anhaken und speichern.</string>
-    <string name="user_menu_steam_steps">Mit dem Schlüssel siehst du deine ganze Steam-Bibliothek, nicht nur die auf dem PC installierten Spiele.\n\n1. Scanne den Code mit dem Handy, melde dich an und kopiere den Schlüssel.\n2. Füge ihn unten ein, z. B. mit der Google-TV-App auf dem Handy.\n3. Wähle „Schlüssel speichern“.</string>
+    <string name="user_menu_steam_steps">Am einfachsten: am PC Host-Steuerung › dein Profil › Steam › Verbinden öffnen und bei Steam anmelden.\n\nFortgeschritten, ohne Anmeldung: ein Steam-Web-API-Schlüssel.\n1. Scanne den Code mit dem Handy, melde dich an und kopiere den Schlüssel.\n2. Füge ihn unten ein, z. B. mit der Google-TV-App auf dem Handy.\n3. Wähle „Schlüssel speichern“.</string>
     <string name="user_menu_epic_steps">Mit Epic siehst und startest du auch deine Spiele aus dem Epic Games Store.\n\n1. Scanne den Code mit dem Handy und melde dich bei Epic an.\n2. Kopiere die ganze Antwort oder nur „authorizationCode“.\n3. Füge sie unten ein, z. B. mit der Google-TV-App auf dem Handy, und wähle „Anmelden“. Der Code gilt einmal und läuft nach wenigen Minuten ab.</string>
     <string name="user_menu_paste_key">Schlüssel einfügen</string>
     <string name="user_menu_paste_code">Code einfügen</string>
@@ -928,20 +806,11 @@
     <string name="console_host_options_hint">Optionen</string>
     <string name="console_host_options_label">Host-Optionen</string>
     <string name="console_host_selection_description">%1$s, %2$s</string>
-    <string name="console_add_host_none_found">Noch keine neuen Hosts gefunden. Die Suche läuft im Hintergrund weiter.</string>
-    <string name="console_add_discovered_host">%1$s · %2$s</string>
-    <string name="console_add_host_refresh_results">Gefundene Hosts aktualisieren</string>
-    <string name="console_add_host_searching">Gefundene Hosts werden aktualisiert…</string>
-    <string name="console_add_host_by_ip">Per IP-Adresse hinzufügen</string>
-    <string name="console_add_host_details">Hosts in der Nähe werden automatisch gefunden. Du kannst auch manuell eine IP-Adresse eingeben.</string>
     <string name="console_wake_host">Host aufwecken</string>
     <string name="console_unpair_host">Host entkoppeln</string>
     <string name="console_unpair_host_title">Host %1$s entkoppeln?</string>
     <string name="console_unpair_host_details">MoonWaker entkoppelt den Computer und vergisst ihn auf diesem Gerät.</string>
     <string name="console_host_status_description">%1$s. %2$s. Drücke Auswählen, um die Host-Optionen zu öffnen.</string>
-    <string name="console_host_power_wake_description">%1$s ist offline. Drücke Auswählen, um den Host aufzuwecken.</string>
-    <string name="console_host_waking_description">%1$s wird aufgeweckt. Bitte warten.</string>
-    <string name="console_host_power_sleep_description">%1$s ist online. Drücke Auswählen, um den Host in den Ruhezustand zu versetzen.</string>
     <string name="console_options_help">Hilfe</string>
     <string name="console_help_title">Hilfe</string>
     <string name="console_help_body"><b>Host koppeln</b>\nWähle auf dem Host-Auswahlbildschirm einen Computer aus der Liste oder „Host hinzufügen“. Für einen nicht gekoppelten Host fragt MoonWaker nach dem sechsstelligen Code, den die Host-Steuerung auf dem Computer anzeigt, und koppelt sowohl das Gateway als auch das Streaming.\n\n<b>Profile und PIN</b>\nNach der Wahl eines Hosts siehst du die Windows-Profile dieses Computers. Ein PIN-geschütztes Profil fragt zuerst nach seinem Code. Kinderprofile haben ein tägliches Zeitlimit und erlaubte Zeiten; ein Elternteil ändert sie nach Eingabe der Eltern-PIN.\n\n<b>Diagnose</b>\nEinstellungen → Info und Diagnose → „Diagnose exportieren“ speichert einen bereinigten Bericht von diesem Gerät. Die Host-Diagnose wird separat auf dem Windows-Computer exportiert.\n\n<b>Versionen</b>\nApp-Version: %1$s. Sie wird auch unten links auf den Bildschirmen für Host-Auswahl und Profile angezeigt. Das MoonWaker-Host-Installationsprogramm auf dem Computer zeigt die Version der Host-Dienste.</string>
@@ -1026,7 +895,6 @@
     <string name="console_autopilot_calibration_passed_title">Test bestanden</string>
     <string name="console_autopilot_calibration_failed_title">Probiere eine sicherere Einstellung</string>
     <string name="console_autopilot_calibration_applied">Kalibrierte Einstellungen wurden auf dieses Spiel angewendet.</string>
-    <string name="console_classic_ui">Klassische MoonWaker-Oberfläche  ›</string>
     <string name="console_exit">MoonWaker beenden</string>
     <string name="console_leave_keep_stream">Verlassen und Stream behalten</string>
     <string name="console_return_to_game">Zurück zum Spiel</string>
@@ -1037,7 +905,6 @@
     <string name="console_close_details">Die aktive Host-Sitzung wird nicht beendet.</string>
     <string name="console_panel_legend">"OK Auswählen  ·  Zurück Schließen"</string>
     <string name="console_panel_legend_stepper">"OK Auswählen oder bearbeiten  ·  Zurück Schließen"</string>
-    <string name="console_select_host_first">Wähle zuerst einen Host aus.</string>
     <string name="console_back_close">ZURÜCK · SCHLIESSEN</string>
     <string-array name="console_loading_messages">
         <item>Aurelifizierung läuft…</item>
@@ -1113,27 +980,11 @@
         <item>Ein Tisch in der Taverne hinter dem Mond wird reserviert…</item>
         <item>Wusstest du, dass der wissenschaftliche Name des Meerschweinchens Cavia porcellus lautet?</item>
     </string-array>
-    <string name="console_stream_initializing">Die MoonWaker-Streaming-Pipeline wird initialisiert…</string>
-    <string name="console_stream_preparing">Stream wird vorbereitet…</string>
-    <string name="console_stream_back_cancel">Zum Abbrechen ZURÜCK drücken</string>
-    <string name="console_stream_waiting_video">Warten auf das erste Videobild…</string>
-    <string name="console_stream_ready">Stream bereit</string>
-    <string name="console_stream_step">SCHRITT %1$d VON 5</string>
-    <string name="console_stream_rtsp">Bild, Ton und Steuerung werden aufgebaut…</string>
-    <string name="console_stream_video">Bild, Ton und Steuerung werden aufgebaut…</string>
-    <string name="console_stream_audio">Bild, Ton und Steuerung werden aufgebaut…</string>
-    <string name="console_stream_control">Bild, Ton und Steuerung werden aufgebaut…</string>
-    <string name="console_stream_input">Bild, Ton und Steuerung werden aufgebaut…</string>
-    <string name="console_stream_starting_stage">Computer und Stream werden vorbereitet…</string>
     <string name="console_initializing">MoonWaker wird noch initialisiert.</string>
-    <string name="console_wol_status">Wake-on-LAN wird an %1$s gesendet…</string>
-    <string name="console_waiting_stream_ports">Warten, bis die Streaming-Ports des Hosts erreichbar sind…</string>
     <string name="console_host_not_ready">Der Host ist nicht bereit geworden.</string>
     <string name="console_host_timeout">Innerhalb von 90 Sekunden hat kein Streaming-Port geantwortet. Drücke ZURÜCK, um zurückzukehren.</string>
     <string name="console_opening_stream">MoonWaker-Stream wird geöffnet…</string>
     <string name="console_preparing_host">%1$s wird vorbereitet…</string>
-    <string name="playnite_launch">Playnite starten</string>
-    <string name="playnite_launch_description">Playnite Fullscreen über die ausgewählte Sunshine-App starten oder fortsetzen</string>
     <string name="playnite_installed">Installiert</string>
     <string name="playnite_game_installed">Startbereit</string>
     <string name="playnite_recently_played">Zuletzt gespielt</string>
@@ -1152,7 +1003,6 @@
     </plurals>
     <string name="playnite_open_full_library">Gesamte Spielebibliothek öffnen</string>
     <string name="playnite_full_library">Gesamte Bibliothek</string>
-    <string name="playnite_full_library_hint">Alle Spiele in einem scrollbaren Raster anzeigen</string>
     <string name="playnite_selected_game_facts">Zuletzt gespielt: %1$s\nSpielzeit: %2$s</string>
     <string name="playnite_last_played_pill">Zuletzt gespielt: %1$s</string>
     <string name="playnite_playtime_pill">%1$s</string>
@@ -1176,7 +1026,6 @@
     <string name="playnite_install_attention_overlay">Die Installation von „%1$s“ erfordert eine Bestätigung. Kehre zur Bibliothek zurück und wähle „Installation abschließen“.</string>
     <string name="playnite_install_action_short">Installieren</string>
     <string name="playnite_game_options">Spieloptionen</string>
-    <string name="playnite_choose_launch_method">Startmethode wählen</string>
     <string name="playnite_game_details">Spieldetails</string>
     <string name="playnite_metadata_unknown">Unbekannt</string>
     <string name="playnite_game_details_body">Status: %1$s\nZuletzt gespielt: %2$s\nSpielzeit: %3$s\nBibliothek: %4$s\nGenres: %5$s\n\n%6$s</string>
@@ -1196,13 +1045,9 @@
     <string name="playnite_gateway_unavailable">MoonWaker-Spielebibliotheksdienst nicht verfügbar</string>
     <string name="playnite_refreshing_library">Bibliothek wird aktualisiert…</string>
     <string name="playnite_authentication_error">Authentifizierungsfehler</string>
-    <string name="playnite_configure_gateway">Gateway konfigurieren</string>
-    <string name="playnite_select_launch_target">Sunshine-Startziel auswählen</string>
     <string name="playnite_no_fullscreen_target">Kein Playnite-Fullscreen-Ziel</string>
     <string name="playnite_library">SPIELEBIBLIOTHEK · %1$s</string>
     <string name="playnite_library_empty">Die Spielebibliothek ist leer.</string>
-    <string name="playnite_library_page">Seite %1$d von %2$d</string>
-    <string name="playnite_sort">Sortierung</string>
     <string name="playnite_sort_recent">Zuletzt gespielt</string>
     <string name="playnite_sort_name">Name</string>
     <string name="playnite_sort_library">Bibliothek</string>
@@ -1221,10 +1066,6 @@
     <string name="playnite_legend_back">Zurück</string>
     <string name="playnite_no_installed_games">Die Spielebibliothek enthält keine installierten Spiele.</string>
     <string name="playnite_launch_not_configured">Start nicht konfiguriert</string>
-    <string name="playnite_target_saved">Sunshine-Startziel für %1$s gespeichert</string>
-    <string name="playnite_change_target">Sunshine-Startziel ändern</string>
-    <string name="playnite_clear_target">Startziel entfernen</string>
-    <string name="playnite_fullscreen_target_details">Wähle die Sunshine-App, die Playnite Fullscreen startet.</string>
     <string name="playnite_gateway_not_configured">Koppele das Host-Gateway, um die Spielebibliothek zu laden.</string>
     <string name="playnite_timeout">MoonWaker Host hat nicht rechtzeitig geantwortet</string>
     <string name="playnite_invalid_response">Inkompatible Antwort von MoonWaker Host</string>
@@ -1240,9 +1081,7 @@
     <string name="transition_preparing_session">Computer und Stream werden vorbereitet</string>
     <string name="transition_connecting_stream">Bild, Ton und Steuerung werden aufgebaut</string>
     <string name="transition_connecting_stream_and_starting_game">Stream wird aufgebaut und Spiel wird gestartet</string>
-    <string name="transition_starting_playnite">Stream bereit – Playnite wird gestartet</string>
     <string name="transition_checking_game_launch_service">Spielstartdienst wird geprüft</string>
-    <string name="transition_waiting_fullscreen">Playnite läuft – Warten auf sein Fenster</string>
     <string name="transition_starting_game">Spiel wird gestartet…</string>
     <string name="transition_game_running_waiting_window">Spiel gestartet – Warten auf das Spielfenster</string>
     <string name="transition_start_taking_longer">Der Start dauert länger als gewöhnlich</string>
@@ -1257,16 +1096,12 @@
     <string name="transition_cancelling">Wird abgebrochen…</string>
     <string name="transition_back">Zurück</string>
     <string name="transition_retry">Erneut versuchen</string>
-    <string name="transition_show_anyway">Stream trotzdem anzeigen</string>
     <string name="transition_reveal_now">Jetzt anzeigen</string>
     <string name="transition_sign_in_windows">Bei Windows anmelden</string>
-    <string name="transition_return_dashboard">Zurück zur Übersicht</string>
-    <string name="transition_playnite_failed">Playnite wurde nicht gestartet</string>
-    <string name="transition_playnite_fullscreen_failed">Playnite Fullscreen wurde nicht bereit</string>
     <string name="transition_game_failed">Das Spiel wurde nicht bereit</string>
-    <string name="transition_waiting_playnite_return">Warten, bis Playnite zurückkehrt</string>
     <string name="transition_closing_session">Sitzung wird geschlossen</string>
     <string name="console_previous_session_close_failed">Die vorherige Host-Sitzung konnte nicht geschlossen werden. Versuche es erneut, sobald sie aus der Anzeige der aktiven Sitzung verschwunden ist.</string>
+    <string name="console_switch_failed">Das Spiel konnte nicht gewechselt werden. Versuche es erneut.</string>
     <string name="control_stream_conflict">Auf dem Host läuft bereits eine andere Streamsitzung. Schließe sie auf dem Host oder beende diese Sitzung und versuche es dann erneut.</string>
     <string name="control_previous_game_unconfirmed">Der Host hat nicht bestätigt, dass das vorherige Spiel beendet wurde. Warte einen Moment und versuche es erneut.</string>
     <string name="control_state_changed">Der Sitzungsstatus auf dem Host hat sich während des Starts geändert. Versuche es erneut.</string>
@@ -1326,7 +1161,6 @@
     <string name="preflight_playnite_offline">Die Game Provider Bridge ist offline.</string>
     <string name="preflight_playnite_connector_disconnected">Playnite ist nicht mit seiner Bridge verbunden.</string>
     <string name="preflight_neutral_stream_unavailable">Der Host stellt den Stream „MoonWaker Stream“ nicht bereit. Füge ihn in der Host-Konfiguration hinzu.</string>
-    <string name="transition_stream_disconnected">Stream getrennt</string>
     <string name="transition_readiness_unconfirmed">Die Bereitschaft konnte nicht bestätigt werden</string>
     <string name="transition_launcher_interaction_required">Der Spiele-Launcher braucht deine Aufmerksamkeit. Zeige den Stream an, um fortzufahren, oder gehe zurück, um ihn zu beenden.</string>
     <string name="transition_launcher_waiting_title">Der Launcher wartet auf dich</string>
@@ -1347,7 +1181,6 @@
     <string name="transition_host_session_locked_title">Windows wartet auf die Anmeldung</string>
     <string name="transition_host_session_locked">Wähle „Bei Windows anmelden“. Automatisch: „Fernanmeldung“ in Host Control › Geräte.</string>
     <string name="transition_target_wrong_display">Das Spielfenster liegt außerhalb der gestreamten Anzeige. „Jetzt anzeigen“ zeigt diese Anzeige ohne das Spiel.</string>
-    <string name="console_provider_stop_waiting_for_process">Das Spiel startet noch und hat noch keinen Prozess, der geschlossen werden kann. Warte einen Moment und versuche es erneut.</string>
     <string name="transition_kicker_starting">Start</string>
     <string name="transition_kicker_running">Spiel läuft</string>
     <string name="transition_kicker_switching">Wechsel</string>
@@ -1357,21 +1190,7 @@
     <string name="transition_back_key_hint">Zurück</string>
     <string name="transition_waiting_gateway">Warten auf die Bereitschaftsbestätigung des Hosts…</string>
     <string name="transition_window_stabilizing">Zielfenster stabilisiert sich…</string>
-    <string name="transition_cancel_details">Der Start wurde abgebrochen. Es geht sicher zurück zur Übersicht.</string>
-    <string name="discord_hub_title">Discord</string>
-    <string name="discord_hub_details">Verbinde dein Discord-Konto auf diesem Gerät oder verwalte die vorhandene Host-Sprachintegration.</string>
-    <string name="discord_social_action">Discord Social</string>
-    <string name="discord_host_voice_action">Host-Sprachintegration</string>
     <string name="discord_social_sdk_missing">Dieser Host bietet keine Discord-Freunde und -Nachrichten an. Die Host-Sprachintegration bleibt verfügbar.</string>
-    <string name="discord_social_title">Discord Social</string>
-    <string name="discord_social_details">Verbinde dich einmal, um dein Discord-Konto und deine Freunde in MoonWaker anzuzeigen.</string>
-    <string name="discord_social_connect">Discord verbinden</string>
-    <string name="discord_social_not_connected">Nicht verbunden</string>
-    <string name="discord_social_authorizing">Discord-Autorisierung wird geöffnet…</string>
-    <string name="discord_social_connected_as">%1$s · %2$s</string>
-    <string name="discord_social_no_friends">Freunde erscheinen, sobald die Verbindung bereit ist.</string>
-    <string name="discord_social_friends">Freunde (%1$d)\n%2$s</string>
-    <string name="discord_social_error">Discord-Fehler: %1$s</string>
     <string name="overlay_discord_chat_retrying">Chat-Zugriff wird erneut versucht…</string>
     <string name="overlay_discord_chat_in_use">Der Chat ist in einer anderen Ansicht geöffnet</string>
     <string name="overlay_discord_chat_history_failed">Nachrichten konnten nicht geladen werden. Öffne den Chat erneut, um es noch einmal zu versuchen.</string>
@@ -1380,8 +1199,6 @@
     <string name="console_warm_up_ready">Stream bereit</string>
     <string name="console_warm_up_error">Stream-Vorbereitung fehlgeschlagen</string>
     <string name="console_warm_up_fallback_details">Die automatische Stream-Vorbereitung ist fehlgeschlagen. „Erneut versuchen“ startet das Spiel normal. „Abbrechen“ führt zurück zur Bibliothek.</string>
-    <string name="usb_microphone_active">USB-Mikrofon-Streaming ist aktiv</string>
-    <string name="usb_microphone_unavailable">USB-Mikrofon-Streaming ist nicht verfügbar. Prüfe den USB-Eingang, das Gateway und das Steam Streaming Microphone.</string>
     <string name="usb_microphone_notification_channel">USB-Mikrofon-Streaming</string>
     <string name="usb_microphone_notification_title">USB-Mikrofon zum PC</string>
     <string name="usb_microphone_notification_connecting">USB-Mikrofon wird mit dem ausgewählten PC verbunden</string>
@@ -1660,7 +1477,6 @@
     <string name="disk_space_of_total">von %1$s</string>
     <string name="disk_space_played">Gespielt %1$s</string>
     <string name="disk_space_on_drive">Laufwerk %1$s</string>
-    <string name="disk_space_uninstalled">Deinstalliert</string>
     <string name="disk_space_uninstall_attention">Deinstallation wartet auf Bestätigung am PC</string>
     <string name="disk_space_uninstall_unavailable">Dieses Spiel lässt sich noch nicht vom TV deinstallieren. Aktualisiere die Bibliothek und versuche es erneut.</string>
     <string name="disk_space_confirm_title">%1$s deinstallieren?</string>
@@ -1736,8 +1552,6 @@
     <string name="overlay_stream_hdr_label">HDR</string>
     <string name="overlay_stream_resolution">%1$d×%2$d</string>
     <string name="overlay_stream_fps">%1$d FPS</string>
-    <string name="overlay_stream_hdr_on">HDR an</string>
-    <string name="overlay_stream_hdr_off">HDR aus</string>
     <string name="overlay_stream_apply">Übernehmen · neu verbinden</string>
     <string name="overlay_stream_unchanged">Keine Änderungen</string>
     <string name="overlay_stream_saved_for_game">Für dieses Spiel gespeichert</string>
@@ -1960,6 +1774,7 @@
     <string name="problem_report_sent">Gesendet. Danke!</string>
     <string name="problem_report_not_configured">Melden ist auf dem PC nicht eingerichtet. Am PC: Host Control › Diagnostyka › Zgłoszenia z TV › Ustaw webhook Discord.</string>
     <string name="problem_report_rate_limited">Eine Meldung pro Minute: erneut in %1$d s.</string>
+    <string name="problem_report_in_progress">Die vorherige Meldung wird noch gesendet. Versuche es in einer Minute erneut.</string>
     <string name="problem_report_webhook_failed">Discord hat die Meldung nicht angenommen (%1$s). Erneut versuchen.</string>
     <string name="problem_report_failed">Die Meldung wurde nicht gesendet (%1$s). Erneut versuchen.</string>
     <string name="problem_report_network">Der PC hat nicht geantwortet. Prüfe, ob er eingeschaltet ist, und versuche es erneut.</string>
@@ -2137,4 +1952,16 @@
     <string name="feature_captures_step1">Xbox-Controller: Tippe auf Share für einen Screenshot oder halte es, um die letzten 30 s zu speichern. DualSense: Halte Create für einen Screenshot; Antippen öffnet das Stream-Menü, wo du die letzten 30 s speicherst.</string>
     <string name="feature_captures_step2">Die Datei landet auf dem PC, ein Ordner pro Profil: unter Videos › MoonWaker oder in MoonWaker auf dem Laufwerk aus Einstellungen › Profil und Host › Laufwerk für Screenshots und Clips.</string>
     <string name="feature_captures_step3">Ansehen auf dem Fernseher: Einstellungen › Bibliothek › Screenshots und Clips.</string>
+    <string name="stream_transport_lost_notice">Die Verbindung zum Host wurde unterbrochen. Spielen verbindet dich wieder mit dem Spiel.</string>
+    <string name="stream_start_not_paired">Der Streamingdienst des Hosts kennt diesen Fernseher nicht mehr. Kopple den Fernseher erneut mit dem Host.</string>
+    <string name="stream_start_hdr_unsupported">Die Grafikkarte des Hosts kann kein HDR streamen. Der Stream nutzt SDR.</string>
+    <string name="stream_start_needs_hevc_above_4k">Streams über 4K brauchen einen HEVC- oder AV1-Decoder auf diesem Fernseher.</string>
+    <string name="stream_start_host_failed">Der Host konnte den Stream nicht starten.</string>
+    <string name="stream_start_other_device">Ein anderes Gerät hat diesen Stream auf dem Host gestartet. Beende ihn dort oder am Host und versuche es erneut.</string>
+    <string name="stream_start_app_minimized">Die gestreamte App ist auf dem Host minimiert. Stelle sie dort wieder her oder schließe die Sitzung und versuche es erneut.</string>
+    <string name="stream_mouse_mode_on">Mausmodus an</string>
+    <string name="stream_mouse_mode_off">Mausmodus aus</string>
+    <string name="stream_hdr10_unavailable">HDR10 ist auf diesem Fernseher nicht verfügbar. Der Stream nutzt SDR.</string>
+    <string name="stream_h264_decoder_missing">Dieser Fernseher hat keinen Hardware-Decoder für H.264 und kann den Stream nicht anzeigen.</string>
+    <string name="stream_decoder_missing">Dieser Fernseher hat keinen %1$s-Decoder. Der Stream nutzt ein anderes Format.</string>
 </resources>

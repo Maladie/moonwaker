@@ -539,11 +539,6 @@ final class ConsoleChildProfileEditor {
                 context.getString(R.string.playnite_minutes_short)));
     }
 
-    static boolean validSchedule(int start, int end, int limitMinutes) {
-        return start >= 0 && start < end && end <= MINUTES_PER_DAY
-                && limitMinutes >= 0 && limitMinutes <= end - start;
-    }
-
     private String s(int resource) {
         return activity.getString(resource);
     }

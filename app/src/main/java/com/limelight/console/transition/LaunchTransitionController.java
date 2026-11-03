@@ -217,11 +217,11 @@ public final class LaunchTransitionController {
     /**
      * The one input routing decision of the stream screen: whether controller, keyboard, mouse
      * and remote input may reach the host. Never while the cover holds the input, nor for a
-     * hidden warm-up behind the Home; {@code snapshot} null is a stream without a transition.
+     * hidden warm-up behind the Home.
      */
     public static boolean inputReachesHost(LaunchTransitionSnapshot snapshot,
                                            boolean hiddenWarmUp) {
-        return !hiddenWarmUp && (snapshot == null || !snapshot.inputBlocked);
+        return !hiddenWarmUp && !snapshot.inputBlocked;
     }
 
     /** How loud the stream is heard: not at all, attenuated under a cover, or in full. */
@@ -230,12 +230,12 @@ public final class LaunchTransitionController {
     /**
      * The stream's audio level: in full once the cover is off the stream (revealed),
      * attenuated under any cover (launch, switch, Home return, closing), muted for a hidden
-     * warm-up behind the carousel. {@code snapshot} null is a stream without a transition.
+     * warm-up behind the carousel.
      */
     public static StreamAudio streamAudio(LaunchTransitionSnapshot snapshot,
                                           boolean hiddenWarmUp) {
         if (hiddenWarmUp) return StreamAudio.MUTED;
-        return snapshot != null && snapshot.overlayVisible
+        return snapshot.overlayVisible
                 ? StreamAudio.COVERED : StreamAudio.FULL;
     }
 
@@ -283,9 +283,7 @@ public final class LaunchTransitionController {
             evaluateReady();
             return;
         }
-        if (spec.type == LaunchTransitionType.PLAYNITE) {
-            state = LaunchTransitionState.PLAYNITE_STARTING;
-        } else if (spec.type == LaunchTransitionType.GAME && !targetProcessRunning) {
+        if (spec.type == LaunchTransitionType.GAME && !targetProcessRunning) {
             // A game started before the stream keeps its confirmed phase 2; never back to 1.
             state = LaunchTransitionState.GAME_START_REQUESTED;
         }
@@ -422,40 +420,14 @@ public final class LaunchTransitionController {
                 || rejectsLateTargetSignal()) return;
         targetProcessRunning = true;
         detail = reason == null ? "" : reason;
-        state = kind == LaunchTransitionType.GAME
-                ? LaunchTransitionState.GAME_PROCESS_RUNNING
-                : LaunchTransitionState.PLAYNITE_PROCESS_RUNNING;
+        state = LaunchTransitionState.GAME_PROCESS_RUNNING;
         publish();
     }
 
     public synchronized void targetStarting(String transitionId, String hostId,
                                             LaunchTransitionType kind, String gameId) {
-        if (rejectsLateTargetSignal()) return;
-        if (kind == LaunchTransitionType.GAME
-                && accept(transitionId, hostId)
-                && currentTarget == LaunchTransitionType.PLAYNITE
-                && !normalizedGameId(gameId).isEmpty()) {
-            currentTarget = LaunchTransitionType.GAME;
-            currentGameId = normalizedGameId(gameId);
-            overlayVisible = true;
-            inputBlocked = true;
-            revealAuthorized = false;
-            manualRevealAvailable = false;
-            manualRevealOverride = false;
-            revealCompleted = false;
-            targetProcessRunning = false;
-            targetWindowReady = false;
-            freshFrameAfterEdge = false;
-            uncertain = false;
-            detail = "";
-            state = LaunchTransitionState.GAME_STARTING;
-            publish();
-            return;
-        }
-        if (!acceptTarget(transitionId, hostId, kind, gameId)) return;
-        state = kind == LaunchTransitionType.GAME
-                ? LaunchTransitionState.GAME_STARTING
-                : LaunchTransitionState.PLAYNITE_STARTING;
+        if (rejectsLateTargetSignal() || !acceptTarget(transitionId, hostId, kind, gameId)) return;
+        state = LaunchTransitionState.GAME_STARTING;
         publish();
     }
 
@@ -466,9 +438,7 @@ public final class LaunchTransitionController {
                 || rejectsLateTargetSignal()) return;
         targetWindowReady = false;
         detail = reason == null ? "" : reason;
-        state = kind == LaunchTransitionType.GAME
-                ? LaunchTransitionState.GAME_WINDOW_STABILIZING
-                : LaunchTransitionState.PLAYNITE_FULLSCREEN_STARTING;
+        state = LaunchTransitionState.GAME_WINDOW_STABILIZING;
         publish();
     }
 
@@ -486,9 +456,7 @@ public final class LaunchTransitionController {
         // the desktop or a launcher. Require one frame produced after this exact
         // readiness edge before the privacy overlay may be removed.
         if (newlyReady) startFrameEdge(frameEdge + 1L);
-        state = kind == LaunchTransitionType.GAME
-                ? LaunchTransitionState.GAME_READY
-                : LaunchTransitionState.PLAYNITE_FULLSCREEN_READY;
+        state = LaunchTransitionState.GAME_READY;
         detail = "";
         evaluateReady();
     }
@@ -502,9 +470,7 @@ public final class LaunchTransitionController {
         // fresh frame after the next readiness edge (targetWindowReady).
         targetWindowReady = false;
         detail = reason == null ? "" : reason;
-        state = kind == LaunchTransitionType.GAME
-                ? LaunchTransitionState.GAME_WINDOW_STABILIZING
-                : LaunchTransitionState.PLAYNITE_FULLSCREEN_STARTING;
+        state = LaunchTransitionState.GAME_WINDOW_STABILIZING;
         if (reportAfterReveal(detail)) return;
         overlayVisible = true;
         inputBlocked = true;
@@ -679,33 +645,6 @@ public final class LaunchTransitionController {
         return true;
     }
 
-    public synchronized void playniteReturning(String transitionId, String hostId) {
-        if (!accept(transitionId, hostId)) return;
-        currentTarget = LaunchTransitionType.PLAYNITE;
-        currentGameId = "";
-        overlayVisible = true;
-        inputBlocked = true;
-        revealAuthorized = false;
-        manualRevealAvailable = false;
-        revealCompleted = false;
-        targetProcessRunning = false;
-        targetWindowReady = false;
-        freshFrameAfterEdge = false;
-        state = LaunchTransitionState.PLAYNITE_RETURNING;
-        publish();
-    }
-
-    public synchronized void playniteStopping(String transitionId, String hostId) {
-        if (!accept(transitionId, hostId)) return;
-        overlayVisible = true;
-        inputBlocked = true;
-        revealAuthorized = false;
-        manualRevealAvailable = false;
-        revealCompleted = false;
-        state = LaunchTransitionState.PLAYNITE_STOPPING;
-        publish();
-    }
-
     public synchronized void closingStream(String transitionId) {
         if (!accept(transitionId, null)) return;
         if (state != LaunchTransitionState.CLOSING_STREAM) {
@@ -736,10 +675,7 @@ public final class LaunchTransitionController {
             revealCompleted = true;
             state = currentTarget == LaunchTransitionType.GAME
                     || currentTarget == LaunchTransitionType.GAME_CONNECTION
-                    ? LaunchTransitionState.GAME_RUNNING
-                    : currentTarget == LaunchTransitionType.PLAYNITE
-                    ? LaunchTransitionState.PLAYNITE_FULLSCREEN_READY
-                    : LaunchTransitionState.IDLE;
+                    ? LaunchTransitionState.GAME_RUNNING : LaunchTransitionState.IDLE;
         } else {
             overlayVisible = true;
             inputBlocked = true;
@@ -833,10 +769,7 @@ public final class LaunchTransitionController {
         inputBlocked = false;
         state = currentTarget == LaunchTransitionType.GAME
                 || currentTarget == LaunchTransitionType.GAME_CONNECTION
-                ? LaunchTransitionState.GAME_RUNNING
-                : currentTarget == LaunchTransitionType.PLAYNITE
-                ? LaunchTransitionState.PLAYNITE_FULLSCREEN_READY
-                : LaunchTransitionState.IDLE;
+                ? LaunchTransitionState.GAME_RUNNING : LaunchTransitionState.IDLE;
         publish();
     }
 
@@ -865,7 +798,6 @@ public final class LaunchTransitionController {
 
     private boolean rejectsLateTargetSignal() {
         return state == LaunchTransitionState.GAME_STOPPING
-                || state == LaunchTransitionState.PLAYNITE_STOPPING
                 || state == LaunchTransitionState.CLOSING_STREAM
                 || state == LaunchTransitionState.RETURNING_TO_DASHBOARD;
     }
@@ -881,8 +813,7 @@ public final class LaunchTransitionController {
     }
 
     private void evaluateReady() {
-        if (rejectsLateTargetSignal()
-                || state == LaunchTransitionState.PLAYNITE_RETURNING) {
+        if (rejectsLateTargetSignal()) {
             manualRevealAvailable = false;
             revealAuthorized = false;
             publish();
@@ -902,9 +833,6 @@ public final class LaunchTransitionController {
             if (currentTarget == LaunchTransitionType.GAME
                     || currentTarget == LaunchTransitionType.GAME_CONNECTION) {
                 state = LaunchTransitionState.GAME_READY;
-            }
-            else if (currentTarget == LaunchTransitionType.PLAYNITE) {
-                state = LaunchTransitionState.PLAYNITE_FULLSCREEN_READY;
             }
         } else if (transportReady && (!targetReady || freshFrameOverdue) && !revealAuthorized) {
             // The user can explicitly reveal a rendering stream while the host-side readiness
@@ -1005,24 +933,18 @@ public final class LaunchTransitionController {
             case CONNECTING_STREAM:
             case WAITING_FOR_VIDEO_SURFACE:
                 return 2;
-            case PLAYNITE_STARTING:
-            case PLAYNITE_PROCESS_RUNNING:
             case GAME_UPDATING:
             case GAME_START_REQUESTED:
             case GAME_STARTING:
             case GAME_PROCESS_RUNNING:
                 return 3;
-            case PLAYNITE_FULLSCREEN_STARTING:
             case GAME_WINDOW_STABILIZING:
             case HOST_SESSION_LOCKED:
             case LAUNCHER_INTERACTION_REQUIRED:
             case PREVIOUS_GAME_RUNNING:
             case GAME_STOPPING:
-            case PLAYNITE_RETURNING:
-            case PLAYNITE_STOPPING:
             case CLOSING_STREAM:
                 return 4;
-            case PLAYNITE_FULLSCREEN_READY:
             case GAME_READY:
             case GAME_RUNNING:
             case IDLE:

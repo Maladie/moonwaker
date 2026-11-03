@@ -217,8 +217,6 @@ public class OverlayMenuViewTest {
         assertFalse(OverlayMenuView.communityVisible(OverlayMenuView.OverlayMode.MENU, true));
         assertTrue(OverlayMenuView.communityVisible(OverlayMenuView.OverlayMode.COMMUNITY, true));
         assertFalse(OverlayMenuView.communityVisible(OverlayMenuView.OverlayMode.COMMUNITY, false));
-        assertEquals(OverlayMenuView.OverlayMode.MENU,
-                OverlayMenuView.backMode(OverlayMenuView.OverlayMode.COMMUNITY));
     }
 
     @Test
@@ -245,16 +243,6 @@ public class OverlayMenuViewTest {
         // The shortcut list has no pair.
         assertEquals(0, OverlayMenuView.menuTarget(1, KeyEvent.KEYCODE_DPAD_UP, 3, -1));
         assertEquals(1, OverlayMenuView.menuTarget(1, KeyEvent.KEYCODE_DPAD_LEFT, 3, -1));
-    }
-
-    @Test
-    public void quickCommunityPanelUsesCompactSafeDimensionsAndThreeRailDestinations() {
-        assertEquals(520, OverlayMenuView.communityQuickWidthDp());
-        assertEquals(600, OverlayMenuView.communityChatWidthDp());
-        assertEquals(3, OverlayMenuView.communityRailIconCount());
-        assertEquals(2, OverlayMenuView.communityActionMaxRows());
-        assertFalse(OverlayMenuView.communityContentUsesSingleScrollOwner());
-        assertTrue(OverlayMenuView.communityContentUsesFocusableRows());
     }
 
     @Test
@@ -357,9 +345,6 @@ public class OverlayMenuViewTest {
         assertEquals(OverlayMenuView.COMMUNITY_REGION_ACTION,
                 OverlayMenuView.communityRegionTarget(OverlayMenuView.COMMUNITY_REGION_CONTENT,
                         KeyEvent.KEYCODE_DPAD_RIGHT, true));
-        assertEquals(0, OverlayMenuView.communityContentScrollTarget(20, 100, -84));
-        assertEquals(100, OverlayMenuView.communityContentScrollTarget(70, 100, 84));
-        assertEquals(40, OverlayMenuView.communityContentScrollTarget(0, 40, 40));
     }
 
     @Test
@@ -404,12 +389,7 @@ public class OverlayMenuViewTest {
     }
 
     @Test
-    public void communityRowsKeepStableSelectionAndChatPanelClampsToScreen() {
-        assertEquals(1, OverlayMenuView.communityStableIndex(
-                java.util.Arrays.asList("a", "b", "c"), "b"));
-        assertEquals(0, OverlayMenuView.communityStableIndex(
-                java.util.Arrays.asList("a", "b"), "gone"));
-        assertEquals(-1, OverlayMenuView.communityStableIndex(java.util.Collections.<String>emptyList(), "a"));
+    public void communityChatPanelClampsToScreen() {
         assertEquals(600, OverlayMenuView.communityPanelDimension(600, 0));
         assertEquals(560, OverlayMenuView.communityPanelDimension(600, 560));
         assertEquals(460, OverlayMenuView.communityPanelDimension(460, 900));
@@ -450,18 +430,6 @@ public class OverlayMenuViewTest {
                 OverlayMenuView.CommunitySection.CHANNELS, OverlayMenuView.CommunitySection.FRIENDS,
                 OverlayMenuView.CommunitySubmode.GUILD_CHANNELS,
                 OverlayMenuView.CommunitySubmode.ROOT, 8, 9));
-    }
-
-    @Test
-    public void stableIdsCoverEveryCommunityRowScope() {
-        assertEquals(1, OverlayMenuView.communityStableIndex(java.util.Arrays.asList(
-                "voice:1", "voice:2"), "voice:2"));
-        assertEquals(1, OverlayMenuView.communityStableIndex(java.util.Arrays.asList(
-                "friend:1", "friend:2"), "friend:2"));
-        assertEquals(2, OverlayMenuView.communityStableIndex(java.util.Arrays.asList(
-                "favorite-channel:7", "recent-channel:7", "guild:3"), "guild:3"));
-        assertEquals(1, OverlayMenuView.communityStableIndex(java.util.Arrays.asList(
-                "guild-channel:10", "guild-channel:11"), "guild-channel:11"));
     }
 
     @Test

@@ -8,7 +8,11 @@ import java.util.Objects;
 
 /** Immutable session destination. */
 final class PlayIntent {
-    enum Kind { SUNSHINE_APP, PLAYNITE_GAME, PLAYNITE_FULLSCREEN, AUTO_WARM_UP }
+    /**
+     * INSTALLATION_SUPPORT: the stream that finishes a game's installation on the PC; it carries
+     * that game's id for the installation window it focuses, never a game start.
+     */
+    enum Kind { SUNSHINE_APP, PLAYNITE_GAME, INSTALLATION_SUPPORT, AUTO_WARM_UP }
 
     final HostProfileKey profileKey;
     final String hostId;
@@ -72,10 +76,11 @@ final class PlayIntent {
                 || this.appName.isEmpty()) {
             throw new IllegalArgumentException("Host, Sunshine app ID, and app name are required");
         }
-        if (kind == Kind.PLAYNITE_GAME && this.playniteGameId.isEmpty()) {
+        boolean carriesGame = kind == Kind.PLAYNITE_GAME || kind == Kind.INSTALLATION_SUPPORT;
+        if (carriesGame && this.playniteGameId.isEmpty()) {
             throw new IllegalArgumentException("Playnite game ID is required");
         }
-        if (kind != Kind.PLAYNITE_GAME && !this.playniteGameId.isEmpty()) {
+        if (!carriesGame && !this.playniteGameId.isEmpty()) {
             throw new IllegalArgumentException("Only Playnite game targets have a game ID");
         }
         if (!this.calibrationAppKey.isEmpty() && (calibrationVariant == null
@@ -168,16 +173,11 @@ final class PlayIntent {
                 game.requiresConnector, game.startBeforeStream);
     }
 
-    static PlayIntent playniteFullscreen(String hostId, int appId, String appName,
-                                         boolean hdrSupported) {
-        return playniteFullscreen(hostId, GatewayConnection.DEFAULT_PROFILE_ID,
-                appId, appName, hdrSupported);
-    }
-
-    static PlayIntent playniteFullscreen(String hostId, String profileId, int appId,
-                                         String appName, boolean hdrSupported) {
-        return new PlayIntent(hostId, profileId, Kind.PLAYNITE_FULLSCREEN, appId, appName,
-                hdrSupported, "", "", "", false, false);
+    /** The installation stream ({@code appId}) that finishes {@code gameId}'s installation. */
+    static PlayIntent installationSupport(String hostId, String profileId, int appId,
+                                          String appName, boolean hdrSupported, String gameId) {
+        return new PlayIntent(hostId, profileId, Kind.INSTALLATION_SUPPORT, appId, appName,
+                hdrSupported, gameId, "", gameId, false, false);
     }
 
     static PlayIntent autoWarmUp(String hostId, String profileId) {
@@ -200,8 +200,9 @@ final class PlayIntent {
         return !calibrationAppKey.isEmpty();
     }
 
+    /** A game's start, or the game whose installation the support stream finishes. */
     String transitionGameId() {
-        return kind == Kind.PLAYNITE_GAME ? playniteGameId : "";
+        return playniteGameId;
     }
 
     LaunchTransitionType transitionType(LaunchTransitionType requestedType) {
@@ -230,9 +231,9 @@ final class PlayIntent {
             case PLAYNITE_GAME:
                 return SessionSnapshot.normalize(playniteGameId).equals(
                         SessionSnapshot.normalize(currentGameId));
-            case PLAYNITE_FULLSCREEN:
-                return sunshineAppId == currentAppId
-                        && SessionSnapshot.normalize(currentGameId).isEmpty();
+            // The installation stream is never "the same session": the host's neutral app may
+            // carry any game, so the table replaces or launches it (it focuses its window).
+            case INSTALLATION_SUPPORT:
             case AUTO_WARM_UP:
                 return false;
             default:

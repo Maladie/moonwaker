@@ -216,7 +216,7 @@ final class ConsoleCustomCommands {
                     draft.name = value;
                     screen.refresh();
                     return null;
-                }, null);
+                });
     }
 
     private void chooseIcon(ConsolePanel panel, Draft draft) {

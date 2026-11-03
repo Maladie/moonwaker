@@ -62,24 +62,12 @@ public class CustomCommand {
         return iconResId;
     }
 
-    public void setIconResId(int iconResId) {
-        this.iconResId = iconResId;
-    }
-
     public KeyCombination getKeyCombination() {
         return keyCombination;
     }
 
-    public void setKeyCombination(KeyCombination keyCombination) {
-        this.keyCombination = keyCombination;
-    }
-
     public int getPostAction() {
         return postAction;
-    }
-
-    public void setPostAction(int postAction) {
-        this.postAction = postAction;
     }
 
     /**
@@ -113,11 +101,11 @@ public class CustomCommand {
      * Supports: Ctrl, Alt, Shift, Meta/Win keys + any primary key code.
      */
     public static class KeyCombination {
-        private boolean ctrl;
-        private boolean alt;
-        private boolean shift;
-        private boolean meta; // Windows/Command key
-        private int keyCode;
+        private final boolean ctrl;
+        private final boolean alt;
+        private final boolean shift;
+        private final boolean meta; // Windows/Command key
+        private final int keyCode;
 
         public KeyCombination(boolean ctrl, boolean alt, boolean shift, boolean meta, int keyCode) {
             this.ctrl = ctrl;
@@ -135,40 +123,20 @@ public class CustomCommand {
             return ctrl;
         }
 
-        public void setCtrl(boolean ctrl) {
-            this.ctrl = ctrl;
-        }
-
         public boolean isAlt() {
             return alt;
-        }
-
-        public void setAlt(boolean alt) {
-            this.alt = alt;
         }
 
         public boolean isShift() {
             return shift;
         }
 
-        public void setShift(boolean shift) {
-            this.shift = shift;
-        }
-
         public boolean isMeta() {
             return meta;
         }
 
-        public void setMeta(boolean meta) {
-            this.meta = meta;
-        }
-
         public int getKeyCode() {
             return keyCode;
-        }
-
-        public void setKeyCode(int keyCode) {
-            this.keyCode = keyCode;
         }
 
         /**

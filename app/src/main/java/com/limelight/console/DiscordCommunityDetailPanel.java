@@ -134,6 +134,7 @@ final class DiscordCommunityDetailPanel {
         } else if (state == DiscordCommunityState.Detail.CHANNEL
                 && selected.source instanceof HostGatewayClient.DiscordChannel) {
             addJoinAction((HostGatewayClient.DiscordChannel) selected.source);
+            addFavoriteAction((HostGatewayClient.DiscordChannel) selected.source);
         } else if (selected.kind == DiscordCommunityPresentation.Kind.FRIEND) {
             // Also in the list state (mockups 19-together/friends): ► reaches it from the row.
             int label = model.directMessagesCapable ? R.string.discord_dm_send_message
@@ -157,7 +158,20 @@ final class DiscordCommunityDetailPanel {
                     R.drawable.ic_console_headset);
             firstAction.setOnClickListener(ignored -> callback.onDestinationOpened(selected));
             addAction(firstAction);
+            if (selected.source instanceof HostGatewayClient.DiscordChannel) {
+                addFavoriteAction((HostGatewayClient.DiscordChannel) selected.source);
+            }
         }
+    }
+
+    /** Adds the voice channel to the host's Discord favorites, or removes it (they list first). */
+    private void addFavoriteAction(HostGatewayClient.DiscordChannel channel) {
+        TextView favorite = row(context.getString(channel.favorite
+                ? R.string.discord_favorite_remove : R.string.discord_favorite_add),
+                R.drawable.ic_console_star);
+        favorite.setTag("discord.community.favorite");
+        favorite.setOnClickListener(ignored -> callback.onToggleFavorite(channel));
+        addAction(favorite);
     }
 
     /** Mockup "discord_disconnected": no account and nothing selected. */
@@ -248,6 +262,7 @@ final class DiscordCommunityDetailPanel {
                 DiscordPanelController.CommunityVoiceAction.MUTE, R.drawable.ic_console_microphone);
         addVoiceAction(model.voice.deafened ? R.string.discord_enable_audio : R.string.discord_disable_audio,
                 DiscordPanelController.CommunityVoiceAction.DEAFEN, R.drawable.ic_console_speaker);
+        if (channel != null) addFavoriteAction(channel);
         addVoiceAction(R.string.overlay_discord_leave, DiscordPanelController.CommunityVoiceAction.LEAVE,
                 R.drawable.ic_console_leave);
     }

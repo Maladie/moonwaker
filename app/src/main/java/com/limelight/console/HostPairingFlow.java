@@ -1,5 +1,6 @@
 package com.limelight.console;
 
+import com.limelight.gateway.GatewayTransport;
 import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
@@ -20,7 +21,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.security.cert.X509Certificate;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -33,9 +36,13 @@ import java.util.function.Supplier;
  * (Vibepollo) by a ticket, or streaming alone by Vibepollo's own PIN. The caller shows the
  * code entry, progress and errors (the first-run wizard, the console's renewal and repair
  * prompts); this flow owns the requests and what they leave stored. Listener calls run on the
- * main thread.
+ * main thread. Pairing runs on threads of its own: a Moonlight pairing blocks until the PIN is
+ * entered on the PC, never the console's shared workers.
  */
 final class HostPairingFlow {
+    /** How long manual pairing waits for the PIN on the PC before it gives up. */
+    static final int MANUAL_PAIRING_TIMEOUT_SECONDS = 120;
+
     interface Listener {
         /** The step now running, e.g. "Vibepollo"; a progress line, not a result. */
         void onStage(String stage);
@@ -50,8 +57,12 @@ final class HostPairingFlow {
 
     /** What the user can do about a failure: see FIRST_RUN_WIZARD_DESIGN_PL.md section 4. */
     enum Problem {
-        /** The code was wrong, expired or no pairing was open: make a new one on the PC. */
+        /** No pairing is open (none made, expired or used): make a new code on the PC. */
         CODE,
+        /** The code was mistyped: check it and enter it again. */
+        CODE_INVALID,
+        /** Too many wrong codes: wait a minute, then the same code works again. */
+        RATE_LIMITED,
         /** The Gateway did not answer: same network, firewall, address. */
         UNREACHABLE,
         /** Vibepollo was not running or did not grant the client its permissions. */
@@ -70,19 +81,19 @@ final class HostPairingFlow {
     }
 
     private final Context context;
-    private final ExecutorService executor;
+    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private volatile boolean closed;
     private final Handler main;
     private final HostGatewayClient client;
     private final HostGatewayStore store;
     private final Supplier<ComputerManagerService.ComputerManagerBinder> binder;
     private final BiConsumer<String, HostGatewayClient.IntegrationProfiles> saveProfiles;
 
-    HostPairingFlow(Context context, ExecutorService executor, Handler main,
+    HostPairingFlow(Context context, Handler main,
                     HostGatewayClient client, HostGatewayStore store,
                     Supplier<ComputerManagerService.ComputerManagerBinder> binder,
                     BiConsumer<String, HostGatewayClient.IntegrationProfiles> saveProfiles) {
         this.context = context;
-        this.executor = executor;
         this.main = main;
         this.client = client;
         this.store = store;
@@ -104,10 +115,9 @@ final class HostPairingFlow {
                 pairing = client.pair(endpoint, code, clientName());
                 store.save(host.uuid, pairing.connection);
                 saveProfiles.accept(host.uuid, pairing.profiles);
-            } catch (HostGatewayClient.GatewayException error) {
-                boolean rejected = error.statusCode == 401 || error.statusCode == 403;
-                fail(host, listener, () -> true, new Failure(rejected ? Problem.CODE
-                        : Problem.OTHER, deepestPairingError(error)));
+            } catch (GatewayTransport.GatewayException error) {
+                fail(host, listener, () -> true,
+                        new Failure(codeProblem(error), deepestPairingError(error)));
                 return;
             } catch (IOException | RuntimeException error) {
                 fail(host, listener, () -> true,
@@ -216,6 +226,17 @@ final class HostPairingFlow {
         });
     }
 
+    /** The Gateway's {@code /pair} refusal reason; anything else is no code problem. */
+    static Problem codeProblem(GatewayTransport.GatewayException error) {
+        String reason = error.reason() == null ? "" : error.reason();
+        switch (reason) {
+            case "pairing_inactive": return Problem.CODE;
+            case "pairing_code_invalid": return Problem.CODE_INVALID;
+            case "pairing_rate_limited": return Problem.RATE_LIMITED;
+            default: return Problem.OTHER;
+        }
+    }
+
     private Problem problemAt(String stage) {
         return context.getString(R.string.console_pair_stage_vibepollo).equals(stage)
                 ? Problem.VIBEPOLLO : Problem.OTHER;
@@ -241,15 +262,20 @@ final class HostPairingFlow {
         listener.onStage(context.getString(R.string.pairing));
         executor.execute(() -> {
             String message = null;
+            NvHTTP http = null;
+            Future<PairingManager.PairState> pairFuture = null;
             try {
-                NvHTTP http = new NvHTTP(ServerHelper.getCurrentAddressFromComputer(host),
+                http = new NvHTTP(ServerHelper.getCurrentAddressFromComputer(host),
                         host.httpsPort, pairingBinder.getUniqueId(), host.serverCert,
                         PlatformBinding.getCryptoProvider(context));
                 if (http.getPairState() != PairingManager.PairState.PAIRED) {
                     String pin = PairingManager.generatePinString();
-                    main.post(() -> listener.onManualPin(pin));
+                    post(() -> listener.onManualPin(pin));
                     PairingManager pairing = http.getPairingManager();
-                    PairingManager.PairState state = pairing.pair(http.getServerInfo(true), pin);
+                    String serverInfo = http.getServerInfo(true);
+                    pairFuture = executor.submit(() -> pairing.pair(serverInfo, pin));
+                    PairingManager.PairState state =
+                            pairFuture.get(MANUAL_PAIRING_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                     if (state == PairingManager.PairState.PAIRED) {
                         ComputerDetails managed = pairingBinder.getComputer(host.uuid);
                         if (managed != null) managed.serverCert = pairing.getPairedCert();
@@ -267,6 +293,16 @@ final class HostPairingFlow {
                 message = context.getString(R.string.error_unknown_host);
             } catch (FileNotFoundException error) {
                 message = context.getString(R.string.error_404);
+            } catch (TimeoutException timedOut) {
+                // The PIN never reached the PC: the host forgets the half-made pairing.
+                pairFuture.cancel(true);
+                cancelPendingPairing(http);
+                message = context.getString(R.string.console_pair_manual_timeout);
+            } catch (ExecutionException error) {
+                message = deepestPairingError(error);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                message = context.getString(R.string.pair_fail);
             } catch (IOException | XmlPullParserException error) {
                 message = error.getMessage();
             }
@@ -280,20 +316,33 @@ final class HostPairingFlow {
     }
 
     private void stage(Listener listener, String stage) {
-        main.post(() -> listener.onStage(stage));
+        post(() -> listener.onStage(stage));
     }
 
     private void succeed(ComputerDetails host, Listener listener, BooleanSupplier current) {
-        main.post(() -> {
+        post(() -> {
             if (current.getAsBoolean()) listener.onPaired(host);
         });
     }
 
     private void fail(ComputerDetails host, Listener listener, BooleanSupplier current,
                       Failure failure) {
-        main.post(() -> {
+        post(() -> {
             if (current.getAsBoolean()) listener.onFailed(host, failure);
         });
+    }
+
+    /** Listener calls never run once the owning Activity closed this flow. */
+    private void post(Runnable call) {
+        main.post(() -> {
+            if (!closed) call.run();
+        });
+    }
+
+    /** The owning Activity is gone: no listener runs again and the pairing threads stop. */
+    void close() {
+        closed = true;
+        executor.shutdownNow();
     }
 
     static String deepestPairingError(Throwable error) {

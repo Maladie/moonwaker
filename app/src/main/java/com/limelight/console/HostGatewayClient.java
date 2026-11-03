@@ -20,7 +20,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 public class HostGatewayClient {
@@ -34,7 +36,42 @@ public class HostGatewayClient {
     private static final long MAX_OBSERVATION_WALL_SKEW_MS = 365L * 24L * 60L * 60L * 1_000L;
     private static final int NETWORK_PROBE_BYTES = 8 * 1024 * 1024;
     private static final long NETWORK_TARGET_NANOS = 8_000_000_000L;
+    /** The Gateway refuses this profile's calls until its app PIN is entered again. */
+    static final String PROFILE_UNLOCK_REQUIRED = "profile_unlock_required";
+    /** The Gateway could not reach this profile's Bridge (it does not answer): a retry. */
+    static final String BRIDGE_UNAVAILABLE = "bridge_unavailable";
+
+    /** A failure's text for the user: the Gateway's Bridge code in words, else its message. */
+    static String failureText(android.content.Context context, Throwable error,
+                              String fallback) {
+        String message = error == null ? null : error.getMessage();
+        if (BRIDGE_UNAVAILABLE.equals(message)) {
+            return context.getString(com.limelight.R.string.preflight_playnite_offline);
+        }
+        return message == null || message.trim().isEmpty() ? fallback : message;
+    }
     private final GatewayTransport transport = new GatewayTransport();
+    private volatile Consumer<GatewayConnection> profileUnlockRequired = connection -> { };
+
+    /**
+     * Told, on the calling worker, whenever the Gateway refuses a call with
+     * {@link #PROFILE_UNLOCK_REQUIRED} (its restart forgot the PIN unlock, or the PIN changed).
+     */
+    void onProfileUnlockRequired(Consumer<GatewayConnection> listener) {
+        profileUnlockRequired = Objects.requireNonNull(listener);
+    }
+
+    static boolean isProfileUnlockRequired(Throwable error) {
+        return error instanceof GatewayTransport.GatewayException
+                && PROFILE_UNLOCK_REQUIRED.equals(
+                ((GatewayTransport.GatewayException) error).reason());
+    }
+
+    private GatewayTransport.GatewayException refused(GatewayConnection connection,
+                                                      GatewayTransport.GatewayException error) {
+        if (isProfileUnlockRequired(error)) profileUnlockRequired.accept(connection);
+        return error;
+    }
 
     static final class Pairing {
         final GatewayConnection connection;
@@ -55,8 +92,6 @@ public class HostGatewayClient {
         final boolean vibepolloFix;
         final boolean discord;
         final boolean playnite;
-        final boolean childProfiles;
-        final boolean controlOperations;
         final boolean sessionSuspend;
         final boolean usbForwarding;
         /** The host has a Host Plus licence (F2); the host alone enforces it. */
@@ -66,9 +101,8 @@ public class HostGatewayClient {
         /** Adult-profile first-run facts; null for child profiles or an older Gateway. */
         final SetupFacts setup;
 
-        Capabilities(boolean vibepolloFix, boolean discord,
-                     boolean playnite, boolean childProfiles,
-                     boolean controlOperations, boolean sessionSuspend, boolean usbForwarding,
+        Capabilities(boolean vibepolloFix, boolean discord, boolean playnite,
+                     boolean sessionSuspend, boolean usbForwarding,
                      boolean hostPlus, boolean captures, SetupFacts setup) {
             this.hostPlus = hostPlus;
             this.captures = captures;
@@ -76,8 +110,6 @@ public class HostGatewayClient {
             this.vibepolloFix = vibepolloFix;
             this.discord = discord;
             this.playnite = playnite;
-            this.childProfiles = childProfiles;
-            this.controlOperations = controlOperations;
             this.sessionSuspend = sessionSuspend;
             this.usbForwarding = usbForwarding;
         }
@@ -89,16 +121,15 @@ public class HostGatewayClient {
         static final String DISCORD_NOT_LINKED = "not_linked";
         static final String DISCORD_UNKNOWN = "unknown";
 
-        final Boolean steamApiKeySaved;
-        final Boolean steamIdAvailable;
+        /** A Steam sign-in or the advanced Web API key: the whole Steam library is read. */
+        final Boolean steamConnected;
         final Boolean epicSignedIn;
         final String epicDisplayName;
         final String discordState;
 
-        SetupFacts(Boolean steamApiKeySaved, Boolean steamIdAvailable, Boolean epicSignedIn,
+        SetupFacts(Boolean steamConnected, Boolean epicSignedIn,
                    String epicDisplayName, String discordState) {
-            this.steamApiKeySaved = steamApiKeySaved;
-            this.steamIdAvailable = steamIdAvailable;
+            this.steamConnected = steamConnected;
             this.epicSignedIn = epicSignedIn;
             this.epicDisplayName = epicDisplayName;
             this.discordState = discordState;
@@ -111,7 +142,7 @@ public class HostGatewayClient {
             JSONObject discord = setup.optJSONObject("discord");
             String state = discord == null ? "" : discord.optString("state", "");
             return new SetupFacts(
-                    tristate(steam, "api_key_saved"), tristate(steam, "steam_id_available"),
+                    tristate(steam, "connected"),
                     tristate(epic, "signed_in"),
                     epic == null ? "" : epic.optString("display_name", ""),
                     DISCORD_LINKED.equals(state) || DISCORD_NOT_LINKED.equals(state)
@@ -176,25 +207,6 @@ public class HostGatewayClient {
             this(id, name, discordBridgeOnline, discordRpcConnected,
                     discordAuthenticated, vibepolloBridgeOnline, false, false,
                     true, false, "unknown", "unavailable");
-        }
-
-        IntegrationProfile(String id, String name, boolean discordBridgeOnline,
-                           boolean discordRpcConnected, boolean discordAuthenticated,
-                           boolean vibepolloBridgeOnline, boolean playniteBridgeOnline) {
-            this(id, name, discordBridgeOnline, discordRpcConnected,
-                    discordAuthenticated, vibepolloBridgeOnline, playniteBridgeOnline,
-                    false, true, false,
-                    "unknown", "unavailable");
-        }
-
-        IntegrationProfile(String id, String name, boolean discordBridgeOnline,
-                           boolean discordRpcConnected, boolean discordAuthenticated,
-                           boolean vibepolloBridgeOnline, boolean playniteBridgeOnline,
-                           boolean playniteConnectorConnected) {
-            this(id, name, discordBridgeOnline, discordRpcConnected,
-                    discordAuthenticated, vibepolloBridgeOnline, playniteBridgeOnline,
-                    playniteConnectorConnected, true, false,
-                    "unknown", "unavailable");
         }
 
         IntegrationProfile(String id, String name, boolean discordBridgeOnline,
@@ -333,7 +345,6 @@ public class HostGatewayClient {
         final boolean installed;
         final boolean installing;
         final boolean hidden;
-        final boolean favorite;
         final String cover;
         final String background;
         final String hero;
@@ -352,7 +363,6 @@ public class HostGatewayClient {
         final boolean requiresConnector;
         final boolean startBeforeStream;
         final String genres;
-        final String artworkVersion;
         final boolean installRequiresAttention;
         final String installAttentionReason;
         final String installWindowTitle;
@@ -366,125 +376,22 @@ public class HostGatewayClient {
         /** {@code ageRating} of a parent library record; null when unrated. */
         GameAgeRating ageRating;
         final long playtimeSeconds;
-        /** Compatibility view for older console code. New code uses seconds. */
-        final long playtimeMinutes;
-
-        PlayniteGame(String id, String name, boolean installed, boolean favorite,
-                     String cover, String background, String lastPlayed,
-                     long playtimeMinutes) {
-            this(id, name, installed, false, favorite, cover, background, lastPlayed,
-                    "", 0, "", "", Math.max(0L, playtimeMinutes) * 60L);
-        }
-
-        PlayniteGame(String id, String name, boolean installed, boolean hidden,
-                     boolean favorite, String cover, String background, String lastPlayed,
-                     String source, String artworkVersion, long playtimeSeconds) {
-            this(id, name, installed, hidden, favorite, cover, background, lastPlayed,
-                    "", 0, source, artworkVersion, playtimeSeconds);
-        }
-
-        PlayniteGame(String id, String name, boolean installed, boolean hidden,
-                     boolean favorite, String cover, String background, String lastPlayed,
-                     String description, String source, String artworkVersion,
-                     long playtimeSeconds) {
-            this(id, name, installed, hidden, favorite, cover, background, lastPlayed,
-                    description, 0, source, artworkVersion, playtimeSeconds);
-        }
-
-        PlayniteGame(String id, String name, boolean installed, boolean hidden,
-                     boolean favorite, String cover, String background, String lastPlayed,
-                     String description, int playCount, String source, String artworkVersion,
-                     long playtimeSeconds) {
-            this(id, name, installed, false, hidden, favorite, cover, background, lastPlayed,
-                    description, playCount, source, artworkVersion, playtimeSeconds);
-        }
 
         PlayniteGame(String id, String name, boolean installed, boolean installing,
-                     boolean hidden, boolean favorite, String cover, String background,
+                     boolean hidden, String cover, String background, String hero,
                      String lastPlayed, String description, int playCount, String source,
-                     String artworkVersion, long playtimeSeconds) {
-            this(id, name, installed, installing, hidden, favorite, cover, background,
-                    lastPlayed, description, playCount, source, "", artworkVersion,
-                    playtimeSeconds);
-        }
-
-        PlayniteGame(String id, String name, boolean installed, boolean installing,
-                     boolean hidden, boolean favorite, String cover, String background,
-                     String lastPlayed, String description, int playCount, String source,
-                     String genres, String artworkVersion, long playtimeSeconds) {
-            this(id, name, installed, installing, hidden, favorite, cover, background,
-                    lastPlayed, description, playCount, source, genres, artworkVersion,
-                    playtimeSeconds, false, "", "", "");
-        }
-
-        PlayniteGame(String id, String name, boolean installed, boolean installing,
-                     boolean hidden, boolean favorite, String cover, String background,
-                     String lastPlayed, String description, int playCount, String source,
-                     String genres, String artworkVersion, long playtimeSeconds,
-                     boolean installRequiresAttention, String installAttentionReason,
-                     String installWindowTitle, String installLauncher) {
-            this(id, name, installed, installing, hidden, favorite, cover, background,
-                    lastPlayed, description, playCount, source, genres, artworkVersion,
-                    playtimeSeconds, installRequiresAttention, installAttentionReason,
-                    installWindowTitle, installLauncher, "", -1, false);
-        }
-
-        PlayniteGame(String id, String name, boolean installed, boolean installing,
-                     boolean hidden, boolean favorite, String cover, String background,
-                     String lastPlayed, String description, int playCount, String source,
-                     String genres, String artworkVersion, long playtimeSeconds,
-                     boolean installRequiresAttention, String installAttentionReason,
-                     String installWindowTitle, String installLauncher,
-                     String operationState, int operationProgress, boolean uninstalling) {
-            this(id, name, installed, installing, hidden, favorite, cover, background,
-                    lastPlayed, description, playCount, source, genres, artworkVersion,
-                    playtimeSeconds, installRequiresAttention, installAttentionReason,
-                    installWindowTitle, installLauncher, operationState, operationProgress,
-                    uninstalling, providerFrom(source), "",
-                    isGuid(id) ? id : "", sourceKey(source),
-                    source == null || source.trim().isEmpty() ? "Playnite" : source,
-                    true, true, true, isGuid(id), false);
-        }
-
-        PlayniteGame(String id, String name, boolean installed, boolean installing,
-                     boolean hidden, boolean favorite, String cover, String background,
-                     String lastPlayed, String description, int playCount, String source,
-                     String genres, String artworkVersion, long playtimeSeconds,
-                     boolean installRequiresAttention, String installAttentionReason,
-                     String installWindowTitle, String installLauncher,
-                     String operationState, int operationProgress, boolean uninstalling,
-                     String provider, String providerGameId,
+                     String genres, long playtimeSeconds, boolean installRequiresAttention,
+                     String installAttentionReason, String installWindowTitle,
+                     String installLauncher, String operationState, int operationProgress,
+                     boolean uninstalling, String provider, String providerGameId,
                      String playniteGameId, String libraryKey, String libraryName,
                      boolean canLaunch, boolean canInstall, boolean canUninstall,
                      boolean requiresConnector, boolean startBeforeStream) {
-            this(id, name, installed, installing, hidden, favorite, cover, background,
-                    "", lastPlayed, description, playCount, source, genres,
-                    artworkVersion, playtimeSeconds, installRequiresAttention,
-                    installAttentionReason, installWindowTitle, installLauncher,
-                    operationState, operationProgress, uninstalling,
-                    provider, providerGameId, playniteGameId, libraryKey, libraryName,
-                    canLaunch, canInstall, canUninstall, requiresConnector,
-                    startBeforeStream);
-        }
-
-        PlayniteGame(String id, String name, boolean installed, boolean installing,
-                     boolean hidden, boolean favorite, String cover, String background,
-                     String hero, String lastPlayed, String description, int playCount,
-                     String source, String genres, String artworkVersion,
-                     long playtimeSeconds, boolean installRequiresAttention,
-                     String installAttentionReason, String installWindowTitle,
-                     String installLauncher, String operationState, int operationProgress,
-                     boolean uninstalling, String provider,
-                     String providerGameId, String playniteGameId, String libraryKey,
-                     String libraryName, boolean canLaunch, boolean canInstall,
-                     boolean canUninstall, boolean requiresConnector,
-                     boolean startBeforeStream) {
             this.id = id;
             this.name = name;
             this.installed = installed;
             this.installing = installing;
             this.hidden = hidden;
-            this.favorite = favorite;
             this.cover = cover;
             this.background = background;
             this.hero = hero == null ? "" : hero;
@@ -503,7 +410,6 @@ public class HostGatewayClient {
             this.requiresConnector = requiresConnector;
             this.startBeforeStream = startBeforeStream;
             this.genres = genres;
-            this.artworkVersion = artworkVersion;
             this.installRequiresAttention = installRequiresAttention;
             this.installAttentionReason = installAttentionReason;
             this.installWindowTitle = installWindowTitle == null ? "" : installWindowTitle;
@@ -512,21 +418,6 @@ public class HostGatewayClient {
             this.operationProgress = operationProgress;
             this.uninstalling = uninstalling;
             this.playtimeSeconds = Math.max(0L, playtimeSeconds);
-            this.playtimeMinutes = this.playtimeSeconds / 60L;
-        }
-
-        private static boolean isGuid(String value) {
-            return value != null && PLAYNITE_GUID.matcher(value).matches();
-        }
-
-        private static String providerFrom(String source) {
-            String value = source == null ? "" : source.trim().toLowerCase(Locale.ROOT);
-            return PROVIDER_NAME.matcher(value).matches() ? value : "playnite";
-        }
-
-        private static String sourceKey(String source) {
-            String value = source == null ? "" : source.trim().toLowerCase(Locale.ROOT);
-            return value.isEmpty() ? "playnite" : value;
         }
     }
 
@@ -535,19 +426,13 @@ public class HostGatewayClient {
         final String nextCursor;
         final int total;
         final String revision;
-        final String apiVersion;
-
-        PlayniteLibrary(List<PlayniteGame> games, String nextCursor, int total) {
-            this(games, nextCursor, total, "", "");
-        }
 
         PlayniteLibrary(List<PlayniteGame> games, String nextCursor, int total,
-                        String revision, String apiVersion) {
+                        String revision) {
             this.games = Collections.unmodifiableList(games);
             this.nextCursor = nextCursor;
             this.total = total;
             this.revision = revision == null ? "" : revision;
-            this.apiVersion = apiVersion == null ? "" : apiVersion;
         }
     }
 
@@ -846,25 +731,13 @@ public class HostGatewayClient {
                        String requestId, String actorProfileId,
                        String executionProfileId) {
             this.state = normalizedState(state, "failed");
-            this.reason = normalizedState(reason, "manual_sign_in_required");
+            this.reason = normalizedState(reason, "");
             this.attemptId = attemptId == null ? "" : attemptId.trim();
             this.requestId = requestId == null ? "" : requestId.trim();
             this.actorProfileId = actorProfileId == null ? "" : actorProfileId.trim();
             this.executionProfileId = executionProfileId == null
                     ? "" : executionProfileId.trim();
             this.retryAfterMs = retryAfterMs > 0 ? retryAfterMs : 1_000;
-        }
-    }
-
-    static final class RepairStatus {
-        final boolean online;
-        final String version;
-        final String error;
-
-        RepairStatus(boolean online, String version, String error) {
-            this.online = online;
-            this.version = version;
-            this.error = error;
         }
     }
 
@@ -924,15 +797,15 @@ public class HostGatewayClient {
         }
     }
 
-    static final class DiscordVoice {
-        final boolean connected;
-        final String channelId;
-        final String channelName;
-        final String guildId;
-        final boolean muted;
-        final boolean deafened;
+    public static final class DiscordVoice {
+        public final boolean connected;
+        public final String channelId;
+        public final String channelName;
+        public final String guildId;
+        public final boolean muted;
+        public final boolean deafened;
         final int participants;
-        final List<DiscordParticipant> participantList;
+        public final List<DiscordParticipant> participantList;
 
         DiscordVoice(boolean connected, String channelId, String channelName, String guildId,
                      boolean muted, boolean deafened, int participants) {
@@ -954,15 +827,15 @@ public class HostGatewayClient {
         }
     }
 
-    static final class DiscordParticipant {
-        final String id;
-        final String name;
+    public static final class DiscordParticipant {
+        public final String id;
+        public final String name;
         final String username;
-        final int volume;
-        final boolean muted;
+        public final int volume;
+        public final boolean muted;
         final boolean deafened;
-        final boolean speaking;
-        final boolean self;
+        public final boolean speaking;
+        public final boolean self;
         final boolean bot;
         final boolean canSetVolume;
         final String audioError;
@@ -1020,30 +893,13 @@ public class HostGatewayClient {
         final int volume;
         final boolean muted;
         final List<AudioDevice> devices;
-        final String error;
 
         SystemAudioState(boolean available, int volume, boolean muted,
-                         List<AudioDevice> devices, String error) {
+                         List<AudioDevice> devices) {
             this.available = available;
             this.volume = volume;
             this.muted = muted;
             this.devices = Collections.unmodifiableList(devices);
-            this.error = error;
-        }
-    }
-
-    static final class GatewayException extends IOException {
-        final int statusCode;
-        final int retryAfterSeconds;
-
-        GatewayException(String message, int statusCode) {
-            this(message, statusCode, 0);
-        }
-
-        GatewayException(String message, int statusCode, int retryAfterSeconds) {
-            super(message);
-            this.statusCode = statusCode;
-            this.retryAfterSeconds = retryAfterSeconds;
         }
     }
 
@@ -1060,7 +916,8 @@ public class HostGatewayClient {
 
     Pairing pair(String endpoint, String code, String clientName) throws IOException {
         if (code == null || !code.matches("[0-9]{6}")) {
-            throw new GatewayException("The pairing code must contain six digits.", 0);
+            throw new GatewayTransport.GatewayException(
+                    "The pairing code must contain six digits.", 0);
         }
         JSONObject request = new JSONObject();
         try {
@@ -1069,17 +926,16 @@ public class HostGatewayClient {
         } catch (JSONException impossible) {
             throw new IOException(impossible);
         }
-        GatewayTransport.PairingResponse pairing;
-        try {
-            pairing = transport.postPairingJson(
-                    endpoint, "/api/v1/pair", request, READ_TIMEOUT_MS);
-        } catch (GatewayTransport.GatewayException error) {
-            throw mapException(error);
-        }
+        // The Gateway consumes the code and writes its registry before it answers.
+        GatewayTransport.PairingResponse pairing = transport.postPairingJson(
+                endpoint, "/api/v1/pair", request, MANAGEMENT_TIMEOUT_MS);
         JSONObject response = pairing.response();
         String fingerprint = pairing.certificateSha256();
         String token = response.optString("token", "");
-        if (token.isEmpty()) throw new GatewayException("The gateway returned no client token.", 0);
+        if (token.isEmpty()) {
+            throw new GatewayTransport.GatewayException(
+                    "The gateway returned no client token.", 0);
+        }
         IntegrationProfiles profiles = parseIntegrationProfiles(response);
         String selectedProfile = pairingProfileId(profiles);
         return new Pairing(new GatewayConnection(endpoint, token, fingerprint, selectedProfile),
@@ -1101,23 +957,25 @@ public class HostGatewayClient {
                 READ_TIMEOUT_MS);
         String ticket = response.optString("stream_pair_ticket", "");
         if (ticket.isEmpty()) {
-            throw new GatewayException("The gateway returned no stream pairing ticket.", 0);
+            throw new GatewayTransport.GatewayException(
+                    "The gateway returned no stream pairing ticket.", 0);
         }
         return ticket;
     }
 
     VibepolloIdentityChallenge requestVibepolloIdentityChallenge(
             GatewayConnection connection) throws IOException {
-        JSONObject response = transport.postJson(connection,
-                "/api/v1/vibepollo/identity/challenge", new JSONObject(), READ_TIMEOUT_MS);
+        JSONObject response = request(connection,
+                "/api/v1/vibepollo/identity/challenge", "POST", new JSONObject(),
+                READ_TIMEOUT_MS);
         if (!response.optBoolean("ok", false)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     "The existing Vibepollo pairing could not be verified."), 0);
         }
         String id = requireOpaqueId(response.optString("challenge_id", ""), "challenge_id");
         String challenge = response.optString("challenge", "");
         if (!isValidIdentityChallenge(challenge)) {
-            throw new GatewayException("Invalid identity challenge.", 0);
+            throw new GatewayTransport.GatewayException("Invalid identity challenge.", 0);
         }
         return new VibepolloIdentityChallenge(id, challenge,
                 response.optInt("expires_seconds", 60));
@@ -1150,10 +1008,10 @@ public class HostGatewayClient {
         } catch (JSONException impossible) {
             throw new IOException(impossible);
         }
-        JSONObject response = transport.postJson(connection,
-                "/api/v1/vibepollo/identity/bind", body, MANAGEMENT_TIMEOUT_MS);
+        JSONObject response = request(connection,
+                "/api/v1/vibepollo/identity/bind", "POST", body, MANAGEMENT_TIMEOUT_MS);
         if (!response.optBoolean("ok", false) || !response.optBoolean("bound", false)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     "The existing Vibepollo pairing could not be bound."), 0);
         }
     }
@@ -1182,7 +1040,7 @@ public class HostGatewayClient {
         JSONObject response = request(connection,
                 "/api/v1/vibepollo/pair", "POST", body, 55_000);
         if (!response.optBoolean("ok", false)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     "The Moonlight client could not be paired."), 0);
         }
         return response;
@@ -1205,8 +1063,6 @@ public class HostGatewayClient {
         return new Capabilities(available(capabilities, "vibepollo_fix"),
                 available(capabilities, "discord"),
                 available(capabilities, "playnite"),
-                available(capabilities, "child_profiles_v1"),
-                available(capabilities, "control_operations_v2"),
                 available(capabilities, "session_suspend"),
                 available(capabilities, "usb_forwarding"),
                 available(capabilities, "host_plus"),
@@ -1238,7 +1094,7 @@ public class HostGatewayClient {
         JSONObject response = request(connection, "/api/v1/profiles/pin/verify", "POST",
                 body, READ_TIMEOUT_MS);
         if (!response.optBoolean("unlocked", false)) {
-            throw new GatewayException("pin_verification_failed", 502);
+            throw new GatewayTransport.GatewayException("pin_verification_failed", 502);
         }
     }
 
@@ -1254,22 +1110,12 @@ public class HostGatewayClient {
                     profilePinChangeBody(currentPin, newPin), requireSessionRequestId(requestId),
                     READ_TIMEOUT_MS);
             if (!response.optBoolean("ok", false)) {
-                throw new GatewayException("pin_change_failed", 502);
+                throw new GatewayTransport.GatewayException("pin_change_failed", 502);
             }
             return response.optBoolean("pin_required", newPin != null);
         } catch (GatewayTransport.GatewayException error) {
-            throw mapException(error);
+            throw refused(connection, error);
         }
-    }
-
-    /**
-     * The first-run wizard's first PIN for a profile without one. The host accepts it only
-     * within its one-shot window right after this TV paired; otherwise it fails with
-     * {@code first_pin_grant_required}.
-     */
-    boolean setFirstProfilePin(GatewayConnection connection, String pin, String requestId)
-            throws IOException {
-        return changeProfilePin(connection, null, pin, requestId);
     }
 
     /**
@@ -1290,10 +1136,32 @@ public class HostGatewayClient {
                     steam ? "/api/v1/setup/steam-key" : "/api/v1/setup/epic-login", body,
                     requireSessionRequestId(requestId), steam ? READ_TIMEOUT_MS : 90_000);
             if (!response.optBoolean("ok", false)) {
-                throw new GatewayException("bridge_unavailable", 502);
+                throw new GatewayTransport.GatewayException(BRIDGE_UNAVAILABLE, 502);
             }
         } catch (GatewayTransport.GatewayException error) {
-            throw mapException(error);
+            throw refused(connection, error);
+        }
+    }
+
+    /** The host's announced name, saved in Vibepollo; returns the name the host kept. */
+    String setHostName(GatewayConnection connection, String name, String requestId)
+            throws IOException {
+        JSONObject body = new JSONObject();
+        try {
+            body.put("name", name);
+        } catch (JSONException impossible) {
+            throw new IllegalStateException(impossible);
+        }
+        try {
+            JSONObject response = transport.postJson(connection, "/api/v1/host/name", body,
+                    requireSessionRequestId(requestId), 15_000);
+            String saved = response.optString("name", "");
+            if (!response.optBoolean("ok", false) || saved.isEmpty()) {
+                throw new GatewayTransport.GatewayException("vibepollo_unavailable", 502);
+            }
+            return saved;
+        } catch (GatewayTransport.GatewayException error) {
+            throw refused(connection, error);
         }
     }
 
@@ -1307,77 +1175,6 @@ public class HostGatewayClient {
         try {
             if (currentPin != null) body.put("current_pin", currentPin);
             if (newPin != null) body.put("new_pin", newPin);
-        } catch (JSONException impossible) {
-            throw new IllegalStateException(impossible);
-        }
-        return body;
-    }
-
-    /**
-     * Names of the host's local Windows accounts that may get an adult profile. The
-     * connection's profile is the authorizing adult (with its {@code currentPin} when it has
-     * one); a TV granted no adult profile yet is authorized by its pairing grant instead.
-     */
-    List<String> adultProfileAccounts(GatewayConnection connection, String currentPin)
-            throws IOException {
-        try {
-            JSONObject response = transport.postJson(connection,
-                    "/api/v1/profiles/adult/accounts", adultProfileBody(currentPin),
-                    READ_TIMEOUT_MS);
-            JSONArray names = response.optJSONArray("accounts");
-            if (!response.optBoolean("ok", false) || names == null) {
-                throw new GatewayException("adult_accounts_failed", 502);
-            }
-            List<String> accounts = new ArrayList<>();
-            for (int index = 0; index < names.length() && index < 64; index++) {
-                String name = names.optString(index, "").trim();
-                if (!name.isEmpty()) accounts.add(name);
-            }
-            return accounts;
-        } catch (GatewayTransport.GatewayException error) {
-            throw mapException(error);
-        }
-    }
-
-    /**
-     * Creates an adult profile bound to {@code accountName}, one of
-     * {@link #adultProfileAccounts}, authorized as there; {@code newPin}, when not null, is the
-     * new profile's first app PIN. Returns the new profile's ID. Replaying the same
-     * {@code requestId} returns the same profile.
-     */
-    String createAdultProfile(GatewayConnection connection, String accountName,
-                                String currentPin, String newPin, String requestId)
-            throws IOException {
-        JSONObject body = adultProfileBody(currentPin);
-        if (accountName == null || accountName.trim().isEmpty()
-                || (newPin != null && !newPin.matches("[0-9]{4}"))) {
-            throw new IllegalArgumentException("Invalid adult profile request");
-        }
-        try {
-            body.put("account_name", accountName);
-            if (newPin != null) body.put("new_pin", newPin);
-            JSONObject response = transport.postJson(connection, "/api/v1/profiles/adult",
-                    body, requireSessionRequestId(requestId), READ_TIMEOUT_MS);
-            JSONObject profile = response.optJSONObject("profile");
-            String id = profile == null ? "" : profile.optString("id", "");
-            if (!response.optBoolean("ok", false) || id.isEmpty()) {
-                throw new GatewayException("adult_profile_failed", 502);
-            }
-            return id;
-        } catch (JSONException impossible) {
-            throw new IllegalStateException(impossible);
-        } catch (GatewayTransport.GatewayException error) {
-            throw mapException(error);
-        }
-    }
-
-    private static JSONObject adultProfileBody(String currentPin) {
-        if (currentPin != null && !currentPin.matches("[0-9]{4}")) {
-            throw new IllegalArgumentException("PIN must contain four digits");
-        }
-        JSONObject body = new JSONObject();
-        try {
-            if (currentPin != null) body.put("current_pin", currentPin);
         } catch (JSONException impossible) {
             throw new IllegalStateException(impossible);
         }
@@ -1725,7 +1522,7 @@ public class HostGatewayClient {
     private static void requireChildOk(JSONObject response, String fallback) throws IOException {
         if (response == null || !response.optBoolean("ok", false)) {
             String reason = response == null ? "" : response.optString("error", "");
-            throw new GatewayException(reason.isEmpty() ? fallback : reason, 0);
+            throw new GatewayTransport.GatewayException(reason.isEmpty() ? fallback : reason, 0);
         }
     }
 
@@ -1741,8 +1538,8 @@ public class HostGatewayClient {
                 && actual.containsAll(expected);
     }
 
-    private static GatewayException invalidChildResponse() {
-        return new GatewayException("invalid_response", 0);
+    private static GatewayTransport.GatewayException invalidChildResponse() {
+        return new GatewayTransport.GatewayException("invalid_response", 0);
     }
 
     private static String requireProfileId(String value) {
@@ -1779,7 +1576,7 @@ public class HostGatewayClient {
         } catch (GatewayTransport.GatewayException error) {
             WindowsSession failure = sessionFailure(error);
             if (failure != null) return failure;
-            throw mapException(error);
+            throw refused(connection, error);
         }
     }
 
@@ -1791,7 +1588,7 @@ public class HostGatewayClient {
         } catch (GatewayTransport.GatewayException error) {
             WindowsSession failure = sessionFailure(error);
             if (failure != null) return failure;
-            throw mapException(error);
+            throw refused(connection, error);
         }
     }
 
@@ -1809,7 +1606,7 @@ public class HostGatewayClient {
         } catch (GatewayTransport.GatewayException error) {
             WindowsSession failure = sessionFailure(error);
             if (failure != null) return failure;
-            throw mapException(error);
+            throw refused(connection, error);
         }
     }
 
@@ -1821,7 +1618,7 @@ public class HostGatewayClient {
             transport.postJson(connection, "/api/v1/system/session/cancel",
                     body, request, 10_000);
         } catch (GatewayTransport.GatewayException error) {
-            throw mapException(error);
+            throw refused(connection, error);
         }
     }
 
@@ -1838,7 +1635,7 @@ public class HostGatewayClient {
 
     static WindowsSession parseWindowsSession(JSONObject response) {
         return new WindowsSession(response.optString("state", "failed"),
-                response.optString("reason", "manual_sign_in_required"),
+                response.optString("reason", ""),
                 response.optString("attempt_id", ""),
                 response.optInt("retry_after_ms", 1_000),
                 response.optString("request_id", ""),
@@ -1846,19 +1643,27 @@ public class HostGatewayClient {
                 response.optString("execution_profile_id", ""));
     }
 
+    /**
+     * A refusal the session flow can show, or null to throw it: {@link #PROFILE_UNLOCK_REQUIRED}
+     * is no sign-in answer; the profile's PIN gate asks again.
+     */
     static WindowsSession sessionFailure(
             GatewayTransport.GatewayException error) {
+        if (isProfileUnlockRequired(error)) return null;
         if (error.statusCode() == 403) {
             return new WindowsSession("action_required",
                     "remote_sign_in_not_granted", "", 1_000);
         }
         if (error.statusCode() == 503) {
+            // A Gateway that cannot read its registry is itself unavailable (thrown: Retry).
+            if ("registry_unavailable".equals(error.reason())) return null;
             return new WindowsSession("failed", "broker_unavailable", "", 1_000);
         }
         if (error.statusCode() < 400) return null;
-        String reason = normalizedState(error.getMessage(), "manual_sign_in_required");
-        if (!reason.matches("[a-z0-9_]{1,64}")) reason = "manual_sign_in_required";
-        String state = "attempt_expired".equals(reason) ? "expired"
+        // A refusal without its reason proves nothing: a failure, never a manual sign-in.
+        String reason = normalizedState(error.getMessage(), "");
+        String state = reason.isEmpty() ? "failed"
+                : "attempt_expired".equals(reason) ? "expired"
                 : "attempt_cancelled".equals(reason) ? "cancelled" : "action_required";
         return new WindowsSession(state, reason, "", 1_000);
     }
@@ -1877,11 +1682,6 @@ public class HostGatewayClient {
             throw new IllegalArgumentException("Invalid remote sign-in attempt ID");
         }
         return value;
-    }
-
-    GatewayTransport.NetworkDownloadSample measureNetworkDownload(
-            GatewayConnection connection, int sizeBytes) throws IOException {
-        return measureNetworkDownload(connection, sizeBytes, 15_000);
     }
 
     GatewayTransport.NetworkDownloadSample measureAdaptiveNetworkDownload(
@@ -1906,7 +1706,7 @@ public class HostGatewayClient {
         try {
             return transport.measureNetworkDownload(connection, sizeBytes, readTimeoutMs);
         } catch (GatewayTransport.GatewayException error) {
-            throw mapException(error);
+            throw refused(connection, error);
         }
     }
 
@@ -1931,8 +1731,7 @@ public class HostGatewayClient {
                         value.optBoolean("discord_rpc_connected", false),
                         value.optBoolean("discord_authenticated", false),
                         value.optBoolean("vibepollo_bridge_online", false),
-                        value.optBoolean("game_provider_bridge_online",
-                                value.optBoolean("playnite_bridge_online", false)),
+                        value.optBoolean("playnite_bridge_online", false),
                         value.optBoolean("playnite_connector_connected", false),
                         permissions == null || permissions.optBoolean("use_profile", true),
                         permissions != null && permissions.optBoolean(
@@ -1960,27 +1759,6 @@ public class HostGatewayClient {
         }
         return new IntegrationProfiles(profiles,
                 response.optString("suggested_profile_id", ""));
-    }
-
-    RepairStatus getVibepolloRepairStatus(GatewayConnection connection) throws IOException {
-        JSONObject response = request(connection, "/api/v1/vibepollo/repair/status", "GET",
-                null, READ_TIMEOUT_MS);
-        JSONObject host = response.optJSONObject("host");
-        JSONObject bridge = response.optJSONObject("bridge");
-        return new RepairStatus(response.optBoolean("ok", false) &&
-                host != null && host.optBoolean("online", false),
-                host != null ? host.optString("version", "") : "",
-                bridge != null ? bridge.optString("api_error", "") : "");
-    }
-
-    JSONObject runVibepolloRepair(GatewayConnection connection, String action) throws IOException {
-        if (!"restart".equals(action) && !"reset-display".equals(action) &&
-                !"export-logs".equals(action)) {
-            throw new IllegalArgumentException("Unknown repair action");
-        }
-        return request(connection, "/api/v1/vibepollo/repair/" + action, "POST",
-                new JSONObject(),
-                "export-logs".equals(action) ? 25_000 : 8_000);
     }
 
     JSONObject sleepHost(GatewayConnection connection) throws IOException {
@@ -2047,7 +1825,7 @@ public class HostGatewayClient {
             return transport.postJson(connection, "/api/v1/system/suspend-session",
                     session, suspendId, SUSPEND_SESSION_TIMEOUT_MS);
         } catch (GatewayTransport.GatewayException error) {
-            throw mapException(error);
+            throw refused(connection, error);
         }
     }
 
@@ -2067,7 +1845,7 @@ public class HostGatewayClient {
                 "/api/v1/library/refresh", "POST", new JSONObject(),
                 8_000);
         if (!response.optBoolean("ok", false)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     "The Playnite library refresh could not be started."), 0);
         }
         JSONObject result = response.optJSONObject("result");
@@ -2086,9 +1864,7 @@ public class HostGatewayClient {
                     "/api/v1/artwork?game_id=" + gameId + "&kind=" + kind,
                     "image/*", 12_000);
         } catch (GatewayTransport.GatewayException error) {
-            throw new GatewayException("Playnite artwork is unavailable.", error.statusCode());
-        } catch (GatewayTransport.ResponseTooLargeException error) {
-            throw new IOException("Playnite artwork is too large.");
+            throw refused(connection, error);
         }
     }
 
@@ -2138,9 +1914,7 @@ public class HostGatewayClient {
             return transport.getBinary(connection, "/api/v1/avatars/image?id="
                     + URLEncoder.encode(avatarId, StandardCharsets.UTF_8.name()), "image/*", 12_000);
         } catch (GatewayTransport.GatewayException error) {
-            throw new GatewayException("The avatar is unavailable.", error.statusCode());
-        } catch (GatewayTransport.ResponseTooLargeException error) {
-            throw new IOException("The avatar is too large.");
+            throw refused(connection, error);
         }
     }
 
@@ -2419,16 +2193,6 @@ public class HostGatewayClient {
         return normalized.matches("[a-z_]{1,40}") ? normalized : fallback;
     }
 
-    void showPlayniteFullscreen(GatewayConnection connection) throws IOException {
-        JSONObject response = request(connection,
-                "/api/v1/playnite/show-fullscreen", "POST", new JSONObject(),
-                10_000);
-        if (!response.optBoolean("ok", false)) {
-            throw new GatewayException(response.optString("error",
-                    "Playnite Fullscreen could not be restored."), 0);
-        }
-    }
-
     boolean gameInForeground(GatewayConnection connection, int readTimeoutMs)
             throws IOException {
         JSONObject response = request(connection, "/api/v1/session/foreground-game", "GET",
@@ -2442,7 +2206,7 @@ public class HostGatewayClient {
                 "/api/v1/game/focus", "POST", new JSONObject(),
                 8_000);
         if (!response.optBoolean("ok", false)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     "The game window could not be focused."), 0);
         }
     }
@@ -2470,7 +2234,7 @@ public class HostGatewayClient {
         JSONObject response = request(connection, "/api/v1/game-mode/session", "POST", body,
                 3_000);
         if (!response.optBoolean("ok", false)) {
-            throw new GatewayException("game_mode_session_failed", 0);
+            throw new GatewayTransport.GatewayException("game_mode_session_failed", 0);
         }
     }
 
@@ -2516,11 +2280,11 @@ public class HostGatewayClient {
         JSONObject response = request(connection,
                 "/api/v1/game/start", "POST", body, 25_000);
         if (!response.optBoolean("ok", false)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     "The game could not be started."), 0);
         }
         String rejection = gameStartRejectionReason(response);
-        if (!rejection.isEmpty()) throw new GatewayException(rejection, 0);
+        if (!rejection.isEmpty()) throw new GatewayTransport.GatewayException(rejection, 0);
         return gameStartBootId(response);
     }
 
@@ -2533,7 +2297,7 @@ public class HostGatewayClient {
         JSONObject response = request(connection, "/api/v1/game/thaw", "POST",
                 gameStopBody(gameId, null), 25_000);
         QuickResumeAnswer answer = QuickResumeAnswer.of(response);
-        if (!answer.accepted) throw new GatewayException(answer.reason, 0);
+        if (!answer.accepted) throw new GatewayTransport.GatewayException(answer.reason, 0);
         return gameStartBootId(response);
     }
 
@@ -2655,7 +2419,7 @@ public class HostGatewayClient {
                 "/api/v1/session/hard-reset", "POST", body, 25_000);
         if (!response.optBoolean("ok", false)
                 || !response.optBoolean("accepted", false)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     "The host session could not be hard-reset."), 0);
         }
     }
@@ -2676,7 +2440,7 @@ public class HostGatewayClient {
         JSONObject response = request(connection,
                 "/api/v1/game/abandon-start", "POST", gameStopBody(gameId, null), 10_000);
         if (!response.optBoolean("ok", false)) {
-            throw new GatewayException(response.optString("error", "start_not_abandonable"), 0);
+            throw new GatewayTransport.GatewayException(response.optString("error", "start_not_abandonable"), 0);
         }
     }
 
@@ -2701,7 +2465,7 @@ public class HostGatewayClient {
             throws IOException {
         if (!response.optBoolean("ok", false)
                 || !response.optBoolean("accepted", true)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     response.optString("reason", "The game could not be stopped.")), 0);
         }
         if (!verified) return true;
@@ -2711,7 +2475,7 @@ public class HostGatewayClient {
                 || !SessionSnapshot.normalize(gameId).equals(
                 SessionSnapshot.normalize(result.optString("stopped_game_id", "")))
                 || !(result.opt("stopped_current") instanceof Boolean)) {
-            throw new GatewayException("game_stop_identity_unconfirmed", 0);
+            throw new GatewayTransport.GatewayException("game_stop_identity_unconfirmed", 0);
         }
         return result.optBoolean("stopped_current");
     }
@@ -2756,7 +2520,7 @@ public class HostGatewayClient {
                     : "/api/v1/captures/thumbnail?id=") + captureQuery(captureId), "image/jpeg",
                     preview ? 20_000 : 12_000);
         } catch (GatewayTransport.GatewayException error) {
-            throw mapException(error);
+            throw refused(connection, error);
         }
     }
 
@@ -2768,7 +2532,7 @@ public class HostGatewayClient {
             transport.downloadToFile(connection, "/api/v1/captures/video?id="
                     + captureQuery(captureId), "video/mp4", CAPTURE_CLIP_MAX_BYTES, target, 30_000);
         } catch (GatewayTransport.GatewayException error) {
-            throw mapException(error);
+            throw refused(connection, error);
         }
     }
 
@@ -2814,7 +2578,7 @@ public class HostGatewayClient {
     JSONObject installTargets(GatewayConnection connection) throws IOException {
         JSONObject response = request(connection, "/api/v1/install/targets", "GET", null, 10_000);
         if (!response.optBoolean("ok", false)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     "Install locations are unavailable."), 0);
         }
         return response;
@@ -2824,7 +2588,7 @@ public class HostGatewayClient {
     JSONObject storage(GatewayConnection connection) throws IOException {
         JSONObject response = request(connection, "/api/v1/storage", "GET", null, 10_000);
         if (!response.optBoolean("ok", false)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     "Disk space is unavailable."), 0);
         }
         return response;
@@ -2859,7 +2623,7 @@ public class HostGatewayClient {
         JSONObject response = request(connection,
                 "/api/v1/game/install", "POST", body, 15_000);
         if (!response.optBoolean("ok", false)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     "The game installation could not be started."), 0);
         }
     }
@@ -2877,7 +2641,7 @@ public class HostGatewayClient {
         JSONObject response = request(connection,
                 "/api/v1/game/uninstall", "POST", body, 15_000);
         if (!response.optBoolean("ok", false)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     "The game could not be uninstalled."), 0);
         }
     }
@@ -2895,7 +2659,7 @@ public class HostGatewayClient {
         JSONObject response = request(connection,
                 "/api/v1/game/install/focus", "POST", body, 8_000);
         if (!response.optBoolean("ok", false)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     "The installation window could not be opened."), 0);
         }
     }
@@ -2913,15 +2677,11 @@ public class HostGatewayClient {
         JSONObject response = request(connection,
                 "/api/v1/game/install/verify", "POST", body, 10_000);
         if (!response.optBoolean("ok", false)) {
-            throw new GatewayException(response.optString("error",
+            throw new GatewayTransport.GatewayException(response.optString("error",
                     "The installation could not be verified."), 0);
         }
         JSONObject result = response.optJSONObject("result");
         return result != null && !result.optBoolean("requires_attention", true);
-    }
-
-    PlayniteEvents getPlayniteEvents(GatewayConnection connection, long after) throws IOException {
-        return getPlayniteEvents(connection, after, "");
     }
 
     PlayniteEvents getPlayniteEvents(GatewayConnection connection, long after,
@@ -2938,18 +2698,36 @@ public class HostGatewayClient {
                 "GET", null, 25_000);
         String echoedCorrelation = response.optString("transition_id", "");
         if (!echoedCorrelation.isEmpty() && !correlation.equals(echoedCorrelation)) {
-            throw new GatewayException("Mismatched transition response.", 409);
+            throw new GatewayTransport.GatewayException("Mismatched transition response.", 409);
         }
         JSONObject envelope = response.optJSONObject("events");
-        JSONArray values = envelope != null ? envelope.optJSONArray("events") : null;
+        return parsePlayniteEvents(envelope != null ? envelope.optJSONArray("events") : null,
+                after);
+    }
+
+    /**
+     * The events after {@code after}. When every returned event is older than the cursor, the
+     * Bridge restarted and numbers anew: they are its new boot's events, accepted, and their
+     * newest becomes the cursor (else each poll would answer at once until the new boot passed
+     * the old cursor).
+     */
+    static PlayniteEvents parsePlayniteEvents(JSONArray values, long after) {
         List<PlayniteEvent> result = new ArrayList<>();
-        long latest = after;
+        long newest = -1;
+        if (values != null) {
+            for (int index = 0; index < values.length(); index++) {
+                JSONObject value = values.optJSONObject(index);
+                if (value != null) newest = Math.max(newest, value.optLong("sequence", -1));
+            }
+        }
+        long cursor = newest >= 0 && newest < after ? -1 : after;
+        long latest = Math.max(cursor, 0L);
         if (values != null) {
             for (int index = 0; index < values.length(); index++) {
                 JSONObject value = values.optJSONObject(index);
                 if (value == null) continue;
                 long sequence = value.optLong("sequence", -1);
-                if (sequence <= after) continue;
+                if (sequence < 0 || sequence <= cursor) continue;
                 JSONObject payload = value.optJSONObject("payload");
                 String gameId = payload != null ? payload.optString("id", "") : "";
                 result.add(new PlayniteEvent(sequence,
@@ -2962,6 +2740,7 @@ public class HostGatewayClient {
         return new PlayniteEvents(result, latest);
     }
 
+    /** One key per field: exactly the camelCase record the Bridge emits for every provider. */
     static PlayniteLibrary parsePlayniteLibrary(JSONObject library) {
         JSONObject safe = library == null ? new JSONObject() : library;
         JSONArray values = safe.optJSONArray("games");
@@ -2975,77 +2754,47 @@ public class HostGatewayClient {
                 String name = value.optString("name", "").trim();
                 if (name.isEmpty()) continue;
                 String normalizedId = requestGameId(id);
-                String source = firstText(value, "source", "sourceName", "source_name");
-                String provider = providerOrLegacy(firstText(value, "provider"), source);
-                String providerGameId = firstText(
-                        value, "providerGameId", "provider_game_id");
+                String provider = normalizedProvider(value.optString("provider", ""));
+                String providerGameId = text(value, "providerGameId");
                 boolean exactIdentity = hasExactProviderIdentity(
                         normalizedId, provider, providerGameId);
-                String libraryKey = firstText(value, "libraryKey", "library_key");
-                String libraryName = firstText(value, "libraryName", "library_name");
-                long seconds = value.has("playtimeSeconds")
-                        ? value.optLong("playtimeSeconds", 0L)
-                        : value.has("playtime_seconds")
-                        ? value.optLong("playtime_seconds", 0L)
-                        : value.has("playtimeMinutes")
-                        ? value.optLong("playtimeMinutes", 0L) * 60L
-                        : value.has("playtime_minutes")
-                        ? value.optLong("playtime_minutes", 0L) * 60L
-                        : value.optLong("playtime", 0L);
-                String metadataPlayniteId = firstText(
-                        value, "playniteGameId", "playnite_game_id");
-                JSONObject providerCapabilities = value.optJSONObject("providerCapabilities");
-                if (providerCapabilities == null) {
-                    providerCapabilities = value.optJSONObject("provider_capabilities");
-                }
-                boolean requiresConnector = providerCapabilities == null
-                        ? !metadataPlayniteId.isEmpty()
-                        : providerCapabilities.optBoolean("requiresConnector",
-                        providerCapabilities.optBoolean("requires_connector", true));
-                boolean startBeforeStream = providerCapabilities != null
-                        && providerCapabilities.optBoolean("startBeforeStream",
-                        providerCapabilities.optBoolean("start_before_stream", false));
+                JSONObject capabilities = object(value, "capabilities");
+                JSONObject providerCapabilities = object(value, "providerCapabilities");
+                // Playnite's own art (boxArtPath, backgroundImagePath) is a distinct Bridge field
+                // the Bridge serves for its kind when the provider's cover/background is empty.
+                String cover = text(value, "cover");
+                if (cover.isEmpty()) cover = text(value, "boxArtPath");
+                String background = text(value, "background");
+                if (background.isEmpty()) background = text(value, "backgroundImagePath");
                 PlayniteGame parsedGame = new PlayniteGame(normalizedId, name,
-                        value.optBoolean("installed", value.optBoolean("isInstalled", false)),
-                        value.optBoolean("installing", value.optBoolean("isInstalling", false)),
-                        value.optBoolean("hidden", value.optBoolean("isHidden", false)),
-                        value.optBoolean("favorite", value.optBoolean("isFavorite", false)),
-                        firstText(value, "cover", "coverImage", "cover_image", "boxArtPath"),
-                        firstText(value, "background", "backgroundImage", "background_image",
-                                "backgroundImagePath"),
-                        firstText(value, "hero", "heroImage", "hero_image",
-                                "heroImagePath"),
-                        firstText(value, "lastPlayed", "last_played", "lastActivity"),
-                        firstText(value, "description", "overview", "summary"),
-                        Math.max(0, value.has("playCount")
-                                ? value.optInt("playCount", 0)
-                                : value.optInt("play_count", 0)),
-                        source,
-                        joinedText(value, "genres", "genre"),
-                        firstText(value, "artworkVersion", "artwork_version", "artworkHash",
-                                "artwork_hash", "cover"),
-                        Math.max(0L, seconds),
-                        value.optBoolean("installRequiresAttention",
-                                value.optBoolean("install_requires_attention", false)),
-                        firstText(value, "installAttentionReason",
-                                "install_attention_reason"),
-                        firstText(value, "installWindowTitle", "install_window_title"),
-                        firstText(value, "installLauncher", "install_launcher"),
-                        firstText(value, "operationState", "operation_state"),
+                        value.optBoolean("installed", false),
+                        value.optBoolean("installing", false),
+                        value.optBoolean("hidden", false),
+                        cover, background, text(value, "hero"),
+                        text(value, "lastPlayed"), text(value, "description"),
+                        value.optInt("playCount", 0),
+                        text(value, "source"),
+                        genres(value.optJSONArray("genres")),
+                        Math.max(0L, value.optLong("playtimeSeconds", 0L)),
+                        value.optBoolean("installRequiresAttention", false),
+                        text(value, "installAttentionReason"),
+                        text(value, "installWindowTitle"),
+                        text(value, "installLauncher"),
+                        text(value, "operationState"),
                         value.isNull("operationProgress") ? -1
                                 : value.optInt("operationProgress", -1),
                         value.optBoolean("uninstalling", false),
                         provider,
                         providerGameId,
-                        metadataPlayniteId,
-                        libraryKey.isEmpty() ? PlayniteGame.sourceKey(source) : libraryKey,
-                        libraryName.isEmpty() ? PlayniteGame.sourceKey(source).equals("playnite")
-                                ? "Playnite" : source : libraryName,
-                        capability(value, "launch", exactIdentity),
-                        capability(value, "install", exactIdentity),
-                        capability(value, "uninstall", exactIdentity),
-                        requiresConnector, startBeforeStream);
-                parsedGame.updateState = value.optString("updateState", "").trim();
+                        text(value, "playniteGameId"),
+                        text(value, "libraryKey"),
+                        text(value, "libraryName"),
+                        exactIdentity && capabilities.optBoolean("launch", false),
+                        exactIdentity && capabilities.optBoolean("install", false),
+                        exactIdentity && capabilities.optBoolean("uninstall", false),
+                        providerCapabilities.optBoolean("requiresConnector", true),
+                        providerCapabilities.optBoolean("startBeforeStream", false));
+                parsedGame.updateState = text(value, "updateState");
                 parsedGame.updateProgress = value.isNull("updateProgress") ? -1
                         : value.optInt("updateProgress", -1);
                 parsedGame.ageRating = GameAgeRating.parse(value.optJSONObject("ageRating"));
@@ -3053,41 +2802,27 @@ public class HostGatewayClient {
             }
         }
         return new PlayniteLibrary(games, safe.optString("next_cursor", ""),
-                safe.optInt("total", games.size()),
-                firstText(safe, "revision", "library_revision", "hash"),
-                firstText(safe, "api_version", "apiVersion", "version"));
+                safe.optInt("total", games.size()), text(safe, "revision"));
     }
 
-    private static String firstText(JSONObject value, String... keys) {
-        for (String key : keys) {
-            String result = value.optString(key, "").trim();
-            if (!result.isEmpty()) return result;
+    private static String text(JSONObject value, String key) {
+        return value.optString(key, "").trim();
+    }
+
+    private static JSONObject object(JSONObject value, String key) {
+        JSONObject result = value.optJSONObject(key);
+        return result == null ? new JSONObject() : result;
+    }
+
+    private static String genres(JSONArray array) {
+        StringBuilder result = new StringBuilder();
+        for (int index = 0; array != null && index < array.length(); index++) {
+            String item = array.optString(index, "").trim();
+            if (item.isEmpty()) continue;
+            if (result.length() > 0) result.append(", ");
+            result.append(item);
         }
-        return "";
-    }
-
-    private static boolean capability(JSONObject value, String name, boolean exactIdentity) {
-        JSONObject capabilities = value.optJSONObject("capabilities");
-        return exactIdentity && (capabilities == null || capabilities.optBoolean(name, false));
-    }
-
-    private static String joinedText(JSONObject value, String... keys) {
-        for (String key : keys) {
-            JSONArray array = value.optJSONArray(key);
-            if (array != null) {
-                StringBuilder result = new StringBuilder();
-                for (int index = 0; index < array.length(); index++) {
-                    String item = array.optString(index, "").trim();
-                    if (item.isEmpty()) continue;
-                    if (result.length() > 0) result.append(", ");
-                    result.append(item);
-                }
-                if (result.length() > 0) return result.toString();
-            }
-            String text = value.optString(key, "").trim();
-            if (!text.isEmpty()) return text;
-        }
-        return "";
+        return result.toString();
     }
 
     private static final Pattern PLAYNITE_GUID = Pattern.compile(
@@ -3104,11 +2839,10 @@ public class HostGatewayClient {
                 || PROVIDER_SCOPED_ID.matcher(value).matches());
     }
 
-    static String providerOrLegacy(String provider, String source) {
-        String explicit = provider == null ? "" : provider.trim().toLowerCase(Locale.ROOT);
-        if (PROVIDER_NAME.matcher(explicit).matches()) return explicit;
-        String legacy = source == null ? "" : source.trim().toLowerCase(Locale.ROOT);
-        return PROVIDER_NAME.matcher(legacy).matches() ? legacy : "playnite";
+    /** The record's {@code provider}; a malformed name has no provider identity. */
+    static String normalizedProvider(String provider) {
+        String value = provider == null ? "" : provider.trim().toLowerCase(Locale.ROOT);
+        return PROVIDER_NAME.matcher(value).matches() ? value : "";
     }
 
     static boolean hasExactProviderIdentity(String id, String provider,
@@ -3233,6 +2967,34 @@ public class HostGatewayClient {
 
     JSONObject joinDiscordChannel(GatewayConnection connection, String channelId, String guildId,
                                   String guildName, String channelName) throws IOException {
+        return discordAction(connection, "join",
+                discordChannelBody(channelId, guildId, guildName, channelName), 25_000);
+    }
+
+    /**
+     * Makes {@code channel} one of the host's Discord favorites ({@code favorite}) or not; the
+     * same request again changes nothing. Returns whether it is one now.
+     */
+    boolean setDiscordFavorite(GatewayConnection connection, DiscordChannel channel,
+                               boolean favorite) throws IOException {
+        JSONObject body = discordChannelBody(
+                channel.id, channel.guildId, channel.guildName, channel.name);
+        try {
+            body.put("favorite", favorite);
+        } catch (JSONException impossible) {
+            throw new IOException(impossible);
+        }
+        JSONObject response = discordAction(connection, "favorite", body, 12_000);
+        if (!channel.id.equals(response.optString("channel_id", ""))
+                || !(response.opt("favorite") instanceof Boolean)) {
+            throw new IOException("Invalid Discord favorite answer");
+        }
+        return response.optBoolean("favorite");
+    }
+
+    private static JSONObject discordChannelBody(String channelId, String guildId,
+                                                 String guildName, String channelName)
+            throws IOException {
         if (!isDiscordId(channelId) || !isDiscordId(guildId)) {
             throw new IllegalArgumentException("Invalid Discord channel");
         }
@@ -3245,7 +3007,7 @@ public class HostGatewayClient {
         } catch (JSONException impossible) {
             throw new IOException(impossible);
         }
-        return discordAction(connection, "join", body, 25_000);
+        return body;
     }
 
     JSONObject leaveDiscordChannel(GatewayConnection connection) throws IOException {
@@ -3263,53 +3025,6 @@ public class HostGatewayClient {
             throw new IOException(impossible);
         }
         return discordAction(connection, action, body, 12_000);
-    }
-
-    JSONObject changeDiscordParticipantVolume(GatewayConnection connection, String userId,
-                                               int delta) throws IOException {
-        if (!isDiscordId(userId) || (delta != -10 && delta != 10)) {
-            throw new IllegalArgumentException("Invalid Discord participant volume change");
-        }
-        JSONObject body = new JSONObject();
-        try {
-            body.put("user_id", userId);
-            body.put("delta", delta);
-        } catch (JSONException impossible) {
-            throw new IOException(impossible);
-        }
-        return discordAction(connection, "user-volume", body, 12_000);
-    }
-
-    JSONObject setDiscordParticipantVolume(GatewayConnection connection, String userId,
-                                            int volume) throws IOException {
-        if (!isDiscordId(userId)
-                || volume < DiscordFeatureContract.MIN_PARTICIPANT_VOLUME
-                || volume > DiscordFeatureContract.MAX_PARTICIPANT_VOLUME
-                || volume % DiscordFeatureContract.PARTICIPANT_VOLUME_STEP != 0) {
-            throw new IllegalArgumentException("Invalid Discord participant volume");
-        }
-        JSONObject body = new JSONObject();
-        try {
-            body.put("user_id", userId);
-            body.put("volume", volume);
-        } catch (JSONException impossible) {
-            throw new IOException(impossible);
-        }
-        return discordAction(connection, "user-volume", body, 12_000);
-    }
-
-    JSONObject toggleDiscordParticipantMute(GatewayConnection connection, String userId)
-            throws IOException {
-        if (!isDiscordId(userId)) {
-            throw new IllegalArgumentException("Invalid Discord participant");
-        }
-        JSONObject body = new JSONObject();
-        try {
-            body.put("user_id", userId);
-        } catch (JSONException impossible) {
-            throw new IOException(impossible);
-        }
-        return discordAction(connection, "user-mute", body, 12_000);
     }
 
     DiscordAudioState getDiscordAudioState(GatewayConnection connection) throws IOException {
@@ -3377,7 +3092,7 @@ public class HostGatewayClient {
         if (audio == null) audio = new JSONObject();
         return new SystemAudioState(audio.optBoolean("available", false),
                 audio.optInt("volume", 0), audio.optBoolean("muted", false),
-                parseAudioDevices(audio.optJSONArray("devices")), audio.optString("error", ""));
+                parseAudioDevices(audio.optJSONArray("devices")));
     }
 
     private static AudioDevice validAudioDevice(AudioDevice device) {
@@ -3457,12 +3172,7 @@ public class HostGatewayClient {
                     ? transport.postJson(connection, path, body, readTimeoutMs)
                     : transport.getJson(connection, path, readTimeoutMs);
         } catch (GatewayTransport.GatewayException error) {
-            throw mapException(error);
+            throw refused(connection, error);
         }
-    }
-
-    private static GatewayException mapException(GatewayTransport.GatewayException error) {
-        return new GatewayException(error.getMessage(), error.statusCode(),
-                error.retryAfterSeconds());
     }
 }

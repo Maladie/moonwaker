@@ -36,15 +36,13 @@ final class FirstRunPlan {
         final boolean paired;
         final boolean profileChosen;
         final boolean childProfile;
-        final boolean childProfilesAvailable;
         final boolean featuresAvailable;
 
         Facts(boolean paired, boolean profileChosen, boolean childProfile,
-              boolean childProfilesAvailable, boolean featuresAvailable) {
+              boolean featuresAvailable) {
             this.paired = paired;
             this.profileChosen = profileChosen;
             this.childProfile = childProfile;
-            this.childProfilesAvailable = childProfilesAvailable;
             this.featuresAvailable = featuresAvailable;
         }
     }
@@ -78,7 +76,6 @@ final class FirstRunPlan {
             default:
                 // A child does not set up the host; a re-pair goes straight back to its host.
                 if (entry == Entry.PAIR_HOST || facts.childProfile) return false;
-                if (step == Step.FAMILY) return facts.childProfilesAvailable;
                 if (step == Step.FEATURES) return facts.featuresAvailable;
                 return true;
         }
@@ -169,16 +166,16 @@ final class FirstRunPlan {
     static final class Readiness {
         final Boolean vibepollo;
         final Boolean gameLibrary;
-        final Boolean steamApiKeySaved;
+        final Boolean steamConnected;
         final Boolean epicSignedIn;
         final Boolean remoteSignInReady;
         final WakePhase wake;
 
-        Readiness(Boolean vibepollo, Boolean gameLibrary, Boolean steamApiKeySaved,
+        Readiness(Boolean vibepollo, Boolean gameLibrary, Boolean steamConnected,
                   Boolean epicSignedIn, Boolean remoteSignInReady, WakePhase wake) {
             this.vibepollo = vibepollo;
             this.gameLibrary = gameLibrary;
-            this.steamApiKeySaved = steamApiKeySaved;
+            this.steamConnected = steamConnected;
             this.epicSignedIn = epicSignedIn;
             this.remoteSignInReady = remoteSignInReady;
             this.wake = wake;
@@ -190,10 +187,10 @@ final class FirstRunPlan {
             case VIBEPOLLO: return flag(readiness.vibepollo, Status.ATTENTION);
             case GAME_LIBRARY: return flag(readiness.gameLibrary, Status.ATTENTION);
             // Without the key only installed games show: worth the "!", not required.
-            case STEAM_LIBRARY: return flag(readiness.steamApiKeySaved, Status.ATTENTION);
+            case STEAM_LIBRARY: return flag(readiness.steamConnected, Status.ATTENTION);
             case EPIC: return flag(readiness.epicSignedIn, Status.OPTIONAL);
-            // Not required, but recommended: a locked PC otherwise needs a keyboard.
-            case REMOTE_SIGN_IN: return flag(readiness.remoteSignInReady, Status.ATTENTION);
+            // Granted in Host Control on the PC: nothing to do on the TV, so no "!".
+            case REMOTE_SIGN_IN: return flag(readiness.remoteSignInReady, Status.OPTIONAL);
             default:
                 switch (readiness.wake) {
                     case OK: return Status.OK;

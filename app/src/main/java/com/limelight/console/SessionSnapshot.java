@@ -27,7 +27,6 @@ public final class SessionSnapshot {
     final String playniteGameId;
     final boolean retainedTransport;
     final boolean explicitSuspension;
-    final boolean reconnectRequired;
     final boolean resumeAvailable;
     final boolean neutralStreamTarget;
     final boolean suspensionSleepObserved;
@@ -216,7 +215,6 @@ public final class SessionSnapshot {
         this.playniteGameId = normalize(playniteGameId);
         this.retainedTransport = retainedTransport;
         this.explicitSuspension = explicitSuspension;
-        this.reconnectRequired = state == State.RECONNECT_REQUIRED;
         this.neutralStreamTarget = neutralStreamTarget;
         this.resumeAvailable = (state == State.ACTIVE || state == State.SUSPENDED
                 || state == State.RECONNECT_REQUIRED)
@@ -292,7 +290,6 @@ public final class SessionSnapshot {
     String frozenGameId() {
         return frozenGame == null ? "" : frozenGame.resumableGameId();
     }
-    boolean isReconnectRequired() { return reconnectRequired; }
     boolean isResumeAvailable() { return resumeAvailable; }
 
     String signature() {

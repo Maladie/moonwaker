@@ -1,5 +1,6 @@
 package com.limelight.console;
 
+import com.limelight.gateway.GatewayTransport;
 import android.app.Activity;
 import android.content.SharedPreferences;
 import android.os.Handler;
@@ -190,9 +191,9 @@ final class GameModeStep {
             boolean allowed = true;
             try {
                 programs = client.gameModePrograms(connection, gameId);
-            } catch (HostGatewayClient.GatewayException error) {
+            } catch (GatewayTransport.GatewayException error) {
                 programs = Collections.emptyList();
-                allowed = error.statusCode != 403; // a child without the parent's consent
+                allowed = error.statusCode() != 403; // a child without the parent's consent
             } catch (IOException | RuntimeException unavailable) {
                 programs = Collections.emptyList();
             }
@@ -328,7 +329,7 @@ final class GameModeStep {
     static List<Program> parsePrograms(JSONObject response) throws IOException {
         JSONArray values = response == null ? null : response.optJSONArray("programs");
         if (response == null || !response.optBoolean("ok", false) || values == null) {
-            throw new HostGatewayClient.GatewayException("game_mode_unavailable", 0);
+            throw new GatewayTransport.GatewayException("game_mode_unavailable", 0);
         }
         List<Program> programs = new ArrayList<>();
         for (int index = 0; index < values.length(); index++) {
@@ -351,7 +352,7 @@ final class GameModeStep {
     static List<Remaining> parseRemaining(JSONObject response) throws IOException {
         JSONArray values = response == null ? null : response.optJSONArray("remaining");
         if (response == null || !response.optBoolean("ok", false) || values == null) {
-            throw new HostGatewayClient.GatewayException("game_mode_close_failed", 0);
+            throw new GatewayTransport.GatewayException("game_mode_close_failed", 0);
         }
         List<Remaining> open = new ArrayList<>();
         // Refused programs (not closable after all) are not closed either: never force-closed.
@@ -375,7 +376,7 @@ final class GameModeStep {
         String result = response == null || !response.optBoolean("ok", false) ? ""
                 : response.optString("result", "");
         if (!result.matches("closed|gone|responding|refused|failed")) {
-            throw new HostGatewayClient.GatewayException("game_mode_force_close_failed", 0);
+            throw new GatewayTransport.GatewayException("game_mode_force_close_failed", 0);
         }
         return result;
     }

@@ -1,5 +1,6 @@
 package com.limelight.console;
 
+import com.limelight.gateway.GatewayTransport;
 import android.content.Context;
 
 import com.limelight.diagnostics.MoonWakerDiagnostics;
@@ -83,64 +84,19 @@ public final class PlayniteTransitionGateway {
         final SessionSnapshot sessionSnapshot;
         /** The model accepted this read's own observation (not a rejected or failed read). */
         final boolean observationAccepted;
+        /**
+         * The projection rests on an accepted observation at least as new as this read: its own,
+         * or one a concurrent poll had accepted. False for a failed or rejected read.
+         */
+        final boolean projectionRefreshed;
 
+        /** An observation that proves nothing (fail-closed): no game, process or window. */
         Snapshot(boolean gatewayReady, boolean connectorReady, String gameState,
                  String gameId, int processId, boolean windowReady, String targetKind,
                  int stableSamples, String reason) {
             this(gatewayReady, connectorReady, gameState, gameId, processId, windowReady,
-                    targetKind, stableSamples, reason, false, "");
-        }
-
-        Snapshot(boolean gatewayReady, boolean connectorReady, String gameState,
-                 String gameId, int processId, boolean windowReady, String targetKind,
-                 int stableSamples, String reason, boolean hostGuideAllowed) {
-            this(gatewayReady, connectorReady, gameState, gameId, processId, windowReady,
-                    targetKind, stableSamples, reason, hostGuideAllowed, "");
-        }
-
-        Snapshot(boolean gatewayReady, boolean connectorReady, String gameState,
-                 String gameId, int processId, boolean windowReady, String targetKind,
-                 int stableSamples, String reason, boolean hostGuideAllowed,
-                 String processToken) {
-            this(gatewayReady, connectorReady, gameState, gameId, processId, windowReady,
-                    targetKind, stableSamples, reason, hostGuideAllowed, processToken, "", "",
-                    "", 0L);
-        }
-
-        Snapshot(boolean gatewayReady, boolean connectorReady, String gameState,
-                 String gameId, int processId, boolean windowReady, String targetKind,
-                 int stableSamples, String reason, boolean hostGuideAllowed,
-                 String processToken, String previousLaunchGameId,
-                 String previousLaunchProcessToken, String previousLaunchName,
-                 long stateAgeMs) {
-            this(gatewayReady, connectorReady, gameState, gameId, processId, windowReady,
-                    targetKind, stableSamples, reason, hostGuideAllowed, processToken,
-                    previousLaunchGameId, previousLaunchProcessToken, previousLaunchName,
-                    stateAgeMs, -1);
-        }
-
-        Snapshot(boolean gatewayReady, boolean connectorReady, String gameState,
-                 String gameId, int processId, boolean windowReady, String targetKind,
-                 int stableSamples, String reason, boolean hostGuideAllowed,
-                 String processToken, String previousLaunchGameId,
-                 String previousLaunchProcessToken, String previousLaunchName,
-                 long stateAgeMs, int updateProgress) {
-            this(gatewayReady, connectorReady, gameState, gameId, processId, windowReady,
-                    targetKind, stableSamples, reason, hostGuideAllowed, processToken,
-                    previousLaunchGameId, previousLaunchProcessToken, previousLaunchName,
-                    stateAgeMs, updateProgress, false);
-        }
-
-        Snapshot(boolean gatewayReady, boolean connectorReady, String gameState,
-                 String gameId, int processId, boolean windowReady, String targetKind,
-                 int stableSamples, String reason, boolean hostGuideAllowed,
-                 String processToken, String previousLaunchGameId,
-                 String previousLaunchProcessToken, String previousLaunchName,
-                 long stateAgeMs, int updateProgress, boolean updatePatching) {
-            this(gatewayReady, connectorReady, gameState, gameId, processId, windowReady,
-                    targetKind, stableSamples, reason, hostGuideAllowed, processToken,
-                    previousLaunchGameId, previousLaunchProcessToken, previousLaunchName,
-                    stateAgeMs, updateProgress, updatePatching, "");
+                    targetKind, stableSamples, reason, false, "", "", "", "", 0L, -1, false,
+                    "");
         }
 
         Snapshot(boolean gatewayReady, boolean connectorReady, String gameState,
@@ -175,6 +131,7 @@ public final class PlayniteTransitionGateway {
             this.producerBootId = producerBootId;
             this.sessionSnapshot = null;
             this.observationAccepted = false;
+            this.projectionRefreshed = false;
         }
 
         /** Provider evidence of one observation already fenced by the caller's own control permit. */
@@ -182,6 +139,7 @@ public final class PlayniteTransitionGateway {
                          HostGatewayClient.SessionObservation fenced,
                          boolean observationAccepted) {
             this.observationAccepted = observationAccepted;
+            this.projectionRefreshed = observationAccepted;
             this.gatewayReady = true;
             this.connectorReady = fenced.connectorEvidence == HostGatewayClient.Evidence.VERIFIED
                     || !fenced.requiresConnector;
@@ -214,8 +172,10 @@ public final class PlayniteTransitionGateway {
 
         private Snapshot(SessionSnapshot projected,
                          HostGatewayClient.SessionObservation observation,
-                         boolean gatewayReady, boolean observationAccepted) {
+                         boolean gatewayReady, boolean observationAccepted,
+                         boolean projectionRefreshed) {
             this.observationAccepted = observationAccepted;
+            this.projectionRefreshed = projectionRefreshed;
             this.gatewayReady = gatewayReady;
             this.connectorReady = observation != null
                     && (observation.connectorEvidence == HostGatewayClient.Evidence.VERIFIED
@@ -318,13 +278,8 @@ public final class PlayniteTransitionGateway {
                                String expectedGameId) {
             String gameId = expectedGameId == null ? ""
                     : expectedGameId.trim().toLowerCase(java.util.Locale.ROOT);
-            if (!accepted) return false;
-            // Older Gateway versions acknowledge suspend but do not echo correlation fields.
-            if (suspendId.isEmpty() && sunshineAppId == 0 && playniteGameId.isEmpty()) {
-                return true;
-            }
-            return suspendId.equals(expectedSuspendId) && sunshineAppId == expectedAppId
-                    && playniteGameId.equals(gameId);
+            return accepted && suspendId.equals(expectedSuspendId)
+                    && sunshineAppId == expectedAppId && playniteGameId.equals(gameId);
         }
     }
 
@@ -399,23 +354,24 @@ public final class PlayniteTransitionGateway {
                     if (result.acceptedSince != null) {
                         boolean correlated = result.projection.observationCorrelated;
                         return new Snapshot(result.projection,
-                                correlated ? result.acceptedSince : null, correlated, false);
+                                correlated ? result.acceptedSince : null, correlated, false,
+                                true);
                     }
                     // Lost only to a read not yet answered: read again instead of deciding on
                     // the older projection (lab formal133: the retained switch failed).
                     if (attempt < SNAPSHOT_DISPATCH_ATTEMPTS && result.lostDispatchOrdering) {
                         continue;
                     }
-                    return new Snapshot(result.projection, null, false, false);
+                    return new Snapshot(result.projection, null, false, false, false);
                 }
                 boolean correlated = result.accepted.observationCorrelated;
                 return new Snapshot(result.accepted, correlated ? observation : null, correlated,
-                        true);
+                        true, true);
             } catch (IOException unavailable) {
                 // A cancelled read (interrupt restored by the transport) observed nothing.
                 if (Thread.currentThread().isInterrupted()) throw unavailable;
                 return new Snapshot(unavailable(request.ordinal, unavailable.getMessage()),
-                        null, false, false);
+                        null, false, false, false);
             }
         }
     }
@@ -471,7 +427,7 @@ public final class PlayniteTransitionGateway {
         } catch (IOException unavailable) {
             if (Thread.currentThread().isInterrupted()) throw unavailable;
             return new Snapshot(unavailable(request.ordinal, unavailable.getMessage()),
-                    null, false, false);
+                    null, false, false, false);
         }
         // The model returns the projection of this exact observation, never a newer one.
         com.limelight.session.SessionModel.ObservationResult result = observed(observation);
@@ -591,10 +547,10 @@ public final class PlayniteTransitionGateway {
         try {
             client.stopGameWithinControl(connection, gameId, permit);
             return true;
-        } catch (HostGatewayClient.GatewayException answered) {
+        } catch (GatewayTransport.GatewayException answered) {
             // 0: a received refusal; 4xx: refused before any effect. A 5xx (the provider's
             // answer did not reach the Gateway) or an unreadable 2xx stays uncertain.
-            int status = answered.statusCode;
+            int status = answered.statusCode();
             if (status != 0 && (status < 400 || status >= 500)) throw answered;
             return false;
         }
@@ -664,10 +620,6 @@ public final class PlayniteTransitionGateway {
         } catch (IOException | RuntimeException ignored) {
             // Best effort: Broker expiry remains authoritative.
         }
-    }
-
-    public void showFullscreen() throws IOException {
-        client.showPlayniteFullscreen(connection);
     }
 
     public void focusGame() throws IOException {

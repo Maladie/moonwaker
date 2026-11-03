@@ -46,8 +46,6 @@ final class ConsoleProfileSelectView extends HorizontalScrollView {
         void onProfileSelected(String profileId);
         void onProfileFocused(String profileId);
         void onAutomaticProfileToggled(String profileId);
-        /** "Add profile" from an adult's Options, which that adult authorizes. */
-        void onAddProfile(String profileId);
         void onChangeHost();
     }
 
@@ -216,13 +214,6 @@ final class ConsoleProfileSelectView extends HorizontalScrollView {
             menu.addToggle(getContext().getString(R.string.console_profile_gate_options),
                     views.look.badge == ConsoleProfileTileLook.Badge.AUTOMATIC,
                     () -> listener.onAutomaticProfileToggled(profileId));
-        }
-        if (!views.profile.isChild()) {
-            menu.addAction(R.drawable.ic_console_plus,
-                    getContext().getString(R.string.console_add_profile), () -> {
-                        closeMenu();
-                        listener.onAddProfile(profileId);
-                    });
         }
         menu.addAction(R.drawable.ic_console_monitor,
                 getContext().getString(R.string.console_profile_gate_change_host), () -> {

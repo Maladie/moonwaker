@@ -14,7 +14,7 @@ public class UserMenuAccountsTest {
     @Test
     public void readySetupShowsEveryAccountReadyWithTheEpicName() {
         List<Row> rows = UserMenuAccounts.rows(new HostGatewayClient.SetupFacts(
-                true, true, true, "ania.k", HostGatewayClient.SetupFacts.DISCORD_LINKED), true, "ready");
+                true, true, "ania.k", HostGatewayClient.SetupFacts.DISCORD_LINKED), true, "ready");
         assertEquals(Kind.STEAM, rows.get(0).kind);
         for (Row row : rows) assertEquals(State.READY, row.state);
         assertEquals("ania.k", rows.get(1).name);
@@ -23,7 +23,7 @@ public class UserMenuAccountsTest {
     @Test
     public void gapsUseTheWizardsWeight() {
         List<Row> rows = UserMenuAccounts.rows(new HostGatewayClient.SetupFacts(
-                false, false, false, "stale", HostGatewayClient.SetupFacts.DISCORD_NOT_LINKED),
+                false, false, "stale", HostGatewayClient.SetupFacts.DISCORD_NOT_LINKED),
                 true, "disabled");
         assertEquals(State.ATTENTION, rows.get(0).state);
         assertEquals(State.OPTIONAL, rows.get(1).state);
@@ -54,7 +54,7 @@ public class UserMenuAccountsTest {
     public void factsTheHostCouldNotTellStayUnknown() {
         for (Row row : UserMenuAccounts.rows(null, true, null)) assertEquals(State.UNKNOWN, row.state);
         List<Row> rows = UserMenuAccounts.rows(new HostGatewayClient.SetupFacts(
-                null, null, null, "", HostGatewayClient.SetupFacts.DISCORD_UNKNOWN),
+                null, null, "", HostGatewayClient.SetupFacts.DISCORD_UNKNOWN),
                 true, "broker_unavailable");
         for (Row row : rows) assertEquals(State.UNKNOWN, row.state);
     }

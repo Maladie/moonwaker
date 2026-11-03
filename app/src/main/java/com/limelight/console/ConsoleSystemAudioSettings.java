@@ -1,5 +1,6 @@
 package com.limelight.console;
 
+import com.limelight.gateway.GatewayTransport;
 import android.app.Activity;
 import android.os.Handler;
 import android.view.View;
@@ -69,23 +70,20 @@ final class ConsoleSystemAudioSettings {
         if (state == null && !loading && error.isEmpty()) load(connection);
         List<View> rows = new ArrayList<>();
         if (!error.isEmpty()) rows.add(panel.note(error));
-        if (state == null) {
+        if (state == null || !state.available) {
             if (loading) {
                 rows.add(panel.note(s(R.string.console_system_audio_loading)));
-            } else {
-                TextView retry = panel.action(s(R.string.console_system_audio_retry));
-                retry.setOnClickListener(view -> {
-                    error = "";
-                    load(connection);
-                    screen.refresh();
-                });
-                rows.add(retry);
+                return rows.toArray(new View[0]);
             }
-            return rows.toArray(new View[0]);
-        }
-        if (!state.available) {
-            rows.add(panel.note(state.error.isEmpty() ? s(R.string.console_system_audio_unavailable)
-                    : s(R.string.console_system_audio_unavailable) + " " + state.error));
+            if (state != null) rows.add(panel.note(s(R.string.console_system_audio_unavailable)));
+            TextView retry = panel.action(s(R.string.console_system_audio_retry));
+            retry.setOnClickListener(view -> {
+                error = "";
+                state = null;
+                load(connection);
+                screen.refresh();
+            });
+            rows.add(retry);
             return rows.toArray(new View[0]);
         }
         rows.add(panel.stepper(s(R.string.console_system_audio_volume), state.volume, 0, 100,
@@ -191,7 +189,7 @@ final class ConsoleSystemAudioSettings {
 
     /** The Bridge reports a default the host put back (a stream's virtual device). */
     private String message(Exception problem) {
-        boolean reverted = problem instanceof HostGatewayClient.GatewayException
+        boolean reverted = problem instanceof GatewayTransport.GatewayException
                 && problem.getMessage() != null
                 && problem.getMessage().contains("system_default_reverted");
         return s(reverted ? R.string.console_system_audio_default_reverted

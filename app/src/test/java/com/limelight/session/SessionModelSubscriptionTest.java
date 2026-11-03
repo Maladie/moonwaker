@@ -18,6 +18,7 @@ public class SessionModelSubscriptionTest {
         private final long fakeGeneration =
                 com.limelight.session.SessionModelDriver.nextTransportGeneration();
         @Override public long transportGeneration() { return fakeGeneration; }
+        @Override public String getExecutionProfileId() { return "default"; }
         @Override public SessionModel.ParkOutcome parkRetainedTransport() { return SessionModel.ParkOutcome.PARKED; }
         @Override public void disconnectRetainedStream(
                 SessionModel.TerminationCallback completion) { }

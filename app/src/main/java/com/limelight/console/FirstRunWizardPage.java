@@ -16,12 +16,16 @@ import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
+import android.text.InputFilter;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.view.FocusFinder;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AnimationUtils;
+import android.view.inputmethod.EditorInfo;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -204,7 +208,8 @@ final class FirstRunWizardPage {
             return;
         }
         View focused = activity.getWindow().getDecorView().findFocus();
-        boolean focusHere = focused == null || isInside(body, focused)
+        // A view hidden behind the shell (the host screen still loading) does not keep focus.
+        boolean focusHere = focused == null || isInside(body, focused) || !focused.isShown()
                 || !isInside(activity.getWindow().getDecorView(), focused);
         Object tag = focused != null && isInside(body, focused) ? focused.getTag() : null;
         body.removeAllViews();
@@ -215,7 +220,14 @@ final class FirstRunWizardPage {
         if (!userMove && !focusHere) return;
         View target = !userMove && tag != null ? screen.body.findViewWithTag(tag) : null;
         if (target == null || !target.isFocusable() || !target.isEnabled()) target = screen.focus;
-        if (target != null) target.requestFocus();
+        if (target == null) return;
+        // The shell may only become visible in this frame: ask again once it is laid out.
+        if (!target.requestFocus()) {
+            View again = target;
+            again.post(() -> {
+                if (shown == screen) again.requestFocus();
+            });
+        }
     }
 
     /** The shape on screen, "" when none. */
@@ -232,7 +244,9 @@ final class FirstRunWizardPage {
     void reclaimFocus() {
         View focused = activity.getWindow().getDecorView().findFocus();
         if (shown == null || shown.focus == null) return;
-        if (focused == null || !isInside(body, focused)) shown.focus.requestFocus();
+        if (focused == null || !isInside(body, focused) || !focused.isShown()) {
+            shown.focus.requestFocus();
+        }
     }
 
     private void renderDots(int steps, int current) {
@@ -626,6 +640,30 @@ final class FirstRunWizardPage {
         fill.addState(new int[]{}, glass(10, 0x99161A26, PILL_EDGE));
         cell.setBackground(fill);
         return cell;
+    }
+
+    /** A one-line text field holding {@code value}; OK opens the TV's keyboard. */
+    EditText field(String key, CharSequence value, int maxLength) {
+        EditText field = new EditText(activity);
+        field.setTag(key);
+        field.setTextSize(18);
+        field.setTextColor(TEXT);
+        field.setSingleLine(true);
+        field.setFilters(new InputFilter[]{new InputFilter.LengthFilter(maxLength)});
+        field.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_WORDS
+                | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        field.setImeOptions(EditorInfo.IME_ACTION_DONE | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
+        field.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+        field.setPadding(dp(18), 0, dp(18), 0);
+        field.setMinHeight(dp(50));
+        StateListDrawable fill = new StateListDrawable();
+        fill.addState(new int[]{android.R.attr.state_focused},
+                glass(10, 0x5C3A4258, 0xF2FFFFFF, 1.5f));
+        fill.addState(new int[]{}, glass(10, 0x99161A26, PILL_EDGE));
+        field.setBackground(fill);
+        field.setText(value);
+        field.setSelection(field.length());
+        return field;
     }
 
     /** A keypad key: a digit, or an icon when {@code icon} is not 0. */

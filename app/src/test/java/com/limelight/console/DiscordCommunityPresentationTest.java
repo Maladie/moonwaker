@@ -40,6 +40,24 @@ public class DiscordCommunityPresentationTest {
         assertEquals(Arrays.asList("discord.community.channel:one", "discord.community.channel:two"),
                 Arrays.asList(destinations.get(0).id, destinations.get(1).id));
         assertTrue(destinations.get(0).active);
+        // #8: a favorite is marked where channels are listed.
+        assertEquals("★ Lobby", destinations.get(0).title);
+        assertEquals("# General", destinations.get(1).title);
+    }
+
+    /** #8: the host's answer marks the toggled channel in a listed server's channels. */
+    @Test
+    public void favoriteToggleMarksOnlyThatChannel() {
+        java.util.List<HostGatewayClient.DiscordChannel> marked =
+                DiscordSocialPanelController.withFavorite(Arrays.asList(
+                        new HostGatewayClient.DiscordChannel("one", "guild", "Guild", "Lobby", 2, false),
+                        new HostGatewayClient.DiscordChannel("two", "guild", "Guild", "General", 0, true)),
+                        "one", true);
+        assertTrue(marked.get(0).favorite);
+        assertEquals("Lobby", marked.get(0).name);
+        assertEquals(2, marked.get(0).people);
+        assertTrue(marked.get(1).favorite);
+        assertFalse(DiscordSocialPanelController.withFavorite(marked, "one", false).get(0).favorite);
     }
 
     @Test

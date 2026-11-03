@@ -16,6 +16,7 @@ public class HostStreamRecordSessionTest {
         private final long fakeGeneration =
                 com.limelight.session.SessionModelDriver.nextTransportGeneration();
         @Override public long transportGeneration() { return fakeGeneration; }
+        @Override public String getExecutionProfileId() { return "parent"; }
         @Override public SessionModel.ParkOutcome parkRetainedTransport() {
             return SessionModel.ParkOutcome.PARKED;
         }
@@ -46,7 +47,8 @@ public class HostStreamRecordSessionTest {
         driver.enterHome(owner, "s", "host", "parent", 7, "steam:952060");
         driver.markReconnectRequired("s");
         driver.resume.edit().putBoolean("pending", true).putString("streamSessionId", "s")
-                .putString("pcUuid", "host").putString("profileId", "parent").apply();
+                .putString("pcUuid", "host").putString("profileId", "parent")
+                .putString(com.limelight.Game.EXTRA_EXECUTION_PROFILE_ID, "parent").apply();
         assertFalse(HostStreamRecord.sessionOwnsRecords("host", driver.snapshot()));
 
         // What the model applies for RETIRE (SessionModelHostTest drives the event itself).

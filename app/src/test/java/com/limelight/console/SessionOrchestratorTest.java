@@ -20,6 +20,7 @@ import java.util.function.Consumer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -458,6 +459,21 @@ public class SessionOrchestratorTest {
         assertEquals(0, effects.launches);
     }
 
+    /** A-4: no saved record left (a failed close cleared it): the host session is connected. */
+    @Test public void reconnectWithoutASavedRecordConnectsToTheHostSession() {
+        Fake effects = new Fake();
+        effects.snapshot = snapshot(SessionSnapshot.State.RECONNECT_REQUIRED, 42, "game");
+        effects.pendingResume = null;
+
+        orchestrator(effects).play(game());
+
+        assertEquals(0, effects.reconnects);
+        assertEquals(HostLaunchPreflight.Action.LAUNCH, effects.preflightAction);
+        assertEquals(1, effects.launches);
+        assertEquals(LaunchTransitionType.GENERIC, effects.launchType);
+        assertTrue(effects.failures.isEmpty());
+    }
+
     @Test public void neutralWarmUpReconnectHandsOffGameWithoutReplacement() {
         Fake effects = new Fake();
         effects.warmUpCarriesGame = true;
@@ -586,19 +602,36 @@ public class SessionOrchestratorTest {
         assertTrue(effects.failures.isEmpty());
     }
 
-    @Test public void fullscreenReconnectOnNeutralStreamReconnectsWithoutRefreshOrAsking() {
-        Fake effects = new Fake();
-        effects.snapshot = snapshot(SessionSnapshot.State.RECONNECT_REQUIRED,
-                77, "", false, "", true);
+    /**
+     * A-6/A-7: the installation stream is a Play of the table: what runs is closed first, the
+     * stream launches generically, and Retry after its failure starts this target again, never
+     * an earlier Play.
+     */
+    @Test public void installationSupportReplacesWhatRunsAndItsRetryRepeatsIt() {
+        Fake effects = competing();
+        PlayIntent support = PlayIntent.installationSupport("host", "default", 9, "Desktop",
+                false, "game-b");
+        SessionOrchestrator orchestrator = orchestrator(effects);
+        orchestrator.play(game());
+        effects.snapshot = snapshot(SessionSnapshot.State.ACTIVE, 7, "other");
 
-        orchestrator(effects).play(PlayIntent.playniteFullscreen("host", 77, "Desktop", false));
+        orchestrator.play(support);
 
-        assertEquals(HostLaunchPreflight.Action.RECONNECT, effects.preflightAction);
-        assertEquals(1, effects.reconnects);
-        assertEquals(0, effects.refreshes);
-        assertEquals(0, effects.closes);
-        assertEquals(0, effects.launches);
-        assertTrue(effects.failures.isEmpty());
+        assertEquals(2, effects.closes);
+        assertEquals(2, effects.launches);
+        assertSame(support, effects.launchedIntent);
+        assertEquals(LaunchTransitionType.GENERIC, effects.launchType);
+        assertEquals(HostLaunchPreflight.Action.LAUNCH, effects.preflightAction);
+
+        effects.snapshot = snapshot(SessionSnapshot.State.ACTIVE, 7, "other");
+        effects.closeFailure = SessionFailure.CLOSE_DIRECT_NOT_CLOSED.raise();
+        orchestrator.play(support);
+        assertEquals(java.util.Collections.singletonList(
+                SessionFailure.CLOSE_DIRECT_NOT_CLOSED), effects.failures);
+        effects.closeFailure = null;
+        orchestrator.retry();
+        assertSame(support, effects.launchedIntent);
+        assertEquals(3, effects.launches);
     }
 
     @Test public void cancelledNeutralWarmUpReconnectIgnoresStaleOpaqueFrame() {
@@ -619,17 +652,6 @@ public class SessionOrchestratorTest {
     @Test public void suspendedTargetReadiesAndConnectsGenerically() {
         Fake effects = new Fake();
         effects.snapshot = snapshot(SessionSnapshot.State.SUSPENDED, 42, "game");
-
-        orchestrator(effects).play(game());
-
-        assertEquals(1, effects.readiness);
-        assertEquals(0, effects.closes);
-        assertEquals(LaunchTransitionType.GENERIC, effects.launchType);
-    }
-
-    @Test public void activeTargetConnectsAfterPreflightWithoutQuit() {
-        Fake effects = new Fake();
-        effects.snapshot = snapshot(SessionSnapshot.State.ACTIVE, 42, "game");
 
         orchestrator(effects).play(game());
 
@@ -660,8 +682,8 @@ public class SessionOrchestratorTest {
 
     @Test public void noneDerivesFreshTransitionTypeFromTarget() {
         assertFreshType(game(), LaunchTransitionType.GAME, "");
-        assertFreshType(PlayIntent.playniteFullscreen(
-                "host", 42, "Playnite", false), LaunchTransitionType.PLAYNITE, "");
+        assertFreshType(PlayIntent.installationSupport("host", "default", 42, "Desktop", false,
+                "game"), LaunchTransitionType.GENERIC, "");
         assertFreshType(PlayIntent.sunshineApp(
                 "host", 42, "App", false, "quick"), LaunchTransitionType.GENERIC, "");
     }
@@ -838,8 +860,193 @@ public class SessionOrchestratorTest {
         effects.flushDispatch();
 
         assertEquals(1, effects.attachedForSwitch);
-        assertEquals(2L, effects.attachedRequest);
+        assertEquals("one handoff: the current request's", 1L, effects.attachedRequest);
         assertEquals(0, effects.launches);
+    }
+
+    /** A live neutral stream no Activity presents: a game Play is handed to the stream screen. */
+    private static Fake detachedNeutralStream() {
+        Fake effects = new Fake();
+        effects.snapshot = snapshot(SessionSnapshot.State.ACTIVE, 42, "", true, "", false);
+        effects.canSwitch = true;
+        effects.presentationAttached = false;
+        return effects;
+    }
+
+    /** The Home the stream opens after its switch failed: another screen, the same queue. */
+    private static Fake streamHome(Fake console) {
+        Fake home = new Fake();
+        home.queue = console.queue;
+        home.snapshot = console.snapshot;
+        home.canSwitch = console.canSwitch;
+        home.retainedGame = console.retainedGame;
+        home.closeResult = console.closeResult;
+        home.childIntent = console.childIntent;
+        return home;
+    }
+
+    /**
+     * #5: the attached switch was meant to keep the running game (a child entering its parent's
+     * game) and failed transiently: the Home shows the failure with Retry; nothing is closed.
+     */
+    @Test public void handedOffSwitchThatKeptTheGameFailsWithRetryAndClosesNothing() {
+        Fake console = carriedGameWithSlot(null);
+        console.presentationAttached = false;
+        PlayIntent child = PlayIntent.playniteGame("host", "child", 42, "Game", false,
+                "parent-game", "parent-game");
+        orchestrator(console).play(child);
+        assertEquals(1, console.attachedForSwitch);
+
+        console.queue.switchFailed(console.attachedRequest, "retained_switch_process_unconfirmed");
+        Fake home = streamHome(console);
+        SessionOrchestrator homeScreen = orchestrator(home);
+        homeScreen.sessionChanged();
+
+        assertEquals(java.util.Collections.singletonList(SessionFailure.SWITCH_FAILED),
+                home.failures);
+        assertEquals(0, home.closes);
+        assertEquals(0, home.launches);
+        // Retry is the user's: the same Play, now on the stream the Home presents.
+        homeScreen.retry();
+        assertEquals(1, home.switches);
+        assertNull(home.closedRetained);
+        assertEquals(0, home.launches);
+    }
+
+    /** #5, A-3: a switch the attached stream refused is the common close and a fresh launch. */
+    @Test public void handedOffSwitchTheStreamRefusedClosesAndLaunchesFresh() {
+        Fake console = detachedNeutralStream();
+        orchestrator(console).play(game());
+
+        console.queue.switchFailed(console.attachedRequest, "retained_switch_not_eligible");
+        Fake home = streamHome(console);
+        SessionOrchestrator homeScreen = orchestrator(home);
+        homeScreen.sessionChanged();
+
+        assertTrue(home.failures.isEmpty());
+        assertEquals("never switched again", 0, home.switches);
+        assertEquals(1, home.closes);
+        assertNotNull("the exact retained stream closes through its owner", home.closedRetained);
+        assertEquals(1, home.launches);
+        assertEquals("under the Home's own cover", 1, home.loadings);
+        homeScreen.sessionChanged();
+        assertEquals("decided once", 1, home.launches);
+    }
+
+    /** #5: a child's own host refusal shows the child's message; nothing is closed for it. */
+    @Test public void handedOffChildRefusalShowsTheChildsMessage() {
+        Fake console = detachedNeutralStream();
+        console.childIntent = true;
+        orchestrator(console).play(game());
+
+        console.queue.switchFailed(console.attachedRequest, "daily_limit_reached");
+        Fake home = streamHome(console);
+        orchestrator(home).sessionChanged();
+
+        assertEquals(java.util.Collections.singletonList(SessionFailure.SWITCH_CHILD_REFUSED),
+                home.failures);
+        assertEquals(java.util.Collections.singletonList("daily_limit_reached"),
+                home.failureDetails);
+        assertEquals(0, home.closes);
+        assertEquals(0, home.launches);
+    }
+
+    /** #5: a late failure of an older handoff never acts for a newer Play. */
+    @Test public void lateFailureOfAnOlderHandoffIsIgnored() {
+        Fake console = detachedNeutralStream();
+        SessionOrchestrator consoleScreen = orchestrator(console);
+        consoleScreen.play(game());
+        long older = console.attachedRequest;
+        consoleScreen.play(game());
+        assertNotEquals(older, console.attachedRequest);
+
+        console.queue.switchFailed(older, "retained_switch_not_eligible");
+        Fake home = streamHome(console);
+        orchestrator(home).sessionChanged();
+
+        assertTrue(home.failures.isEmpty());
+        assertEquals(0, home.closes);
+        assertEquals(0, home.launches);
+
+        // A newer Play that hands nothing off drops the running handoff too.
+        long current = console.attachedRequest;
+        console.presentationAttached = true;
+        consoleScreen.play(game());
+        console.queue.switchFailed(current, "retained_switch_not_eligible");
+        orchestrator(home).sessionChanged();
+        assertEquals(0, home.closes);
+        assertEquals(0, home.launches);
+    }
+
+    /** W-2: a failure reported while the Home is resumed is decided at once, not on a snapshot. */
+    @Test public void handedOffFailureReachesTheResumedHomeAtOnce() {
+        Fake console = detachedNeutralStream();
+        orchestrator(console).play(game());
+        Fake home = streamHome(console);
+        SessionOrchestrator homeScreen = orchestrator(home);
+        homeScreen.screenShown();
+        assertEquals(0, home.closes);
+
+        console.queue.switchFailed(console.attachedRequest, "retained_switch_not_eligible");
+
+        assertEquals(1, home.closes);
+        assertEquals(1, home.launches);
+    }
+
+    /** W-2: a Home that left is not the one deciding; the next resumed screen is. */
+    @Test public void handedOffFailureWaitsForTheNextResumedScreen() {
+        Fake console = detachedNeutralStream();
+        orchestrator(console).play(game());
+        Fake home = streamHome(console);
+        SessionOrchestrator homeScreen = orchestrator(home);
+        homeScreen.screenShown();
+        homeScreen.screenLeft();
+
+        console.queue.switchFailed(console.attachedRequest, "retained_switch_not_eligible");
+        assertEquals(0, home.closes);
+
+        homeScreen.screenShown();
+        assertEquals(1, home.closes);
+        assertEquals(1, home.launches);
+    }
+
+    /** W-2: a failure no screen decided within the queue's bound is dropped; nothing closes. */
+    @Test public void staleHandedOffFailureIsDroppedWithoutAction() {
+        Fake console = detachedNeutralStream();
+        orchestrator(console).play(game());
+        console.queue.switchFailed(console.attachedRequest, "retained_switch_not_eligible");
+        console.clock += SessionStateResolver.CLOSING_CONFIRMATION_MS;
+
+        Fake home = streamHome(console);
+        SessionOrchestrator homeScreen = orchestrator(home);
+        homeScreen.screenShown();
+        homeScreen.sessionChanged();
+
+        assertTrue(home.failures.isEmpty());
+        assertEquals(0, home.closes);
+        assertEquals(0, home.launches);
+        assertEquals(0, home.switches);
+        assertEquals(0, home.loadings);
+    }
+
+    /**
+     * W-3: a handed-off Play the stream refused because an earlier switch still runs ends on the
+     * failure screen with Retry; it never closes and relaunches under the running switch.
+     */
+    @Test public void handedOffPlayRefusedWhileASwitchRunsFailsWithRetryAndClosesNothing() {
+        Fake console = detachedNeutralStream();
+        orchestrator(console).play(game());
+
+        console.queue.switchFailed(console.attachedRequest,
+                SessionFailure.SWITCH_IN_PROGRESS_REASON);
+        Fake home = streamHome(console);
+        orchestrator(home).screenShown();
+
+        assertEquals(java.util.Collections.singletonList(SessionFailure.SWITCH_IN_PROGRESS),
+                home.failures);
+        assertEquals(0, home.closes);
+        assertEquals(0, home.launches);
+        assertEquals(0, home.switches);
     }
 
     @Test public void sharedSunshineAppWithDifferentGameIsStillReplaced() {
@@ -919,6 +1126,27 @@ public class SessionOrchestratorTest {
         assertEquals(1, effects.returned);
         assertEquals(0, effects.launches);
         assertTrue(effects.failures.isEmpty());
+    }
+
+    /**
+     * R1-1: a child entering its parent's shared game the stream carries adopts it; when that
+     * switch fails transiently the game is never closed and relaunched: the failure shows.
+     */
+    @Test public void failedSwitchIntoTheCarriedGameNeverClosesIt() {
+        Fake effects = carriedGameWithSlot(null);
+        effects.switchFailure = SessionFailure.switchFailed(
+                "retained_switch_process_unconfirmed");
+        PlayIntent child = PlayIntent.playniteGame("host", "child", 42, "Game", false,
+                "parent-game", "parent-game");
+
+        orchestrator(effects).play(child);
+
+        assertEquals(java.util.Collections.singletonList(SessionFailure.SWITCH_FAILED),
+                effects.failures);
+        assertEquals(1, effects.switches);
+        assertEquals("no close after the failed switch", 1, effects.closes);
+        assertNull(effects.closedRetained);
+        assertEquals(0, effects.launches);
     }
 
     /** The stream carries "parent-game"; the host's slot holds {@code frozen}. */
@@ -1010,6 +1238,44 @@ public class SessionOrchestratorTest {
                 effects.closedRetained);
         assertEquals(1, effects.readiness);
         assertEquals(1, effects.launches);
+    }
+
+    /**
+     * A-3: the stream refuses the switch and still reads switchable afterwards. The switch is
+     * never tried again in that request (no second refusal, no Retry loop): the exact retained
+     * stream closes through its owner and the game launches fresh.
+     */
+    @Test public void refusedSwitchFallsBackToTheCloseWhileTheStreamStillReadsSwitchable() {
+        for (SessionFailure refusal : new SessionFailure[] {SessionFailure.SWITCH_NOT_ELIGIBLE,
+                SessionFailure.SWITCH_REFUSED, SessionFailure.SESSION_HELD_BY_OTHER_ACTOR,
+                SessionFailure.SWITCH_FAILED}) {
+            Fake effects = competing();
+            effects.canSwitch = true;
+            effects.switchFailure = refusal.raise();
+
+            orchestrator(effects).play(game());
+
+            assertTrue(refusal.name(), effects.failures.isEmpty());
+            assertEquals(refusal.name(), 1, effects.switches);
+            assertEquals(refusal.name(), 2, effects.closes);
+            assertNotNull(refusal.name(), effects.closedRetained);
+            assertEquals(refusal.name(), 1, effects.launches);
+        }
+    }
+
+    /** A child's own host refusal (time, schedule) is shown; nothing is closed for it. */
+    @Test public void childRefusalOfASwitchClosesNothing() {
+        Fake effects = competing();
+        effects.canSwitch = true;
+        effects.switchFailure = new SessionFailure.Raised(SessionFailure.SWITCH_CHILD_REFUSED,
+                "daily_limit_reached");
+
+        orchestrator(effects).play(game());
+
+        assertEquals(java.util.Collections.singletonList(SessionFailure.SWITCH_CHILD_REFUSED),
+                effects.failures);
+        assertEquals(1, effects.closes);
+        assertEquals(0, effects.launches);
     }
 
     /** The table, not the effect, picks this client's exact retained stream for the close. */
@@ -1159,13 +1425,14 @@ public class SessionOrchestratorTest {
     @Test public void retainedSwitchFailureIsClassifiedOnceFromTheStreamReason() {
         Fake effects = competing();
         effects.canSwitch = true;
-        effects.closeFailure = SessionFailure.switchFailed("Gateway: game_stop_timeout");
+        effects.closeFailure = SessionFailure.switchFailed("game_stop_unconfirmed");
         orchestrator(effects).play(game());
 
+        // R5-7: an unconfirmed stop fails (the game may still run); never closed again here.
         assertEquals(java.util.Collections.singletonList(
-                SessionFailure.SWITCH_PROVIDER_STOP_TIMEOUT), effects.failures);
-        assertEquals(com.limelight.R.string.console_provider_stop_waiting_for_process,
-                SessionFailure.SWITCH_PROVIDER_STOP_TIMEOUT.details);
+                SessionFailure.SWITCH_STOP_UNCONFIRMED), effects.failures);
+        assertEquals(com.limelight.R.string.control_previous_game_unconfirmed,
+                SessionFailure.SWITCH_STOP_UNCONFIRMED.details);
         assertEquals(SessionFailure.SWITCH_REFUSED,
                 SessionFailure.switchFailed("retained_switch_not_eligible").reason);
         assertEquals(SessionFailure.SWITCH_FAILED,
@@ -1513,9 +1780,10 @@ public class SessionOrchestratorTest {
             assertTrue(reason.code, reason.code.matches("[a-z_]+\\.[a-z_]+"));
             assertTrue(reason.code, codes.add(reason.code));
         }
+        // V-8: a failed switch that kept the running game closed nothing either.
         for (SessionFailure attach : new SessionFailure[] {
                 SessionFailure.ATTACH_RESUME_INTENT_MISSING,
-                SessionFailure.ATTACH_START_ACTIVITY_FAILED}) {
+                SessionFailure.ATTACH_START_ACTIVITY_FAILED, SessionFailure.SWITCH_FAILED}) {
             assertFalse(attach.details
                     == com.limelight.R.string.console_previous_session_close_failed);
             assertFalse(attach.title == com.limelight.R.string.applist_quit_fail);
@@ -1537,16 +1805,6 @@ public class SessionOrchestratorTest {
         assertEquals(1, effects.launches);
     }
 
-    @Test public void newlyMatchingActiveAfterReadinessUsesGenericConnection() {
-        Fake effects = new Fake();
-        effects.onReadiness = () -> effects.snapshot =
-                snapshot(SessionSnapshot.State.ACTIVE, 42, "game");
-
-        orchestrator(effects).play(game());
-
-        assertEquals(LaunchTransitionType.GENERIC, effects.launchType);
-        assertEquals(0, effects.closes);
-    }
 
     @Test public void newlyMatchingSuspendedAfterReadinessRefocusesAndConnects() {
         Fake effects = new Fake();
@@ -2005,16 +2263,6 @@ public class SessionOrchestratorTest {
         assertNull(effects.rejection);
     }
 
-    @Test public void bridgeGameWithoutStreamConnectsWithoutFreshProviderLaunch() {
-        Fake effects = new Fake();
-        effects.snapshot = snapshot(SessionSnapshot.State.ACTIVE, 0, "game");
-
-        orchestrator(effects).play(game());
-
-        assertEquals(1, effects.readiness);
-        assertEquals(LaunchTransitionType.GENERIC, effects.launchType);
-        assertEquals(0, effects.closes);
-    }
 
     @Test public void stalePreflightCompletionCannotLaunchOlderIntent() {
         Fake effects = new Fake();
@@ -2318,6 +2566,7 @@ public class SessionOrchestratorTest {
         private final long fakeGeneration =
                 com.limelight.session.SessionModelDriver.nextTransportGeneration();
         @Override public long transportGeneration() { return fakeGeneration; }
+        @Override public String getExecutionProfileId() { return "default"; }
         @Override public SessionModel.ParkOutcome parkRetainedTransport() {
             return SessionModel.ParkOutcome.PARKED;
         }
@@ -2379,6 +2628,7 @@ public class SessionOrchestratorTest {
         SessionSnapshot snapshot = snapshot(SessionSnapshot.State.NONE, 0, "");
         SessionSnapshot afterClose = snapshot(SessionSnapshot.State.NONE, 0, "");
         final java.util.List<SessionFailure> failures = new java.util.ArrayList<>();
+        final java.util.List<String> failureDetails = new java.util.ArrayList<>();
         final java.util.List<Integer> loadingsAtFailure = new java.util.ArrayList<>();
         SessionOrchestrator.Rejection rejection;
         Runnable onReadiness;
@@ -2422,7 +2672,9 @@ public class SessionOrchestratorTest {
         final java.util.List<SessionOrchestrator.WarmUpStart> warmUpStatuses =
                 new java.util.ArrayList<>();
         boolean mayOpenPreparedHost = true;
-        SessionResumeManager.PendingSession pendingResume;
+        /** This host's saved reconnect record of a game stream (not a neutral warm-up's). */
+        SessionResumeManager.PendingSession pendingResume = SessionModelDriver.reconnectRecord(
+                "s", "host", "default", "default", 42, "game", false);
         SessionOrchestrator.WarmUpLaunch preparedLaunch;
 
         int returned;
@@ -2510,12 +2762,17 @@ public class SessionOrchestratorTest {
         }
         @Override public void returnToRetainedStream() { returned++; }
         @Override public void attachPresentationForSwitch(
-                long orchestrationId, PlayIntent intent, NvApp target,
+                long handoff, PlayIntent intent, NvApp target,
                 SessionOrchestrator.SwitchStop stop) {
             attachedForSwitch++;
             switchStops.add(stop);
-            attachedRequest = orchestrationId;
+            attachedRequest = handoff;
             attachedTarget = target;
+        }
+        /** The Play is a child's (the console's isChildIntent). */
+        boolean childIntent;
+        @Override public SessionFailure.Raised switchFailure(PlayIntent intent, String error) {
+            return SessionFailure.switchFailed(childIntent, error);
         }
         @Override public void reconnectSavedSession(PlayIntent intent) {
             reconnects++;
@@ -2655,8 +2912,10 @@ public class SessionOrchestratorTest {
         @Override public void preflightFailed(HostLaunchPreflight.Failure failure) {
             preflightFailures++;
         }
-        @Override public void sessionFailed(PlayIntent intent, SessionFailure reason) {
+        @Override public void sessionFailed(PlayIntent intent, SessionFailure reason,
+                                            String detail) {
             failures.add(reason);
+            failureDetails.add(detail);
             loadingsAtFailure.add(loadings);
         }
     }

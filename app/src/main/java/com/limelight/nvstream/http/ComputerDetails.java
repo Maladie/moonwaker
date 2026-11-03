@@ -87,27 +87,6 @@ public class ComputerDetails {
         update(details);
     }
 
-    public int guessExternalPort() {
-        if (externalPort != 0) {
-            return externalPort;
-        }
-        else if (remoteAddress != null) {
-            return remoteAddress.port;
-        }
-        else if (activeAddress != null) {
-            return activeAddress.port;
-        }
-        else if (ipv6Address != null) {
-            return ipv6Address.port;
-        }
-        else if (localAddress != null) {
-            return localAddress.port;
-        }
-        else {
-            return NvHTTP.DEFAULT_HTTP_PORT;
-        }
-    }
-
     public void update(ComputerDetails details) {
         this.state = details.state;
         this.name = details.name;

@@ -1,5 +1,6 @@
 package com.limelight.console;
 
+import com.limelight.gateway.GatewayTransport;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -21,12 +22,6 @@ public class DiscordSocialPanelControllerTest {
     }
 
     @Test
-    public void friendFocusUsesStableDiscordUserIdentity() {
-        assertEquals("discord.social.friend:1234",
-                DiscordSocialPanelController.friendFocusTag("1234"));
-    }
-
-    @Test
     public void openingAFriendImmediatelyEntersItsFirstDetailAction() {
         assertTrue(DiscordSocialPanelController.shouldFocusDetailAfterOpen(
                 DiscordCommunityPresentation.Kind.FRIEND));
@@ -42,18 +37,6 @@ public class DiscordSocialPanelControllerTest {
                 android.view.KeyEvent.KEYCODE_DPAD_RIGHT, 3));
         assertEquals(2, DiscordSocialPanelController.adjacentTabIndex(2,
                 android.view.KeyEvent.KEYCODE_DPAD_RIGHT, 3));
-    }
-
-    @Test
-    public void summaryProjectionPrioritizesConnectionAndAuthorizationFlags() {
-        assertEquals(DiscordSocialPanelController.SummaryState.CONNECTED,
-                DiscordSocialPanelController.summaryState(true, true, "anything"));
-        assertEquals(DiscordSocialPanelController.SummaryState.AUTHORIZATION_REQUIRED,
-                DiscordSocialPanelController.summaryState(false, true, "Not connected"));
-        assertEquals(DiscordSocialPanelController.SummaryState.UNAVAILABLE,
-                DiscordSocialPanelController.summaryState(false, false, "Unable to restore"));
-        assertEquals(DiscordSocialPanelController.SummaryState.CONNECTING,
-                DiscordSocialPanelController.summaryState(false, false, "Authorizing"));
     }
 
     @Test
@@ -110,15 +93,18 @@ public class DiscordSocialPanelControllerTest {
         assertFalse(safe.contains("\n"));
         assertTrue(safe.length() <= 160);
         assertEquals("HTTP 409: denied", DiscordPanelController.safeCommunityJoinError(
-                new HostGatewayClient.GatewayException("denied", 409)));
+                new GatewayTransport.GatewayException("denied", 409)));
     }
 
     @Test
-    public void onlyGateway409MeansDiscordNotReady() {
+    public void gateway409OrAnUnansweringBridgeMeansDiscordNotReady() {
         assertTrue(DiscordPanelController.discordNotReady(
-                new HostGatewayClient.GatewayException("Discord RPC authorization is required.", 409)));
+                new GatewayTransport.GatewayException("Discord RPC authorization is required.", 409)));
+        // R4-5: the Gateway's fixed code for a Bridge that did not answer.
+        assertTrue(DiscordPanelController.discordNotReady(
+                new GatewayTransport.GatewayException("bridge_unavailable", 502)));
         assertFalse(DiscordPanelController.discordNotReady(
-                new HostGatewayClient.GatewayException("Unable to load Discord servers.", 502)));
+                new GatewayTransport.GatewayException("Unable to load Discord servers.", 502)));
         assertFalse(DiscordPanelController.discordNotReady(new java.io.IOException("reset")));
     }
 
@@ -126,13 +112,13 @@ public class DiscordSocialPanelControllerTest {
     public void communityHomeBlamesHostDiscordOnlyForItsOwnFailures() {
         assertEquals(com.limelight.R.string.discord_community_host_not_ready,
                 DiscordPanelController.homeUnavailableMessage(
-                        new HostGatewayClient.GatewayException("not ready", 409)));
+                        new GatewayTransport.GatewayException("not ready", 409)));
         assertEquals(com.limelight.R.string.discord_community_host_not_ready,
                 DiscordPanelController.homeUnavailableMessage(
-                        new HostGatewayClient.GatewayException("Discord is not running.", 502)));
+                        new GatewayTransport.GatewayException("Discord is not running.", 502)));
         assertEquals(com.limelight.R.string.discord_community_host_unavailable,
                 DiscordPanelController.homeUnavailableMessage(
-                        new HostGatewayClient.GatewayException("unauthorized", 401)));
+                        new GatewayTransport.GatewayException("unauthorized", 401)));
         assertEquals(com.limelight.R.string.discord_community_host_unavailable,
                 DiscordPanelController.homeUnavailableMessage(new java.io.IOException("reset")));
     }

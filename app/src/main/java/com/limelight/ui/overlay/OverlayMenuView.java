@@ -36,6 +36,7 @@ import com.limelight.R;
 import com.limelight.binding.input.ControllerHandler.ControllerBatteryInfo;
 import com.limelight.binding.input.GyroAim;
 import com.limelight.console.EmbeddedTvKeyboardView;
+import com.limelight.console.HostGatewayClient;
 import com.limelight.discord.DiscordSocialClient;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.stream.LiveStreamSettings;
@@ -69,7 +70,6 @@ public class OverlayMenuView extends LinearLayout {
     private static final int COMMUNITY_CHAT_WIDTH_DP = 600;
     private static final int COMMUNITY_LIST_SCROLL_DP = 84;
     private static final int COMMUNITY_HISTORY_SCROLL_DP = 96;
-    private static final int COMMUNITY_RAIL_ICON_COUNT = 3;
     private static final float ANALOG_STICK_THRESHOLD = 0.5f;
     // A held direction leaves the menu below this, so stick jitter at the edge is not a press.
     private static final float ANALOG_STICK_RELEASE = 0.35f;
@@ -115,6 +115,7 @@ public class OverlayMenuView extends LinearLayout {
         default void onDiscordCommunityOpenFriendChat(String friendId) { }
         default void onDiscordCommunityLoadGuild(String guildId) { }
         default void onDiscordCommunityJoinChannel(String channelId) { }
+        default void onDiscordCommunityFavorite(String channelId, boolean favorite) { }
         default void onDiscordCommunityChatDraftChanged(String friendId, String draft) { }
         default void onDiscordCommunitySendChat(String friendId, String draft) { }
         default void onDiscordCommunityOpenMessageInDiscord(String messageId) { }
@@ -562,7 +563,7 @@ public class OverlayMenuView extends LinearLayout {
     private String discordMuteShortcut = "x";
     private String discordLeaveShortcut = "y";
     private final GuideShortcutLatch discordShortcutChord = new GuideShortcutLatch();
-    private DiscordGatewayClient.VoiceState discordVoice;
+    private HostGatewayClient.DiscordVoice discordVoice;
     private OverlayMenuButton discordMuteButton;
     private OverlayMenuButton discordLeaveButton;
     private OverlayMenuButton discordRejoinButton;
@@ -2323,10 +2324,6 @@ public class OverlayMenuView extends LinearLayout {
         }
     }
 
-    static OverlayMode backMode(OverlayMode mode) {
-        return mode == OverlayMode.COMMUNITY ? OverlayMode.MENU : OverlayMode.MENU;
-    }
-
     static boolean communityVisible(OverlayMode mode, boolean available) {
         return mode == OverlayMode.COMMUNITY && available;
     }
@@ -2388,23 +2385,8 @@ public class OverlayMenuView extends LinearLayout {
         return mode == OverlayMode.COMMUNITY && submode == CommunitySubmode.FRIEND_CHAT;
     }
 
-    static int communityContentScrollTarget(int currentScroll, int maxScroll, int delta) {
-        return Math.max(0, Math.min(Math.max(0, maxScroll), currentScroll + delta));
-    }
-
-    static int communityActionMaxRows() { return 2; }
-    static int communityQuickWidthDp() { return COMMUNITY_QUICK_WIDTH_DP; }
-    static int communityChatWidthDp() { return COMMUNITY_CHAT_WIDTH_DP; }
-    static int communityRailIconCount() { return COMMUNITY_RAIL_ICON_COUNT; }
-    static boolean communityContentUsesSingleScrollOwner() { return false; }
-    static boolean communityContentUsesFocusableRows() { return true; }
     static int communityPanelDimension(int requested, int available) {
         return available > 0 ? Math.min(requested, available) : requested;
-    }
-    static int communityStableIndex(List<String> ids, String selectedId) {
-        if (ids == null || ids.isEmpty()) return -1;
-        int index = selectedId == null ? -1 : ids.indexOf(selectedId);
-        return index >= 0 ? index : 0;
     }
 
     static boolean shouldAutoScrollCommunityChat(boolean sameRecipient, boolean nearBottom,
@@ -2698,7 +2680,7 @@ public class OverlayMenuView extends LinearLayout {
         updateDiscordActionButtons();
     }
 
-    public void setDiscordState(DiscordGatewayClient.VoiceState voice, String error,
+    public void setDiscordState(HostGatewayClient.DiscordVoice voice, String error,
                                 boolean loading) {
         if (voice != null) discordVoice = voice;
         discordError = error;
@@ -2744,15 +2726,22 @@ public class OverlayMenuView extends LinearLayout {
     private void renderDiscordCommunityFooter() {
         if (discordQuickFooter == null) return;
         discordQuickFooter.removeAllViews();
-        addDiscordCommunityFooterItem(true, R.string.discord_community_open, dp(14));
-        addDiscordCommunityFooterItem(false, R.string.discord_community_back, 0);
+        addDiscordCommunityFooterItem(communityFooterButton(true, flipFaceButtons),
+                R.string.discord_community_open, dp(14));
+        // Voice channels are listed only under Channels: there Y marks a favorite.
+        boolean favorites = communitySection == CommunitySection.CHANNELS;
+        addDiscordCommunityFooterItem(communityFooterButton(false, flipFaceButtons),
+                R.string.discord_community_back, favorites ? dp(14) : 0);
+        if (favorites) {
+            addDiscordCommunityFooterItem(flipFaceButtons ? ControllerGlyphs.Button.WEST
+                    : ControllerGlyphs.Button.NORTH, R.string.discord_favorite_hint, 0);
+        }
     }
 
-    private void addDiscordCommunityFooterItem(boolean confirmAction, int labelResource,
+    private void addDiscordCommunityFooterItem(ControllerGlyphs.Button button, int labelResource,
                                                int rightMargin) {
         TextView glyph = new TextView(getContext());
-        glyph.setText(ControllerGlyphs.text(playStationButtons,
-                communityFooterButton(confirmAction, flipFaceButtons)));
+        glyph.setText(ControllerGlyphs.text(playStationButtons, button));
         glyph.setTextColor(OverlayMenuButton.TEXT);
         glyph.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
         glyph.setGravity(Gravity.CENTER);
@@ -2838,6 +2827,7 @@ public class OverlayMenuView extends LinearLayout {
         discordContentScroll.setVisibility(VISIBLE);
         discordActionsContainer.setVisibility(VISIBLE);
         discordQuickFooter.setVisibility(VISIBLE);
+        renderDiscordCommunityFooter();
         discordChatContainer.setVisibility(GONE);
         discordVoiceContentContainer.removeAllViews();
         discordSocialContentContainer.removeAllViews();
@@ -2879,14 +2869,6 @@ public class OverlayMenuView extends LinearLayout {
                 focusCommunityRail();
             }
         });
-    }
-
-    private boolean isCurrentCommunityRender(long generation, long revision,
-                                             CommunitySection section, CommunitySubmode submode) {
-        return overlayMode == OverlayMode.COMMUNITY && getVisibility() == VISIBLE
-                && communityModel != null && communityModel.revision == revision
-                && communityRenderGeneration == generation && communitySection == section
-                && communitySubmode == submode;
     }
 
     private void renderCommunityTogether() {
@@ -2995,7 +2977,7 @@ public class OverlayMenuView extends LinearLayout {
         for (CommunityChannel channel : communityModel.guildChannels) {
             String details = channel.people >= 0 ? channel.people + "" : "";
             addCommunityRow("guild-channel:" + channel.id, CommunityRowKind.CHANNEL,
-                    "#  " + channel.name, details, channel);
+                    communityChannelTitle(channel), details, channel);
         }
     }
 
@@ -3006,8 +2988,13 @@ public class OverlayMenuView extends LinearLayout {
         for (CommunityChannel channel : channels) {
             String details = channel.guildName + (channel.people >= 0 ? "  ·  " + channel.people : "");
             addCommunityRow(stablePrefix + channel.id, CommunityRowKind.CHANNEL,
-                    "#  " + channel.name, details, channel);
+                    communityChannelTitle(channel), details, channel);
         }
+    }
+
+    /** A favorite voice channel is marked with a star instead of the hash. */
+    static String communityChannelTitle(CommunityChannel channel) {
+        return (channel.favorite ? "★  " : "#  ") + channel.name;
     }
 
     private void addCommunityStateLine(CommunityStatus status, String message, String fallback) {
@@ -3590,11 +3577,11 @@ public class OverlayMenuView extends LinearLayout {
         String channel = discordVoice.channelName == null || discordVoice.channelName.isEmpty() ?
                 "Voice" : discordVoice.channelName;
         discordVoiceContentContainer.addView(discordLine(getContext().getString(
-                R.string.overlay_discord_channel, channel, discordVoice.participants.size()),
+                R.string.overlay_discord_channel, channel, discordVoice.participantList.size()),
                 15, Color.WHITE, true));
 
         int shown = 0;
-        for (DiscordGatewayClient.Participant participant : discordVoice.participants) {
+        for (HostGatewayClient.DiscordParticipant participant : discordVoice.participantList) {
             if (shown >= 6) break;
             String name = participant.self ? getContext().getString(
                     R.string.overlay_discord_self, participant.name) : participant.name;
@@ -3612,13 +3599,13 @@ public class OverlayMenuView extends LinearLayout {
                     participant.speaking ? 0xFF69F0AE : 0xFFE6E1E9, false));
             shown++;
         }
-        if (discordVoice.participants.size() <= 1) {
+        if (discordVoice.participantList.size() <= 1) {
             discordVoiceContentContainer.addView(discordLine(
                     getContext().getString(R.string.overlay_discord_empty),
                     12, 0xFF9FA3B2, false));
-        } else if (discordVoice.participants.size() > shown) {
+        } else if (discordVoice.participantList.size() > shown) {
             discordVoiceContentContainer.addView(discordLine(
-                    "+" + (discordVoice.participants.size() - shown),
+                    "+" + (discordVoice.participantList.size() - shown),
                     12, 0xFF9FA3B2, false));
         }
     }
@@ -4112,6 +4099,17 @@ public class OverlayMenuView extends LinearLayout {
                     }
                     return true;
                 }
+                // Y (or a remote's Menu) asks for the opposite of the focused voice channel's
+                // shown favorite mark.
+                if ((keyCode == KeyEvent.KEYCODE_BUTTON_Y || keyCode == KeyEvent.KEYCODE_MENU)
+                        && event.getRepeatCount() == 0) {
+                    CommunityRow row = focusedCommunityChannel();
+                    if (row != null && actionListener != null) {
+                        actionListener.onDiscordCommunityFavorite(idPart(row.id),
+                                !((CommunityChannel) row.source).favorite);
+                    }
+                    return true;
+                }
                 if (keyCode == KeyEvent.KEYCODE_BUTTON_A || keyCode == KeyEvent.KEYCODE_DPAD_CENTER
                         || keyCode == KeyEvent.KEYCODE_ENTER) {
                     if (communityFocus == CommunityFocus.ACTION) activateSelected();
@@ -4180,6 +4178,13 @@ public class OverlayMenuView extends LinearLayout {
             return true;
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    private CommunityRow focusedCommunityChannel() {
+        if (communityFocus != CommunityFocus.LIST || communityListIndex < 0
+                || communityListIndex >= communityRows.size()) return null;
+        CommunityRow row = communityRows.get(communityListIndex);
+        return row.kind == CommunityRowKind.CHANNEL ? row : null;
     }
 
     private void focusCommunityList() {
@@ -4284,20 +4289,6 @@ public class OverlayMenuView extends LinearLayout {
             return true;
         }
         return isGamepadEvent(source) || isCommunityNavigationKey(keyCode);
-    }
-
-    /**
-     * The quick Community panel has one content focus lane. Keep its vertical movement local
-     * instead of letting Android search through the hidden overlay menu containers.
-     */
-    private void navigateCommunity(int direction) {
-        if (discordButtons.isEmpty()) return;
-        if (activeRegion != Region.DISCORD) {
-            setDiscordIndex(0);
-            return;
-        }
-        setDiscordIndex(Math.max(0, Math.min(discordButtons.size() - 1,
-                discordIndex + direction)));
     }
 
     @Override
@@ -4787,11 +4778,11 @@ public class OverlayMenuView extends LinearLayout {
     }
 
     private void activateKeyboard() {
-        // Hide first, then post the keyboard request so the window manager has a frame
-        // to process the visibility change and return focus to the game view before the
-        // IME is requested. Without this, newer Android silently drops showSoftInput()
+        // Close first (onMenuClosed returns focus to the game view), then post the keyboard
+        // request so the window manager has a frame to process the visibility change before
+        // the IME is requested. Without this, newer Android silently drops showSoftInput()
         // because the overlay view still holds focus at the moment of the call.
-        setVisibility(GONE);
+        closeMenu();
         post(() -> {
             if (actionListener != null) {
                 actionListener.onShowKeyboard();

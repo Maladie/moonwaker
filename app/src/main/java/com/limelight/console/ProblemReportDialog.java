@@ -366,6 +366,8 @@ public final class ProblemReportDialog {
             case "rate_limited":
                 return activity.getString(R.string.problem_report_rate_limited,
                         Math.max(1, result.retryAfterSeconds));
+            case "report_in_progress":
+                return s(R.string.problem_report_in_progress);
             case "webhook_failed":
                 return activity.getString(R.string.problem_report_webhook_failed, result.detail);
             default:

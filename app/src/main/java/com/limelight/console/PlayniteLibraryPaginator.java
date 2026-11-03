@@ -17,13 +17,10 @@ final class PlayniteLibraryPaginator {
     static final class Result {
         final List<HostGatewayClient.PlayniteGame> games;
         final String revision;
-        final String apiVersion;
 
-        Result(List<HostGatewayClient.PlayniteGame> games,
-               String revision, String apiVersion) {
+        Result(List<HostGatewayClient.PlayniteGame> games, String revision) {
             this.games = games;
             this.revision = revision;
-            this.apiVersion = apiVersion;
         }
     }
 
@@ -32,18 +29,16 @@ final class PlayniteLibraryPaginator {
         Map<String, HostGatewayClient.PlayniteGame> games = new LinkedHashMap<>();
         String cursor = "";
         String revision = "";
-        String apiVersion = "";
         for (int page = 0; page < maxPages; page++) {
             if (cancellation.cancelled() || Thread.currentThread().isInterrupted()) {
                 throw new IOException("Playnite library request cancelled");
             }
             HostGatewayClient.PlayniteLibrary response = fetcher.fetch(cursor, pageSize);
             if (!response.revision.isEmpty()) revision = response.revision;
-            if (!response.apiVersion.isEmpty()) apiVersion = response.apiVersion;
             for (HostGatewayClient.PlayniteGame game : response.games) games.put(game.id, game);
             String next = response.nextCursor == null ? "" : response.nextCursor;
             if (next.isEmpty()) {
-                return new Result(new ArrayList<>(games.values()), revision, apiVersion);
+                return new Result(new ArrayList<>(games.values()), revision);
             }
             if (next.equals(cursor)) throw new IOException("Invalid Playnite pagination cursor");
             cursor = next;

@@ -45,50 +45,6 @@ final class HostReadiness {
         return merged;
     }
 
-    static ComputerDetails awaitAfterWakeDecision(
-            Supplier<ComputerDetails> currentHost,
-            ComputerDetails wakeTarget,
-            boolean sendWakeOnce,
-            BooleanSupplier cancelled,
-            Consumer<String> status,
-            String wakeStatus,
-            String waitingStatus) {
-        return awaitAfterWakeDecision(currentHost, wakeTarget, sendWakeOnce,
-                cancelled, status, wakeStatus, waitingStatus,
-                target -> {
-                    requestWake(target);
-                });
-    }
-
-    static ComputerDetails awaitAfterWakeDecision(
-            Supplier<ComputerDetails> currentHost,
-            ComputerDetails wakeTarget,
-            boolean sendWakeOnce,
-            BooleanSupplier cancelled,
-            Consumer<String> status,
-            String wakeStatus,
-            String waitingStatus,
-            Consumer<ComputerDetails> wakeSender) {
-        if (cancelled.getAsBoolean()) return null;
-        if (sendWakeOnce) {
-            status.accept(wakeStatus);
-            try {
-                wakeSender.accept(wakeTarget);
-            } catch (RuntimeException ignored) { }
-        }
-        return await(currentHost, null, cancelled, status, wakeStatus, waitingStatus);
-    }
-
-    static ComputerDetails await(Supplier<ComputerDetails> currentHost,
-                                 ComputerDetails wakeTarget,
-                                 BooleanSupplier cancelled,
-                                 Consumer<String> status,
-                                 String wakeStatus,
-                                 String waitingStatus) {
-        return await(currentHost, wakeTarget, cancelled, status, wakeStatus, waitingStatus,
-                WAKE_TIMEOUT_MS);
-    }
-
     static ComputerDetails await(Supplier<ComputerDetails> currentHost,
                                  ComputerDetails wakeTarget,
                                  BooleanSupplier cancelled,

@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="discord_panel_modern_social_card">%1$s\n%2$s</string>
-    <string name="discord_panel_modern_voice_card">%1$s\n%2$s</string>
-    <string name="discord_host_voice_pc_card_summary">Discord RPC über die Host-Steuerung auf deinem PC</string>
     <string name="discord_community_title">Community</string>
     <string name="discord_community_together">Gemeinsam</string>
     <string name="discord_community_friends">Freunde</string>
@@ -63,4 +60,11 @@
     <string name="discord_host_action_done">%1$s: erledigt. %2$s</string>
     <string name="discord_host_action_failed">%1$s hat nicht geklappt: %2$s Du kannst es erneut versuchen.</string>
     <string name="discord_host_action_authorize_hint">Wähle „Discord RPC verbinden“ und bestätige das Fenster auf dem Host.</string>
+    <string name="discord_favorite_add">Zu Favoriten hinzufügen</string>
+    <string name="discord_favorite_remove">Aus Favoriten entfernen</string>
+    <string name="discord_favorite_added">%1$s zu Favoriten hinzugefügt</string>
+    <string name="discord_favorite_removed">%1$s aus Favoriten entfernt</string>
+    <string name="discord_favorite_failed">Favoriten nicht aktualisiert</string>
+    <string name="discord_favorite_failed_details">Favoriten nicht aktualisiert: %1$s</string>
+    <string name="discord_favorite_hint">Favorit</string>
 </resources>

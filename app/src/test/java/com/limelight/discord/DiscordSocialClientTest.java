@@ -33,7 +33,7 @@ public class DiscordSocialClientTest {
     @Test
     public void hostWithoutSocialIsUnavailableNotAnAuthorizationPrompt() throws Exception {
         DiscordSocialClient.Snapshot state = snapshot("{\"available\":false}");
-        assertEquals("Unavailable on this host", state.status);
+        assertEquals(DiscordSocialClient.State.UNAVAILABLE, state.state);
         assertFalse(state.authorizationRequired);
         assertFalse(state.connected);
     }
@@ -43,18 +43,15 @@ public class DiscordSocialClientTest {
         String unlinked = "{\"available\":true,\"linked\":false,\"authorization\":"
                 + "{\"active\":%s,\"status\":\"%s\"}}";
         DiscordSocialClient.Snapshot pending = snapshot(String.format(unlinked, "true", "pending"));
-        assertEquals("Awaiting Discord approval", pending.status);
+        assertEquals(DiscordSocialClient.State.AWAITING_APPROVAL, pending.state);
         assertFalse(pending.authorizationRequired);
-        assertEquals("Authorization denied",
-                snapshot(String.format(unlinked, "false", "denied")).status);
-        assertEquals("Discord code expired",
-                snapshot(String.format(unlinked, "false", "expired")).status);
-        assertEquals("Unable to contact Discord",
-                snapshot(String.format(unlinked, "false", "failed")).status);
-        DiscordSocialClient.Snapshot required = snapshot(String.format(unlinked, "false", "none"));
-        assertEquals("Discord authorization required", required.status);
-        assertTrue(required.authorizationRequired);
-        assertTrue(DiscordSocialClient.canRetry(required));
+        for (String ended : new String[]{"denied", "expired", "failed", "none"}) {
+            DiscordSocialClient.Snapshot required =
+                    snapshot(String.format(unlinked, "false", ended));
+            assertEquals(DiscordSocialClient.State.NOT_LINKED, required.state);
+            assertTrue(required.authorizationRequired);
+        }
+        assertEquals(DiscordSocialClient.State.LINKED, snapshot(linked("")).state);
     }
 
     @Test

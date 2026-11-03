@@ -131,10 +131,10 @@ final class FeatureShowcaseLauncher {
         Set<Need> met = EnumSet.of(Need.NONE);
         if (capabilities != null) {
             met.add(Need.HOST);
+            met.add(Need.HOST_GAMES);
+            met.add(Need.HOST_CHILDREN);
             if (capabilities.discord) met.add(Need.HOST_DISCORD);
             if (capabilities.sessionSuspend) met.add(Need.HOST_SUSPEND);
-            if (capabilities.controlOperations) met.add(Need.HOST_GAMES);
-            if (capabilities.childProfiles) met.add(Need.HOST_CHILDREN);
             if (capabilities.usbForwarding) met.add(Need.HOST_USB);
             if (capabilities.hostPlus) met.add(Need.HOST_PLUS);
         }

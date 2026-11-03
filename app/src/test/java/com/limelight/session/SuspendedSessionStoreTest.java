@@ -13,25 +13,30 @@ public class SuspendedSessionStoreTest {
                 "game", "Title", "", 100L, "parent");
     }
 
-    @Test public void onlyExactResumeIdentityCanComplete() {
-        SuspendedSessionStore.Session session = session("suspend-a");
-        assertTrue(SuspendedSessionStore.canCompleteResume(
-                session, "suspend-a", "HOST", "parent", 42, "GAME"));
-        assertFalse(SuspendedSessionStore.canCompleteResume(
-                session, "suspend-b", "host", "parent", 42, "game"));
-        assertFalse(SuspendedSessionStore.canCompleteResume(
-                session, "suspend-a", "other", "parent", 42, "game"));
-        assertFalse(SuspendedSessionStore.canCompleteResume(
-                session, "suspend-a", "host", "parent", 7, "game"));
-        assertFalse(SuspendedSessionStore.canCompleteResume(
-                session, "suspend-a", "host", "parent", 42, "other"));
+    @Test public void onlyExactResumeIdentityCompletesTheResume() {
+        for (Object[] wrong : new Object[][] {{"suspend-b", "host", 42, "game"},
+                {"suspend-a", "other", 42, "game"}, {"suspend-a", "host", 7, "game"},
+                {"suspend-a", "host", 42, "other"}}) {
+            MemoryPreferences prefs = saved(session("suspend-a"));
+            assertFalse(java.util.Arrays.toString(wrong),
+                    SuspendedSessionStore.markResumedForExecutionIfMatches(prefs,
+                            (String) wrong[0], (String) wrong[1], "parent", (int) wrong[2],
+                            (String) wrong[3], "stream-1"));
+            // A failed attempt leaves the same record resumable.
+            assertEquals(0L, SuspendedSessionStore.load(prefs.getAll(), "host", "parent")
+                    .resumedAt);
+        }
+        MemoryPreferences prefs = saved(session("suspend-a"));
+        assertTrue(SuspendedSessionStore.markResumedForExecutionIfMatches(prefs, "suspend-a",
+                "HOST", "parent", 42, "GAME", "stream-1"));
+        assertEquals("stream-1", SuspendedSessionStore.load(prefs.getAll(), "host", "parent")
+                .resumedStreamSessionId);
     }
 
-    @Test public void failedAttemptLeavesSameRecordResumable() {
-        SuspendedSessionStore.Session pending = session("suspend-a");
-        assertEquals(0L, pending.resumedAt);
-        assertTrue(SuspendedSessionStore.canCompleteResume(
-                pending, "suspend-a", "host", "parent", 42, "game"));
+    private static MemoryPreferences saved(SuspendedSessionStore.Session session) {
+        MemoryPreferences prefs = new MemoryPreferences();
+        SuspendedSessionStore.save(prefs, session);
+        return prefs;
     }
 
     @Test public void oldActivityCannotMatchNewerSuspendRecord() {
@@ -41,13 +46,22 @@ public class SuspendedSessionStoreTest {
     }
 
     @Test public void resumeIdentityCannotCrossProfilesOnTheSameHost() {
-        SuspendedSessionStore.Session session = new SuspendedSessionStore.Session(
-                "suspend-a", "host", "Basia", 42, "game", "Title", "", 100L, "Basia");
+        MemoryPreferences prefs = saved(new SuspendedSessionStore.Session(
+                "suspend-a", "host", "Basia", 42, "game", "Title", "", 100L, "Basia"));
 
-        assertTrue(SuspendedSessionStore.canCompleteResume(
-                session, "suspend-a", "host", "Basia", 42, "game"));
-        assertFalse(SuspendedSessionStore.canCompleteResume(
-                session, "suspend-a", "host", "Gry", 42, "game"));
+        assertFalse(SuspendedSessionStore.markResumedForExecutionIfMatches(prefs, "suspend-a",
+                "host", "Gry", 42, "game", "stream-1"));
+        assertTrue(SuspendedSessionStore.markResumedForExecutionIfMatches(prefs, "suspend-a",
+                "host", "Basia", 42, "game", "stream-1"));
+    }
+
+    /** A-11: a record without its execution profile is not a record (no actor fallback). */
+    @Test public void recordWithoutItsExecutionProfileIsNotARecord() {
+        MemoryPreferences prefs = new MemoryPreferences();
+        prefs.edit().putString("host.profile.parent", "{\"profile_id\":\"parent\","
+                + "\"suspend_id\":\"suspend-a\",\"host_id\":\"host\","
+                + "\"sunshine_app_id\":42,\"suspended_at\":100}").apply();
+        assertNull(SuspendedSessionStore.load(prefs.getAll(), "host", "parent"));
     }
 
     @Test public void recordWithoutItsOwnSuspendIdIsNotARecord() {

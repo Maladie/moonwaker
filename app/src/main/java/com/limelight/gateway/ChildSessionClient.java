@@ -21,7 +21,6 @@ public final class ChildSessionClient {
     private static final String ELIGIBILITY_PATH = "/api/v1/child/session/eligibility";
     private static final String START_PATH = "/api/v1/child/session/start";
     private static final String STATUS_PATH = "/api/v1/child/session/status";
-    private static final String RESUME_PATH = "/api/v1/child/session/resume";
     private static final String HEARTBEAT_PATH = "/api/v1/child/session/heartbeat";
     private static final String END_PATH = "/api/v1/child/session/end";
 
@@ -60,10 +59,6 @@ public final class ChildSessionClient {
 
     public State status(GatewayConnection connection, String sessionId) throws IOException {
         return sessionRequest(connection, STATUS_PATH, sessionId);
-    }
-
-    public State resume(GatewayConnection connection, String sessionId) throws IOException {
-        return sessionRequest(connection, RESUME_PATH, sessionId);
     }
 
     public State heartbeat(GatewayConnection connection, String sessionId) throws IOException {

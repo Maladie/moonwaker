@@ -213,7 +213,7 @@ public class SessionArchitectureGuardTest {
     /** The published session projection is the only running-game source; no Activity copy. */
     @Test public void consoleKeepsNoCopyOfTheSessionProjection() {
         String console = main("console/ConsoleActivity.java");
-        assertTrue(console.contains("gateway.snapshot().sessionSnapshot"));
+        assertTrue(console.contains("read == null ? null : read.sessionSnapshot"));
         for (String removed : new String[] {"publishedSessionSnapshots", "getPlayniteCurrentGame(",
                 "RunningGameObservation", "activePlayniteGame", "private boolean closePreviousSession("}) {
             assertFalse(removed, console.contains(removed));

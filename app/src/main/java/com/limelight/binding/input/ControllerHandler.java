@@ -121,10 +121,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
     private static final int MAXIMUM_BUMPER_UP_DELAY_MS = 100;
 
-    private static final int START_DOWN_TIME_MOUSE_MODE_MS = 750;
-
-    private static final int MINIMUM_BUTTON_DOWN_TIME_MS = 25;
-
     private static final int OVERLAY_TRIGGER_TAP_RELEASE_DELAY_MS = 25;
 
     private static final int EMULATING_SPECIAL = 0x1;
@@ -211,7 +207,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     private String overlayHoldSource = "pad_shortcut";
     private static final long LOCAL_ONLY_RECORD_INTERVAL_MS = 10_000;
 
-    public boolean pendingApplicationQuit = false;
     private ControllerInputListener controllerInputListener = null;
     private OverlayMenuListener overlayMenuListener = null;
     private final StreamMenuButtons menuButtons;
@@ -612,10 +607,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     /** Read-only fact from Game: the stream menu or the IME is showing; gyro aiming pauses. */
     public void setLocalUiGate(BooleanSupplier localUiOpen) {
         this.localUiOpen = localUiOpen;
-    }
-
-    public boolean isInputSuppressed() {
-        return inputSuppressed;
     }
 
     /** Announces attached pads with neutral state even while the privacy gate is closed. */
@@ -1781,7 +1772,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         }
     }
 
-    private final int REMAP_IGNORE = -1;
     private final int REMAP_CONSUME = -2;
 
     // Return a valid keycode, -2 to consume, or -1 to not consume the event
@@ -2972,16 +2962,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             keyCode = handleFlipFaceButtons(keyCode);
         }
 
-        // REMOVED: Thread.sleep() workaround for OUYA virtual menu button (OUYA discontinued 2015)
-        // This was adding 0-25ms of latency to button releases on modern controllers.
-        // If needed for specific legacy devices, this can be re-enabled with a device check.
-        //
-        // Original code:
-        // int buttonDownTime = (int)(event.getEventTime() - event.getDownTime());
-        // if (buttonDownTime < MINIMUM_BUTTON_DOWN_TIME_MS) {
-        //     Thread.sleep(MINIMUM_BUTTON_DOWN_TIME_MS - buttonDownTime);
-        // }
-
         switch (keyCode) {
         case KeyEvent.KEYCODE_BUTTON_MODE:
             context.pendingOverlayTriggerPressFlag = 0;
@@ -3176,11 +3156,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         }
 
         sendControllerInputPacket(context);
-
-        if (context.pendingExit && context.inputMap == 0) {
-            // All buttons from the quit combo are lifted. Finish the activity now.
-            activityContext.finish();
-        }
 
         return true;
     }
@@ -3395,13 +3370,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             return false;
         }
 
-        // Start+Back+LB+RB is the quit combo
-        if (context.inputMap == (ControllerPacket.BACK_FLAG | ControllerPacket.PLAY_FLAG |
-                                 ControllerPacket.LB_FLAG | ControllerPacket.RB_FLAG)) {
-            // Wait for the combo to lift and then finish the activity
-            context.pendingExit = true;
-        }
-
         // Start+LB acts like select for controllers with one button
         if (!context.hasSelect) {
             if (context.inputMap == (ControllerPacket.PLAY_FLAG | ControllerPacket.LB_FLAG) ||
@@ -3614,7 +3582,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         public void toggleMouseEmulation() {
             mainThreadHandler.removeCallbacks(mouseEmulationRunnable);
             mouseEmulationActive = !mouseEmulationActive;
-            Toast.makeText(activityContext, "Mouse emulation is: " + (mouseEmulationActive ? "ON" : "OFF"), Toast.LENGTH_SHORT).show();
+            Toast.makeText(activityContext, mouseEmulationActive ? R.string.stream_mouse_mode_on
+                    : R.string.stream_mouse_mode_off, Toast.LENGTH_SHORT).show();
 
             if (mouseEmulationActive) {
                 mainThreadHandler.postDelayed(mouseEmulationRunnable, mouseEmulationReportPeriod);
@@ -3684,8 +3653,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         public boolean modeIsSelect;
         public boolean searchIsMode;
         public boolean hasJoystickAxes;
-        public boolean pendingExit;
-        public boolean pendingQuit;
         public boolean isDualShockStandaloneTouchpad;
 
         public int emulatingButtonFlags = 0;

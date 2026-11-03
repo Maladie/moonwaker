@@ -84,9 +84,9 @@ public class ConsoleStreamLoadingViewContractTest {
         assertTrue(console.contains("streamLoadingView.setSplashArtwork(loadingArtworkPath);"));
         assertTrue(console.contains("reducedMotion, streamLoadingEpoch);"));
         assertTrue(game.contains("getIntent().getBooleanExtra(EXTRA_CONSOLE_REDUCED_MOTION, false),\n"
-                + "                    launchStartedAtMillis);"));
-        assertTrue(game.contains("new ConsoleStreamLoadingView(\n                    this,\n"
-                + "                    appDisplayName(getIntent().getStringExtra(EXTRA_APP_NAME)),"));
+                + "                launchStartedAtMillis);"));
+        assertTrue(game.contains("new ConsoleStreamLoadingView(\n                this,\n"
+                + "                appDisplayName(getIntent().getStringExtra(EXTRA_APP_NAME)),"));
         assertTrue(console.contains("new ConsoleStreamLoadingView(this,\n"
                 + "                appDisplayName(appName), null,"));
     }
@@ -107,14 +107,14 @@ public class ConsoleStreamLoadingViewContractTest {
                 "consoleLoadingView.setStep(snapshot.step, transitionStatus(snapshot),");
 
         assertTrue(apply.contains("R.string.playnite_ending_game"));
-        assertTrue(apply.contains("R.string.transition_waiting_playnite_return"));
         assertTrue(apply.contains("LaunchTransitionState.HOST_SESSION_LOCKED"));
         assertTrue(apply.contains("consoleLoadingView.showWarning("));
         // A failure after that closing screen brings the cover's actions back.
         String failure = apply.substring(apply.indexOf(
                 "snapshot.state == LaunchTransitionState.ERROR"));
         assertTrue(failure.indexOf("consoleLoadingView.showFullTransitionAppearance()")
-                < failure.indexOf("consoleLoadingView.showError(getString(title)"));
+                < failure.indexOf(
+                "consoleLoadingView.showError(getString(R.string.transition_game_failed)"));
     }
 
     @Test public void retryIsConsumedBeforeStartingAnotherDecoderGeneration()
@@ -157,7 +157,7 @@ public class ConsoleStreamLoadingViewContractTest {
     @Test public void gamepadHatMotionNavigatesActionsOncePerDirection() throws IOException {
         String text = source();
         String method = text.substring(text.indexOf("public boolean handleControllerMotion"),
-                text.indexOf("public void waitingForVideo"));
+                text.indexOf("public void revealStream("));
 
         assertTrue(method.contains("MotionEvent.AXIS_HAT_X"));
         assertTrue(method.contains("MotionEvent.AXIS_HAT_Y"));
@@ -172,7 +172,7 @@ public class ConsoleStreamLoadingViewContractTest {
                 "handedOver = initialMessage != null && !initialMessage.trim().isEmpty();"));
         assertTrue(text.contains("currentMessage = handedOver ? initialMessage"));
         String show = text.substring(text.indexOf("private void showArtwork("),
-                text.indexOf("private static int progressForStage("));
+                text.indexOf("public String friendlyStage("));
         assertTrue(show.contains("if (handedOver || !isAttachedToWindow() || reducedMotion"));
         // Full-bleed artwork under one shade: never a dimmed band behind the text.
         assertTrue(text.contains("addView(artworkView, match());"));
@@ -231,8 +231,7 @@ public class ConsoleStreamLoadingViewContractTest {
         String game = gameSource();
         String stage = game.substring(game.indexOf("public void stageStarting(final String stage)"),
                 game.indexOf("public void stageComplete("));
-        assertTrue(stage.contains("if (consoleLoadingView != null && transitionController == null) {"
-                + "\n                    consoleLoadingView.setStage(stage);"));
+        assertFalse(stage.contains("setStage("));
     }
 
     /**

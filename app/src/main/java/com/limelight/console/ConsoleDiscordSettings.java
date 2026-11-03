@@ -78,12 +78,12 @@ final class ConsoleDiscordSettings {
     View[] accountRows(ConsolePanel panel, GatewayConnection connection) {
         List<View> rows = new ArrayList<>();
         DiscordSocialClient.attach(activity, connection);
-        String status = DiscordSocialClient.getSnapshot().status;
+        DiscordSocialClient.State state = DiscordSocialClient.getSnapshot().state;
         if (connection == null) {
             rows.add(panel.note(s(R.string.console_gateway_pair_required)));
         } else if (!DiscordSocialClient.isAvailable()) {
-            boolean absent = status.equals("Unavailable on this host");
-            boolean unreachable = status.startsWith("Unable to ");
+            boolean absent = state == DiscordSocialClient.State.UNAVAILABLE;
+            boolean unreachable = state == DiscordSocialClient.State.UNREACHABLE;
             rows.add(panel.note(s(absent ? R.string.discord_social_sdk_unavailable
                     : unreachable ? R.string.discord_social_state_unavailable
                     : R.string.discord_social_checking)));
@@ -112,7 +112,7 @@ final class ConsoleDiscordSettings {
                 connect.setOnClickListener(view -> DiscordSocialClient.authorize(activity));
                 rows.add(connect);
                 // Shows the account once the QR is approved on the phone.
-                if (status.equals("Awaiting Discord approval")) {
+                if (state == DiscordSocialClient.State.AWAITING_APPROVAL) {
                     main.postDelayed(() -> { if (screen.isShowing()) screen.refresh(); }, 1500L);
                 }
             }

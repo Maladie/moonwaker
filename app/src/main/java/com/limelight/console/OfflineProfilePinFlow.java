@@ -1,5 +1,6 @@
 package com.limelight.console;
 
+import com.limelight.gateway.GatewayTransport;
 import com.limelight.gateway.GatewayConnection;
 
 import java.io.IOException;
@@ -35,12 +36,12 @@ final class OfflineProfilePinFlow {
     static final class Result {
         final Status status;
         final int retryAfterSeconds;
-        final HostGatewayClient.GatewayException gatewayError;
+        final GatewayTransport.GatewayException gatewayError;
         final IOException transportError;
         final HostGatewayClient.IntegrationProfiles profiles;
 
         private Result(Status status, int retryAfterSeconds,
-                       HostGatewayClient.GatewayException gatewayError,
+                       GatewayTransport.GatewayException gatewayError,
                        IOException transportError,
                        HostGatewayClient.IntegrationProfiles profiles) {
             this.status = status;
@@ -55,12 +56,12 @@ final class OfflineProfilePinFlow {
         }
 
         static Result invalid(int retryAfterSeconds,
-                              HostGatewayClient.GatewayException error) {
+                              GatewayTransport.GatewayException error) {
             return new Result(Status.INVALID, retryAfterSeconds, error, null, null);
         }
 
         static Result cooldown(int retryAfterSeconds,
-                               HostGatewayClient.GatewayException error) {
+                               GatewayTransport.GatewayException error) {
             return new Result(Status.COOLDOWN, retryAfterSeconds, error, null, null);
         }
 
@@ -69,11 +70,11 @@ final class OfflineProfilePinFlow {
         }
 
         static Result profileDenied(HostGatewayClient.IntegrationProfiles profiles,
-                                    HostGatewayClient.GatewayException error) {
+                                    GatewayTransport.GatewayException error) {
             return new Result(Status.PROFILE_DENIED, 0, error, null, profiles);
         }
 
-        static Result unavailable(HostGatewayClient.GatewayException error,
+        static Result unavailable(GatewayTransport.GatewayException error,
                                   IOException transportError) {
             return new Result(Status.UNAVAILABLE, 0, error, transportError, null);
         }
@@ -157,12 +158,15 @@ final class OfflineProfilePinFlow {
         try {
             gateway.verifyProfilePin(connection, pin);
             return rememberIfCurrent(hostId, pairing, pin, cache, connections, cancelled);
-        } catch (HostGatewayClient.GatewayException error) {
+        } catch (GatewayTransport.GatewayException error) {
             if (isInvalidPin(error)) {
-                return Result.invalid(error.retryAfterSeconds, error);
+                return Result.invalid(error.retryAfterSeconds(), error);
             }
             if (isCooldown(error)) {
-                return Result.cooldown(error.retryAfterSeconds, error);
+                return Result.cooldown(error.retryAfterSeconds(), error);
+            }
+            if ("pin_not_required".equals(error.getMessage())) {
+                return pinRemoved(hostId, connection, cache, gateway, error);
             }
             // A server response is authoritative that transport exists. Never use the
             // cached verifier or wake for HTTP/auth/protocol decisions.
@@ -208,7 +212,7 @@ final class OfflineProfilePinFlow {
                     if (clock.nowMillis() >= deadline) return Result.timeout();
                     break;
                 }
-            } catch (HostGatewayClient.GatewayException error) {
+            } catch (GatewayTransport.GatewayException error) {
                 // A reachable gateway rejected the readiness request. Do not retry PIN or
                 // open the selected profile based on stale cached metadata.
                 return Result.unavailable(error, null);
@@ -237,7 +241,7 @@ final class OfflineProfilePinFlow {
         if (connection == null) return Result.cancelled();
         try {
             gateway.verifyProfilePin(connection, pin);
-        } catch (HostGatewayClient.GatewayException error) {
+        } catch (GatewayTransport.GatewayException error) {
             if (isInvalidPin(error)) {
                 // The server has now disproved the cached verifier. Only this authoritative
                 // result may clear it; an ordinary online wrong PIN above must not do so.
@@ -245,14 +249,31 @@ final class OfflineProfilePinFlow {
                     return Result.cancelled();
                 }
                 cache.forget(hostId, pairing.profileId());
-                return Result.invalid(error.retryAfterSeconds, error);
+                return Result.invalid(error.retryAfterSeconds(), error);
             }
-            if (isCooldown(error)) return Result.cooldown(error.retryAfterSeconds, error);
+            if (isCooldown(error)) return Result.cooldown(error.retryAfterSeconds(), error);
             return Result.unavailable(error, null);
         } catch (IOException error) {
             return Result.unavailable(null, error);
         }
         return rememberIfCurrent(hostId, pairing, pin, cache, connections, cancelled, profiles);
+    }
+
+    /**
+     * The host removed this profile's PIN after the TV cached it: the stale verifier goes and
+     * the gate shows the host's profiles again, where the profile opens without a PIN.
+     */
+    private static Result pinRemoved(String hostId, GatewayConnection connection, Cache cache,
+                                     Gateway gateway,
+                                     GatewayTransport.GatewayException error) {
+        cache.forget(hostId, connection.profileId());
+        HostGatewayClient.IntegrationProfiles profiles;
+        try {
+            profiles = gateway.getIntegrationProfiles(connection);
+        } catch (IOException | RuntimeException unavailable) {
+            profiles = null;
+        }
+        return Result.profileDenied(profiles, error);
     }
 
     private static Result rememberIfCurrent(String hostId, GatewayConnection pairing, String pin,
@@ -302,16 +323,15 @@ final class OfflineProfilePinFlow {
         return offline;
     }
 
-    private static boolean isInvalidPin(HostGatewayClient.GatewayException error) {
+    private static boolean isInvalidPin(GatewayTransport.GatewayException error) {
         String message = error == null ? "" : error.getMessage();
         return "invalid_pin".equals(message);
     }
 
-    private static boolean isCooldown(HostGatewayClient.GatewayException error) {
+    private static boolean isCooldown(GatewayTransport.GatewayException error) {
         if (error == null) return false;
         String message = error.getMessage();
-        return error.statusCode == 429 || "rate_limited".equals(message)
-                || "pin_rate_limited".equals(message);
+        return error.statusCode() == 429 || "rate_limited".equals(message);
     }
 
     private static long safeDeadline(long now, long duration) {

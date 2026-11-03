@@ -20,9 +20,9 @@ import java.util.EnumSet;
 import java.util.Set;
 
 public class FirstRunPlanTest {
-    private static final Facts ADULT = new Facts(true, true, false, true, true);
-    private static final Facts NEW_TV = new Facts(false, false, false, false, false);
-    private static final Facts CHILD = new Facts(true, true, true, true, true);
+    private static final Facts ADULT = new Facts(true, true, false, true);
+    private static final Facts NEW_TV = new Facts(false, false, false, false);
+    private static final Facts CHILD = new Facts(true, true, true, true);
 
     @Test
     public void showsItselfOnlyWithoutPairedHostOrToResume() {
@@ -78,8 +78,9 @@ public class FirstRunPlanTest {
 
     @Test
     public void optionalStepsDisappearWhenTheyDoNotApply() {
-        Facts plain = new Facts(true, true, false, false, false);
-        assertEquals(Step.EXTRAS, FirstRunPlan.next(Step.NETWORK, Entry.FIRST_RUN, plain));
+        Facts plain = new Facts(true, true, false, false);
+        // Child profiles are always available: the family step stays for an adult.
+        assertEquals(Step.FAMILY, FirstRunPlan.next(Step.NETWORK, Entry.FIRST_RUN, plain));
         assertEquals(Step.DONE, FirstRunPlan.next(Step.CONTROLS, Entry.FIRST_RUN, plain));
     }
 
@@ -131,7 +132,8 @@ public class FirstRunPlanTest {
         assertEquals(Status.UNKNOWN, FirstRunPlan.status(Check.GAME_LIBRARY, fresh));
         assertEquals(Status.ATTENTION, FirstRunPlan.status(Check.STEAM_LIBRARY, fresh));
         assertEquals(Status.OPTIONAL, FirstRunPlan.status(Check.EPIC, fresh));
-        assertEquals(Status.ATTENTION, FirstRunPlan.status(Check.REMOTE_SIGN_IN, fresh));
+        // Granted in Host Control on the PC: the TV shows it as optional, never as "!".
+        assertEquals(Status.OPTIONAL, FirstRunPlan.status(Check.REMOTE_SIGN_IN, fresh));
         assertEquals(Status.OPTIONAL, FirstRunPlan.status(Check.WAKE, fresh));
         assertTrue(FirstRunPlan.requiredOpen(fresh));
     }

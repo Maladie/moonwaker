@@ -86,9 +86,6 @@ public class LaunchTransitionControllerTest {
         // A user cover (the Home return) takes the input back.
         controller.coverForUser("transition-1", LaunchTransitionController.UserCover.HOME_RETURN);
         assertFalse(LaunchTransitionController.inputReachesHost(controller.snapshot(), false));
-        // A stream without a transition (a classic launch) is never gated.
-        assertTrue(LaunchTransitionController.inputReachesHost(null, false));
-        assertFalse(LaunchTransitionController.inputReachesHost(null, true));
     }
 
     @Test
@@ -102,26 +99,6 @@ public class LaunchTransitionControllerTest {
         controller.begin(spec(LaunchTransitionType.GAME));
         controller.timedOut("transition-1", "slow");
         assertFalse(controller.snapshot().closingPresentation());
-    }
-
-    @Test
-    public void playniteRequiresFullscreenReadinessAndTransport() {
-        LaunchTransitionController controller = started(LaunchTransitionType.PLAYNITE);
-        transportReady(controller);
-        assertFalse(controller.snapshot().revealAuthorized);
-
-        controller.gatewayConnected("transition-1", HOST);
-        controller.targetProcessRunning("transition-1", HOST,
-                LaunchTransitionType.PLAYNITE, "");
-        assertFalse(controller.snapshot().revealAuthorized);
-
-        controller.targetWindowReady("transition-1", HOST,
-                LaunchTransitionType.PLAYNITE, "");
-        assertFalse(controller.snapshot().revealAuthorized);
-        controller.videoFrameRendered("transition-1", controller.snapshot().frameEdge, System.nanoTime());
-        assertTrue(controller.snapshot().revealAuthorized);
-        assertEquals(LaunchTransitionState.PLAYNITE_FULLSCREEN_READY,
-                controller.snapshot().state);
     }
 
     @Test
@@ -204,7 +181,7 @@ public class LaunchTransitionControllerTest {
 
     @Test
     public void timeoutRetainsTheStepThatActuallyFailed() {
-        LaunchTransitionController controller = started(LaunchTransitionType.PLAYNITE);
+        LaunchTransitionController controller = started(LaunchTransitionType.GAME);
         controller.streamConnected("transition-1");
         assertEquals(3, controller.snapshot().step);
 
@@ -426,7 +403,7 @@ public class LaunchTransitionControllerTest {
     @Test
     public void operationIsAuthorizedOnlyAfterOverlayFrame() {
         LaunchTransitionController controller = new LaunchTransitionController(null);
-        controller.begin(spec(LaunchTransitionType.PLAYNITE));
+        controller.begin(spec(LaunchTransitionType.GAME));
         assertFalse(controller.snapshot().operationAuthorized);
         controller.coverSettled("transition-1", PresentationBarrier.Outcome.SUBMITTED);
         assertTrue(controller.snapshot().operationAuthorized);
@@ -546,24 +523,6 @@ public class LaunchTransitionControllerTest {
         assertTrue(close.snapshot().overlayVisible);
         assertTrue(close.snapshot().inputBlocked);
 
-        LaunchTransitionController playnite = started(LaunchTransitionType.PLAYNITE);
-        playnite.gatewayConnected("transition-1", HOST);
-        playnite.targetWindowReady("transition-1", HOST, LaunchTransitionType.PLAYNITE, "");
-        transportReady(playnite);
-        playnite.revealCompleted("transition-1");
-        assertFalse(playnite.snapshot().overlayVisible);
-        playnite.targetStarting("transition-1", HOST, LaunchTransitionType.GAME, GAME);
-        assertTrue(playnite.snapshot().overlayVisible);
-        playnite.targetWindowLost("transition-1", HOST, LaunchTransitionType.GAME, GAME,
-                "window lost");
-        assertTrue("the switched game is not revealed yet",
-                playnite.snapshot().overlayVisible);
-        assertTrue(playnite.snapshot().inputBlocked);
-        playnite.error("transition-1", "failed");
-        assertEquals("a failure of the new game is its cover, not a notice",
-                LaunchTransitionState.ERROR, playnite.snapshot().state);
-        assertEquals("", playnite.snapshot().notice);
-
         stop.begin(spec(LaunchTransitionType.GAME));
         assertTrue(stop.snapshot().overlayVisible);
         assertTrue(stop.snapshot().inputBlocked);
@@ -630,87 +589,6 @@ public class LaunchTransitionControllerTest {
         assertFalse(controller.snapshot().overlayVisible);
         assertFalse(controller.snapshot().inputBlocked);
         assertFalse(controller.snapshot().manualRevealAvailable);
-    }
-
-    @Test
-    public void gameReturnToPlayniteRequiresFreshFrameAndFullscreenWindow() {
-        LaunchTransitionController controller = started(LaunchTransitionType.GAME);
-        transportReady(controller);
-        controller.gatewayConnected("transition-1", HOST);
-        controller.targetWindowReady("transition-1", HOST,
-                LaunchTransitionType.GAME, GAME);
-        controller.revealCompleted("transition-1");
-
-        controller.gameStopping("transition-1", HOST, GAME);
-        controller.playniteReturning("transition-1", HOST);
-        controller.targetWindowReady("transition-1", HOST,
-                LaunchTransitionType.PLAYNITE, "");
-        assertFalse(controller.snapshot().revealAuthorized);
-        controller.videoFrameRendered("transition-1", controller.snapshot().frameEdge, System.nanoTime());
-        assertTrue(controller.snapshot().revealAuthorized);
-        assertEquals(LaunchTransitionState.PLAYNITE_FULLSCREEN_READY,
-                controller.snapshot().state);
-    }
-
-    @Test
-    public void differentGameCanStartAfterReturningToPlayniteInSameStream() {
-        LaunchTransitionController controller = started(LaunchTransitionType.GAME);
-        transportReady(controller);
-        controller.gatewayConnected("transition-1", HOST);
-        controller.targetWindowReady("transition-1", HOST,
-                LaunchTransitionType.GAME, GAME);
-        controller.revealCompleted("transition-1");
-
-        controller.gameStopping("transition-1", HOST, GAME);
-        controller.playniteReturning("transition-1", HOST);
-        controller.targetWindowReady("transition-1", HOST,
-                LaunchTransitionType.PLAYNITE, "");
-        controller.videoFrameRendered("transition-1", controller.snapshot().frameEdge, System.nanoTime());
-        controller.revealCompleted("transition-1");
-
-        controller.targetStarting("transition-1", HOST,
-                LaunchTransitionType.GAME, SECOND_GAME);
-        LaunchTransitionSnapshot starting = controller.snapshot();
-        assertEquals(LaunchTransitionState.GAME_STARTING, starting.state);
-        assertTrue(starting.overlayVisible);
-        assertTrue(starting.inputBlocked);
-        assertFalse(starting.revealAuthorized);
-
-        controller.targetProcessRunning("transition-1", HOST,
-                LaunchTransitionType.GAME, SECOND_GAME);
-        controller.targetWindowReady("transition-1", HOST,
-                LaunchTransitionType.GAME, SECOND_GAME);
-        assertFalse(controller.snapshot().revealAuthorized);
-
-        controller.videoFrameRendered("transition-1", controller.snapshot().frameEdge, System.nanoTime());
-        assertTrue(controller.snapshot().revealAuthorized);
-        controller.revealCompleted("transition-1");
-        assertEquals(LaunchTransitionState.GAME_RUNNING, controller.snapshot().state);
-        assertFalse(controller.snapshot().overlayVisible);
-        assertFalse(controller.snapshot().inputBlocked);
-    }
-
-    @Test
-    public void rapidSecondGameStartDoesNotWaitForPlayniteReveal() {
-        LaunchTransitionController controller = started(LaunchTransitionType.GAME);
-        transportReady(controller);
-        controller.gatewayConnected("transition-1", HOST);
-        controller.targetWindowReady("transition-1", HOST,
-                LaunchTransitionType.GAME, GAME);
-        controller.revealCompleted("transition-1");
-
-        controller.gameStopping("transition-1", HOST, GAME);
-        controller.playniteReturning("transition-1", HOST);
-        controller.targetStarting("transition-1", HOST,
-                LaunchTransitionType.GAME, SECOND_GAME);
-        controller.targetProcessRunning("transition-1", HOST,
-                LaunchTransitionType.GAME, SECOND_GAME);
-        controller.targetWindowReady("transition-1", HOST,
-                LaunchTransitionType.GAME, SECOND_GAME);
-
-        assertFalse(controller.snapshot().revealAuthorized);
-        controller.videoFrameRendered("transition-1", controller.snapshot().frameEdge, System.nanoTime());
-        assertTrue(controller.snapshot().revealAuthorized);
     }
 
     @Test
@@ -799,9 +677,6 @@ public class LaunchTransitionControllerTest {
         LaunchTransitionController.StreamAudio full = LaunchTransitionController.StreamAudio.FULL;
         LaunchTransitionController.StreamAudio covered =
                 LaunchTransitionController.StreamAudio.COVERED;
-        assertEquals(full, LaunchTransitionController.streamAudio(null, false));
-        assertEquals(LaunchTransitionController.StreamAudio.MUTED,
-                LaunchTransitionController.streamAudio(null, true));
         LaunchTransitionController controller = started(LaunchTransitionType.GAME);
         transportReady(controller);
         assertEquals("under the launch cover", covered,
@@ -934,7 +809,7 @@ public class LaunchTransitionControllerTest {
     @Test
     public void recreationStartsCoveredWithoutAuthorizingAnotherOperation() {
         LaunchTransitionController recreated = new LaunchTransitionController(null);
-        recreated.begin(spec(LaunchTransitionType.PLAYNITE));
+        recreated.begin(spec(LaunchTransitionType.GAME));
         assertTrue(recreated.snapshot().overlayVisible);
         assertTrue(recreated.snapshot().inputBlocked);
         assertFalse(recreated.snapshot().operationAuthorized);

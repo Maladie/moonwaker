@@ -34,8 +34,8 @@
     <string name="first_run_install_subtitle">Go to your computer. This TV waits here and finds it by itself. Scan the code with your phone or type the address in a browser on the PC.</string>
     <string name="first_run_install_step1">Download and run the installer</string>
     <string name="first_run_install_step1_detail">Windows 10 or 11, an account with administrator rights</string>
-    <string name="first_run_install_step2">Install Vibepollo</string>
-    <string name="first_run_install_step2_detail">The host installer guides you through it</string>
+    <string name="first_run_install_step2">Set up in Host Control</string>
+    <string name="first_run_install_step2_detail">It opens after installing: your profile, game libraries and this TV</string>
     <string name="first_run_install_step3">Make sure the computer is on the same network as the TV</string>
     <string name="first_run_install_step3_detail">Leave the computer on</string>
     <string name="first_run_searching">Looking for your computer on the network…</string>
@@ -89,9 +89,22 @@
     <string name="first_run_paired_title">Paired with %1$s</string>
     <string name="first_run_paired_subtitle">Nothing to do here: this TV already plays on this computer.</string>
     <string name="first_run_paired_body">This TV is paired with %1$s.</string>
+    <string name="first_run_name_open">Name the computer</string>
+    <string name="first_run_name_title">Name this computer</string>
+    <string name="first_run_name_subtitle">Every TV and Moonlight app will show this name.</string>
+    <string name="first_run_name_hint">For example \"Living room PC\". Current name: %1$s.</string>
+    <string name="first_run_name_save">Save name</string>
+    <string name="first_run_name_saving">Saving…</string>
+    <string name="first_run_name_invalid">Type a name of up to 32 letters, without special characters.</string>
+    <string name="first_run_name_failed">The computer did not save the name. Try again or skip.</string>
+    <string name="first_run_name_saved">Name saved. Other TVs show it after their next refresh.</string>
     <string name="first_run_code_failed_title">The code did not work</string>
     <string name="first_run_code_new_body">Make a new code on the PC: Host Control › \"Pair new TV\". A code works once and for 10 minutes.</string>
     <string name="first_run_enter_new_code">Enter a new code</string>
+    <string name="first_run_code_check_body">Check the six digits shown on the PC in Host Control › \"Pair new TV\" and enter them again.</string>
+    <string name="first_run_enter_code_again">Enter the code again</string>
+    <string name="first_run_code_rate_limited_title">Too many attempts</string>
+    <string name="first_run_code_rate_limited_body">Wait a minute, then try again: the same code still works.</string>
     <string name="first_run_unreachable_title">Can\'t connect to %1$s</string>
     <string name="first_run_unreachable_body">Check that the computer is on and on the same network as the TV, then try again.</string>
     <string name="first_run_vibepollo_failed_title">Vibepollo is not answering on the computer</string>
@@ -105,7 +118,8 @@
     <string name="first_run_profile_adult">Windows account</string>
     <string name="first_run_profile_child">Child profile</string>
     <string name="first_run_profile_add">Not listed?</string>
-    <string name="first_run_profile_add_detail">Add a profile</string>
+    <string name="first_run_profile_add_detail">Add on the PC</string>
+    <string name="first_run_profile_add_on_pc">New profiles are added on the PC: Host Control › Profiles. This list updates by itself.</string>
     <string name="first_run_profile_refresh">The list updates itself when you add a profile in Host Control › Profiles.</string>
     <string name="first_run_profile_none">The PC has no profile yet. The list updates itself.</string>
     <string name="first_run_profile_adult_needed">There are only child profiles here: a parent picks or adds an adult profile.</string>
@@ -126,28 +140,28 @@
         <item>Steam and Epic visible</item>
         <item>Required · unavailable</item>
         <item>Your whole Steam library</item>
-        <item>No Steam Web API key: only installed games are visible</item>
+        <item>Steam not connected: only installed games are visible</item>
         <item>Signed in</item>
         <item>Optional · not signed in</item>
         <item>Set up</item>
-        <item>Recommended · not set up</item>
+        <item>Optional · turned on in Host Control on the PC</item>
         <item>Tested: works</item>
         <item>Optional · not tested</item>
     </string-array>
     <string-array name="first_run_check_fixes">
         <item>Start Vibepollo on the PC. If it is still missing, open Host Control and use \"Repair\".</item>
         <item>The game library comes from the host. Open Host Control and use \"Repair\".</item>
-        <item>Without a key only games installed on the PC show. With one, your whole Steam library.\n\n1. Scan the code with your phone and copy the key.\n2. On the PC: Host Control › Integrations › Steam.\n3. Paste the key and save. This row turns green.</item>
+        <item>Without Steam only games installed on the PC show. Connected, your whole Steam library.\n\n1. On the PC: Host Control › your profile › Steam › Connect.\n2. Sign in with your Steam account and confirm with Steam Guard if asked.\n3. This row turns green.\n\nAdvanced: a Steam Web API key works too.</item>
         <item>On the PC: Host Control › Integrations › Epic › Sign in.</item>
         <item>So a locked PC signs in by itself: on the PC, Host Control › Remote sign-in. The Windows password stays on the PC.</item>
-        <item>OK puts the PC to sleep and wakes it with Wake-on-LAN. If it does not wake, turn on Wake-on-LAN in the BIOS and in the network adapter settings.</item>
+        <item>Optional: setup is complete without it. The test puts the PC to sleep and wakes it from the TV, so save your work on the PC first. Start it with “Run wake test” below (or OK on this row). If it does not wake, turn on Wake-on-LAN in the BIOS and in the network adapter settings.</item>
     </string-array>
-    <string name="first_run_check_unknown">The host has not answered yet</string>
-    <string name="first_run_steam_key_caption">You never type the key on the TV.</string>
+    <string name="first_run_check_unknown">Checking…</string>
     <string name="first_run_epic_signed_in">Signed in as %1$s.</string>
     <string name="first_run_wake_test_title">Wake test</string>
     <string name="first_run_wake_test_confirm">%1$s goes to sleep now and MoonWaker wakes it again. Save your work on the PC first.</string>
     <string name="first_run_wake_test_start">Sleep and wake</string>
+    <string name="first_run_wake_test_run">Run wake test</string>
     <string name="first_run_wake_test_screen_title">Computer wake test</string>
     <string name="first_run_wake_test_screen_subtitle">I put the computer to sleep and wake it from the TV.</string>
     <string name="first_run_wake_sleeping">Putting the PC to sleep…</string>
@@ -187,8 +201,10 @@
     <string name="first_run_family_pin_for">PIN for %1$s</string>
     <string name="first_run_family_pin_detail">No one else gets into your profile.</string>
     <string name="first_run_family_pin_done">PIN is set</string>
-    <string name="first_run_family_pin_done_detail">Change it in the profile settings.</string>
+    <string name="first_run_family_pin_done_detail">Change it on the PC: Host Control, in your profile.</string>
     <string name="first_run_family_child">Add a child</string>
+    <string name="first_run_family_child_on_pc">Children are added on the PC: Host Control, in your profile. There you can also let this TV manage children.</string>
+    <string name="first_run_family_child_later">The parent panel opens at the end of the setup. Add the child there.</string>
     <string name="first_run_family_child_detail">Their own library and time limits.</string>
     <string name="first_run_family_skip_detail">Only adults play on this TV.</string>
 
@@ -237,6 +253,7 @@
 
     <string name="first_run_settings_entry">Run the first-run setup</string>
     <string name="first_run_settings_entry_detail">See or repeat the setup; it shows what is set and changes nothing by itself</string>
+    <string name="first_run_settings_from_start">From the start</string>
     <string name="first_run_todo_row">To finish: %1$s</string>
     <string name="first_run_todo_status">Setup to finish</string>
     <string name="first_run_finish_setup">Finish setup</string>

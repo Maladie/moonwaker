@@ -20,7 +20,6 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
     private static final long STREAM_SETUP_TIMEOUT_MS = 60_000L;
     /** Soft notice only: the host owns game start failure (phase 1) and has no phase-2 bound. */
     static final long START_TAKING_LONGER_MS = 180_000L;
-    /** Bound for the Bridge's lock report to reach the broker's WTS flags. */
     private static final ExecutorService PROVIDER_ACTIONS =
             Executors.newSingleThreadExecutor(action -> {
                 Thread thread = new Thread(action, "MoonWaker-ProviderLaunch");
@@ -32,7 +31,6 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
         PlayniteTransitionGateway.Snapshot snapshot() throws IOException;
         PlayniteTransitionGateway.Events awaitEvents(long after, String transitionId)
                 throws IOException;
-        void showFullscreen() throws IOException;
         void focusGame() throws IOException;
         void focusInstallation(String gameId) throws IOException;
         boolean verifyInstallation(String gameId) throws IOException;
@@ -133,6 +131,8 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
     private boolean providerCleanupArmed;
     /** {@link #joinSwappedGame()}: the game is already current; the start does not thaw. */
     private boolean swappedGame;
+    /** {@link #startKeepsGame()}: this start thaws or joins a game the user kept. */
+    private boolean keepsGame;
     private boolean streamConnected;
     private boolean hostUnlockAttempted;
     /** The stale earlier launch's game the host reported running instead of this one. */
@@ -266,12 +266,31 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
      */
     public synchronized void joinSwappedGame() {
         swappedGame = true;
+        keepsGame = true;
         providerCleanupArmed = false;
     }
 
     /** No cleanup of this attempt stops a game: its launch was committed or it starts none. */
     public synchronized boolean providerLaunchCommitted() {
         return !providerCleanupArmed;
+    }
+
+    /**
+     * This start thaws or joins a game the user kept (Quick Resume), also when a recreated
+     * presentation adopted or reused its owner: like a reconnect, cancelling it ends only the
+     * transport. A reveal commits a launch but is no such fact.
+     */
+    public synchronized boolean startKeepsGame() {
+        return keepsGame;
+    }
+
+    /** The exact owner's kept game passes to the presentation that holds it now. */
+    private void adoptKeptGame(boolean ownerKeepsGame) {
+        if (!ownerKeepsGame) return;
+        synchronized (this) {
+            keepsGame = true;
+            providerCleanupArmed = false;
+        }
     }
 
     /**
@@ -299,6 +318,7 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
     public boolean adoptRecreatedProviderOwnership() {
         if (transitionSpec.playniteGameId.isEmpty()) return true;
         boolean pendingAdopted;
+        boolean ownerKeepsGame;
         synchronized (owners) {
             ProviderOwner owner = owners.byHost.get(providerOwnerKey());
             if (owner == null || !owner.matches(transitionSpec) || owner.holder != null
@@ -306,7 +326,9 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
             owner.holder = this;
             owner.custodian = this;
             pendingAdopted = owner.pending;
+            ownerKeepsGame = owner.keepsGame;
         }
+        adoptKeptGame(ownerKeepsGame);
         synchronized (this) {
             // A pending (queued, never invoked) start is started by this adopter exactly once.
             providerStartInvoked = !pendingAdopted;
@@ -686,7 +708,18 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
             if (!isCurrent(actionEpoch) || providerCleanupRequested) {
                 throw new IOException("provider_start_cancelled");
             }
-            if (thaw) providerCleanupArmed = false;
+            if (thaw) {
+                keepsGame = true;
+                providerCleanupArmed = false;
+            }
+        }
+        // The owner carries it: a presentation recreated while the thaw runs adopts it. A
+        // swap's join reached the owner with its reservation.
+        if (thaw) {
+            synchronized (owners) {
+                ProviderOwner owner = owners.byHost.get(providerOwnerKey());
+                if (owner != null && owner.matches(transitionSpec)) owner.keepsGame = true;
+            }
         }
         if (!thaw) return gateway.startGame(gameId);
         logTimeline("provider-start-thaws-frozen");
@@ -1018,15 +1051,6 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
                 }
                 if (!isCurrent(runEpoch)) return;
 
-                if (snapshot.gatewayReady && !context.fullscreenRequested
-                        && transitionSpec.type == LaunchTransitionType.PLAYNITE
-                        && !snapshot.windowReady
-                        && !"host_session_locked".equals(readinessReason)) {
-                    gateway.showFullscreen();
-                    if (!isCurrent(runEpoch)) return;
-                    context.fullscreenRequested = true;
-                }
-
                 long now = clock.now();
                 // Behind a screen saver the focus request of a reconnect is what makes the
                 // Bridge close the saver; a start is covered by the Bridge's own launch.
@@ -1163,8 +1187,10 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
         // Queue the host decision before readiness can reopen input on the UI thread.
         callbacks.onHostGuidePolicy(transitionSpec.id, snapshot.gameId, snapshot.hostGuideAllowed);
         transitionController.gatewayConnected(transitionSpec.id, transitionSpec.hostId);
+        // Only a game target signals the controller; any other target kind is GENERIC, which
+        // the controller never takes as a target.
         LaunchTransitionType kind = "game".equalsIgnoreCase(snapshot.targetKind)
-                ? LaunchTransitionType.GAME : LaunchTransitionType.PLAYNITE;
+                ? LaunchTransitionType.GAME : LaunchTransitionType.GENERIC;
         String gameId = SessionSnapshot.normalize(snapshot.gameId);
         // A launcher prompt may precede any game identity: the reason alone is the evidence.
         boolean launcherPrompt = kind == LaunchTransitionType.GAME
@@ -1395,17 +1421,9 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
                 return 60_000L;
             case WAITING_FOR_VIDEO_SURFACE:
                 return 15_000L;
-            case PLAYNITE_STARTING:
-            case PLAYNITE_PROCESS_RUNNING:
-                return 45_000L;
-            case PLAYNITE_FULLSCREEN_STARTING:
-                return 30_000L;
             // GAME_UPDATING, GAME_START_REQUESTED, GAME_STARTING, GAME_PROCESS_RUNNING and
             // GAME_WINDOW_STABILIZING have no client bound (an update never expires): the host fails phase 1 and does not
             // bound phase 2, so the client shows a soft notice instead (START_TAKING_LONGER_MS).
-            case PLAYNITE_RETURNING:
-                return 45_000L;
-            case PLAYNITE_STOPPING:
             case CLOSING_STREAM:
                 return 15_000L;
             default:
@@ -1421,7 +1439,7 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
         return !closed && !stopped && epoch == capturedEpoch;
     }
 
-    private synchronized long currentEpoch() {
+    synchronized long currentEpoch() {
         return closed || stopped ? -1L : epoch;
     }
 
@@ -1450,16 +1468,14 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
                 if (current != null) return true;
                 ProviderOwner reserved = new ProviderOwner(transitionSpec);
                 reserved.pending = true;
+                // A swap's join is kept from the reservation: a recreated presentation adopts it.
+                reserved.keepsGame = keepsGame;
                 reserved.holder = this;
                 reserved.custodian = this;
                 owners.byHost.put(providerOwnerKey(), reserved);
                 return true;
             }
         }
-    }
-
-    synchronized long currentEpochForTests() {
-        return currentEpoch();
     }
 
     /** Claims the one external start of a pending reservation this coordinator holds. */
@@ -1507,13 +1523,16 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
 
     /** The same attempt reused by a later presentation takes a holderless owner's custody. */
     private void holdStartedOwner() {
+        boolean ownerKeepsGame;
         synchronized (owners) {
             ProviderOwner owner = owners.byHost.get(providerOwnerKey());
             if (owner == null || !owner.matches(transitionSpec) || owner.starting
                     || owner.pending || owner.cleanupClaimed || owner.holder != null) return;
             owner.holder = this;
             owner.custodian = this;
+            ownerKeepsGame = owner.keepsGame;
         }
+        adoptKeptGame(ownerKeepsGame);
     }
 
     /** Reserves the exact owner in STARTING before the one external start call. */
@@ -1526,6 +1545,7 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
                         || current.pending)) return false;
                 ProviderOwner reserved = new ProviderOwner(transitionSpec);
                 reserved.starting = true;
+                reserved.keepsGame = keepsGame;
                 reserved.holder = this;
                 reserved.custodian = this;
                 owners.byHost.put(providerOwnerKey(), reserved);
@@ -1651,10 +1671,6 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
             @Override public PlayniteTransitionGateway.Events awaitEvents(
                     long after, String transitionId) throws IOException {
                 return gateway.awaitEvents(after, transitionId);
-            }
-
-            @Override public void showFullscreen() throws IOException {
-                gateway.showFullscreen();
             }
 
             @Override public void focusGame() throws IOException {
@@ -1786,7 +1802,6 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
         boolean baselineEstablished;
         boolean gameWasRunning;
         boolean gameStopNotified;
-        boolean fullscreenRequested;
         boolean lockScreenPresented;
         boolean targetWindowReadyLogged;
         int gameFocusAttempts;
@@ -1818,6 +1833,8 @@ public final class ConsoleStreamTransitionCoordinator implements AutoCloseable {
         boolean starting;
         boolean cleanupAfterStart;
         boolean bindOnCleanup;
+        /** The start thaws or joins a game the user kept: no cleanup stops it. */
+        boolean keepsGame;
         /** Coordinator receiving the start result; null while detached for recreation. */
         ConsoleStreamTransitionCoordinator holder;
         /** Last holder, used to stop the exact process if no presentation adopts it. */

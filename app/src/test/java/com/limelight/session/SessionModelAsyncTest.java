@@ -228,6 +228,7 @@ public class SessionModelAsyncTest {
     @Test public void reconnectRecordAfterProcessDeathIsNotALiveConnection() {
         driver.resume.values.put("pending", true);
         driver.resume.values.put("profileId", "parent");
+        driver.resume.values.put(com.limelight.Game.EXTRA_EXECUTION_PROFILE_ID, "parent");
         driver.resume.values.put("pcUuid", "host");
         driver.resume.values.put("appId", 7);
         driver.resume.values.put("streamSessionId", "s");

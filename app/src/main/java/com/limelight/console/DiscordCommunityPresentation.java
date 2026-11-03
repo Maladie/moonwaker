@@ -126,9 +126,14 @@ public final class DiscordCommunityPresentation {
         for (HostGatewayClient.DiscordChannel channel : channels) {
             if (!seen.add(channel.id)) continue;
             result.add(new Destination("discord.community.channel:" + channel.id, Kind.CHANNEL,
-                    "# " + channel.name, channel.guildName, "", channel.people > 0,
+                    channelTitle(channel), channel.guildName, "", channel.people > 0,
                     channel.people, channel));
         }
+    }
+
+    /** A voice channel's name, marked as a favorite with a star instead of the hash. */
+    static String channelTitle(HostGatewayClient.DiscordChannel channel) {
+        return (channel.favorite ? "★ " : "# ") + channel.name;
     }
 
     static boolean isPresent(DiscordSocialClient.Friend.Group group) {

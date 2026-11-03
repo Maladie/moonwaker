@@ -295,7 +295,7 @@ public class HostLaunchPreflightTest {
                 "pending", "none", attempt, 500);
         fake.sessionStatuses.add(new HostLaunchPreflight.Session(
                 "session_starting", "none", attempt, 500));
-        fake.sessionStatuses.add(HostLaunchPreflight.Session.ready());
+        fake.sessionStatuses.add(ready());
         fake.apps.add(Collections.singletonList(app("MoonWaker Stream", 77,
                 PlayniteTargetResolver.MOONWAKER_STREAM_UUID)));
         HostLaunchPreflight.Request request = HostLaunchPreflight.Request.from(
@@ -389,12 +389,23 @@ public class HostLaunchPreflightTest {
     @Test public void anotherActiveProfileStillBlocksTheLaunch() {
         Fake fake = new Fake();
         fake.session = new HostLaunchPreflight.Session(
-                "failed", "other_profile_active", "", 1_000);
+                "action_required", "other_user_active", "", 1_000);
 
         HostLaunchPreflight.Result result = fake.run(game(42), new AtomicBoolean());
 
         assertFailure(result, HostLaunchPreflight.Stage.INTERACTIVE_SESSION_READY,
                 HostLaunchPreflight.FailureReason.OTHER_PROFILE_ACTIVE);
+        assertEquals(0, fake.refreshes);
+    }
+
+    /** A-12: an answer without its state or reason is no manual sign-in: nothing streams. */
+    @Test public void sessionAnswerWithoutAReasonFailsInsteadOfStreaming() {
+        Fake fake = new Fake();
+        fake.session = new HostLaunchPreflight.Session(null, null, "", 1_000);
+
+        assertFailure(fake.run(game(42), new AtomicBoolean()),
+                HostLaunchPreflight.Stage.INTERACTIVE_SESSION_READY,
+                HostLaunchPreflight.FailureReason.WINDOWS_SIGN_IN_FAILED);
         assertEquals(0, fake.refreshes);
     }
 
@@ -514,6 +525,10 @@ public class HostLaunchPreflightTest {
                 fake.events);
     }
 
+    private static HostLaunchPreflight.Session ready() {
+        return new HostLaunchPreflight.Session("ready", "none", "", 1_000);
+    }
+
     private static HostLaunchPreflight.Profile profile(boolean selected,
                                                         boolean playnite,
                                                         boolean connector) {
@@ -565,7 +580,7 @@ public class HostLaunchPreflightTest {
         final List<HostLaunchPreflight.Stage> stages = new ArrayList<>();
         HostLaunchPreflight.Profile profile = HostLaunchPreflightTest.profile(
                 true, true, true);
-        HostLaunchPreflight.Session session = HostLaunchPreflight.Session.ready();
+        HostLaunchPreflight.Session session = ready();
         final Deque<HostLaunchPreflight.Session> sessionStatuses = new ArrayDeque<>();
         Runnable networkAction;
         Runnable profileAction;

@@ -79,6 +79,7 @@ final class FeatureShowcaseScreen {
     private final HorizontalScrollView cardScroll;
     private final LinearLayout cards;
     private final LinearLayout dots;
+    private final TextView nextButton;
     private final LinearLayout detail;
     private final ImageView scene;
     private final TextView where;
@@ -123,6 +124,13 @@ final class FeatureShowcaseScreen {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(6));
         dotsParams.topMargin = dp(22);
         carousel.addView(dots, dotsParams);
+        // A wizard step's way on: a button, reached with Down, for the remote too.
+        nextButton = nextButton();
+        LinearLayout.LayoutParams nextParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(FirstRunWizardPage.PILL_HEIGHT_DP));
+        nextParams.gravity = Gravity.CENTER_HORIZONTAL;
+        nextParams.topMargin = dp(12);
+        carousel.addView(nextButton, nextParams);
         carouselPage.setContent(carousel);
 
         detailPage = shell.addPage();
@@ -189,8 +197,7 @@ final class FeatureShowcaseScreen {
             return true;
         }
         if (isNextKey(keyCode) && onNext != null) {
-            dialog.dismiss();
-            onNext.run();
+            goOn();
             return true;
         }
         if (browse) {
@@ -199,6 +206,40 @@ final class FeatureShowcaseScreen {
             return true;
         }
         return false;
+    }
+
+    private void goOn() {
+        Runnable next = onNext;
+        dialog.dismiss();
+        if (next != null) next.run();
+    }
+
+    private TextView nextButton() {
+        TextView button = text(activity.getString(R.string.first_run_next), 15,
+                ConsoleEntryShell.TEXT, medium);
+        button.setGravity(Gravity.CENTER);
+        button.setMinWidth(dp(140));
+        button.setPadding(dp(22), 0, dp(22), 0);
+        button.setTextColor(new android.content.res.ColorStateList(new int[][]{
+                {android.R.attr.state_focused}, {}},
+                new int[]{FirstRunWizardPage.INK, ConsoleEntryShell.TEXT}));
+        float radius = dp(FirstRunWizardPage.PILL_HEIGHT_DP / 2f);
+        GradientDrawable focused = new GradientDrawable();
+        focused.setCornerRadius(radius);
+        focused.setColor(FirstRunWizardPage.FOCUS_FILL);
+        GradientDrawable idle = new GradientDrawable();
+        idle.setCornerRadius(radius);
+        idle.setColor(FirstRunWizardPage.PILL_FILL);
+        idle.setStroke(Math.max(1, dp(1)), FirstRunWizardPage.PILL_EDGE);
+        android.graphics.drawable.StateListDrawable background =
+                new android.graphics.drawable.StateListDrawable();
+        background.addState(new int[]{android.R.attr.state_focused}, focused);
+        background.addState(new int[]{}, idle);
+        button.setBackground(background);
+        button.setFocusable(true);
+        button.setClickable(true);
+        button.setOnClickListener(view -> goOn());
+        return button;
     }
 
     private static boolean isNextKey(int keyCode) {
@@ -226,6 +267,9 @@ final class FeatureShowcaseScreen {
                         : R.string.feature_showcase_subtitle));
         cards.removeAllViews();
         for (Feature feature : features) cards.addView(card(feature));
+        // A wizard step has its Next button where the page dots would be, clear of the legend.
+        nextButton.setVisibility(onNext != null ? View.VISIBLE : View.GONE);
+        dots.setVisibility(onNext != null ? View.GONE : View.VISIBLE);
         renderDots(0);
         carouselLegend();
         carouselPage.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);

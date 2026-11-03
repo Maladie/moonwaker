@@ -27,7 +27,8 @@ public class PlayIntentTest {
         assertThrows(IllegalArgumentException.class,
                 () -> PlayIntent.playniteGame("host", 42, "App", false, " ", ""));
         assertThrows(IllegalArgumentException.class,
-                () -> PlayIntent.playniteFullscreen("host", 0, "App", false));
+                () -> PlayIntent.installationSupport("host", "default", 42, "Desktop", false,
+                        " "));
     }
 
     @Test public void playniteGameRequiresExactGameNotSharedSunshineTarget() {
@@ -106,11 +107,18 @@ public class PlayIntentTest {
                 desktop.transitionType(LaunchTransitionType.GENERIC));
     }
 
-    @Test public void fullscreenDoesNotMatchIdentifiedPlayniteGame() {
-        PlayIntent intent = PlayIntent.playniteFullscreen("host", 42, "Playnite", false);
+    /** A-7: the installation stream carries its game for the window it focuses, never a start. */
+    @Test public void installationSupportCarriesItsGameOnAGenericStream() {
+        PlayIntent intent = PlayIntent.installationSupport("host", "default", 42, "Desktop",
+                false, "game-b");
 
-        assertTrue(intent.matches(snapshot("host", 42, "")));
-        assertFalse(intent.matches(snapshot("host", 42, "game-b")));
+        assertEquals("game-b", intent.transitionGameId());
+        assertEquals("game-b", intent.loadingArtworkGameId);
+        assertEquals(LaunchTransitionType.GENERIC,
+                intent.transitionType(LaunchTransitionType.GENERIC));
+        // R1-3: never "the same session": the neutral app may carry any game.
+        assertFalse(intent.matches(snapshot("host", 42, "")));
+        assertFalse(intent.matches(snapshot("host", 42, "game-a")));
     }
 
     @Test public void calibrationCopyKeepsExactTargetAndAddsOnlyRuntimeSettings() {

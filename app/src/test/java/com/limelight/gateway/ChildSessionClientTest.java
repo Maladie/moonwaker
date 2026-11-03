@@ -69,8 +69,6 @@ public class ChildSessionClientTest {
         assertEquals(SESSION, poster.body.getString("session_id"));
         assertEquals(1, poster.body.length());
 
-        client.resume(CONNECTION, SESSION);
-        assertEquals("/api/v1/child/session/resume", poster.path);
         client.heartbeat(CONNECTION, SESSION);
         assertEquals(25_000, poster.timeout);
         assertEquals("/api/v1/child/session/heartbeat", poster.path);

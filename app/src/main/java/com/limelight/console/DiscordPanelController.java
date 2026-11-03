@@ -1,5 +1,6 @@
 package com.limelight.console;
 
+import com.limelight.gateway.GatewayTransport;
 import android.content.Context;
 
 import com.limelight.R;
@@ -30,6 +31,11 @@ final class DiscordPanelController {
         void onComplete(HostGatewayClient.DiscordVoice verifiedVoice);
         void onError(String safeMessage);
     }
+    interface CommunityFavoriteCallback {
+        /** {@code favorite}: whether the channel is a favorite now. */
+        void onFavorite(boolean favorite);
+        void onError(String safeMessage);
+    }
     enum CommunityVoiceAction { LEAVE, MUTE, DEAFEN }
     interface CommunityVoiceCallback {
         void onVoice(HostGatewayClient.DiscordVoice voice);
@@ -39,17 +45,20 @@ final class DiscordPanelController {
     private final Context context;
     private final android.os.Handler mainHandler;
     private final ExecutorService executor;
-    private final HostGatewayClient client = new HostGatewayClient();
+    /** The console's client: a refusal for a locked profile raises its PIN gate. */
+    private final HostGatewayClient client;
     private final HostGatewayStore store;
     private final AtomicInteger requestGeneration = new AtomicInteger();
 
     private String hostUuid;
     private String hostAddress;
 
-    DiscordPanelController(Context context, android.os.Handler mainHandler, ExecutorService executor) {
+    DiscordPanelController(Context context, android.os.Handler mainHandler, ExecutorService executor,
+                           HostGatewayClient client) {
         this.context = context;
         this.mainHandler = mainHandler;
         this.executor = executor;
+        this.client = client;
         store = new HostGatewayStore(context);
     }
 
@@ -171,11 +180,32 @@ final class DiscordPanelController {
                         channel.guildId, channel.guildName, channel.name);
                 mainHandler.post(() -> callback.onComplete(verifiedVoice));
             } catch (Exception error) {
-                int statusCode = error instanceof HostGatewayClient.GatewayException
-                        ? ((HostGatewayClient.GatewayException) error).statusCode : 0;
+                int statusCode = error instanceof GatewayTransport.GatewayException
+                        ? ((GatewayTransport.GatewayException) error).statusCode() : 0;
                 String message = communityVoiceError(error);
                 LimeLog.warning("Community Discord join failed (HTTP " + statusCode + "): "
                         + safeCommunityJoinError(error));
+                mainHandler.post(() -> callback.onError(message));
+            }
+        });
+    }
+
+    void setCommunityFavorite(String uuid, String address,
+                              HostGatewayClient.DiscordChannel channel, boolean favorite,
+                              CommunityFavoriteCallback callback) {
+        configureCommunityHost(uuid, address);
+        GatewayConnection current = connection();
+        if (current == null || !store.isDiscordEnabled(hostUuid, current.profileId())) {
+            callback.onError(context.getString(R.string.discord_community_host_unavailable));
+            return;
+        }
+        executor.execute(() -> {
+            try {
+                boolean now = client.setDiscordFavorite(current, channel, favorite);
+                mainHandler.post(() -> callback.onFavorite(now));
+            } catch (Exception error) {
+                String message = communityVoiceError(error);
+                LimeLog.warning("Community Discord favorite failed: " + safeCommunityJoinError(error));
                 mainHandler.post(() -> callback.onError(message));
             }
         });
@@ -281,9 +311,11 @@ final class DiscordPanelController {
      * The Gateway answers 409 on Discord routes while Discord is not ready on the host (Bridge
      * offline, client not running or not authorized).
      */
+    /** Discord on the host needs attention: not ready (409), or its Bridge did not answer. */
     static boolean discordNotReady(Throwable error) {
-        return error instanceof HostGatewayClient.GatewayException
-                && ((HostGatewayClient.GatewayException) error).statusCode == 409;
+        return error instanceof GatewayTransport.GatewayException
+                && (((GatewayTransport.GatewayException) error).statusCode() == 409
+                || HostGatewayClient.BRIDGE_UNAVAILABLE.equals(error.getMessage()));
     }
 
     /**
@@ -292,8 +324,8 @@ final class DiscordPanelController {
      */
     static int homeUnavailableMessage(Throwable error) {
         boolean hostDiscord = discordNotReady(error)
-                || error instanceof HostGatewayClient.GatewayException
-                && ((HostGatewayClient.GatewayException) error).statusCode == 502;
+                || error instanceof GatewayTransport.GatewayException
+                && ((GatewayTransport.GatewayException) error).statusCode() == 502;
         return hostDiscord ? R.string.discord_community_host_not_ready
                 : R.string.discord_community_host_unavailable;
     }
@@ -305,9 +337,9 @@ final class DiscordPanelController {
     }
 
     static String safeCommunityJoinError(Throwable error) {
-        if (error instanceof HostGatewayClient.GatewayException) {
-            HostGatewayClient.GatewayException gateway = (HostGatewayClient.GatewayException) error;
-            return "HTTP " + gateway.statusCode + ": " + sanitizeCommunityJoinMessage(gateway.getMessage());
+        if (error instanceof GatewayTransport.GatewayException) {
+            GatewayTransport.GatewayException gateway = (GatewayTransport.GatewayException) error;
+            return "HTTP " + gateway.statusCode() + ": " + sanitizeCommunityJoinMessage(gateway.getMessage());
         }
         if (error instanceof java.net.SocketTimeoutException) return "Timed out waiting for host.";
         if (error instanceof IOException) return sanitizeCommunityJoinMessage(error.getMessage());

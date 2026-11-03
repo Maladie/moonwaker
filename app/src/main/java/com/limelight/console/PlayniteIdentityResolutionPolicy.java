@@ -17,22 +17,6 @@ public final class PlayniteIdentityResolutionPolicy {
         return Action.PRESERVE;
     }
 
-    static boolean acceptsResponse(String expectedHost, int expectedGeneration,
-                                   int expectedAppId, String actualHost,
-                                   int currentGeneration, int actualAppId,
-                                   boolean online, boolean paired) {
-        return online && paired && expectedGeneration == currentGeneration
-                && expectedAppId == actualAppId
-                && SessionSnapshot.normalize(expectedHost).equals(
-                        SessionSnapshot.normalize(actualHost));
-    }
-
-    static boolean isFreshObservation(int expectedAppId, int observedAppId,
-                                      long observedAt, long now, long ttl) {
-        return expectedAppId == observedAppId && observedAt > 0L
-                && now >= observedAt && now - observedAt <= ttl;
-    }
-
     public static String verifiedStopTarget(String expectedGameId, String currentState,
                                             String currentGameId) {
         String state = SessionSnapshot.normalize(currentState);
@@ -40,8 +24,7 @@ public final class PlayniteIdentityResolutionPolicy {
         String current = currentGameId == null ? "" : currentGameId.trim();
         String comparableCurrent = SessionSnapshot.normalize(current);
         if ("idle".equals(state)) return "";
-        if (!("starting".equals(state) || "running".equals(state)
-                || "stopping".equals(state))
+        if (!("starting".equals(state) || "running".equals(state))
                 || !HostGatewayClient.isPlayniteId(current)
                 || (!expected.isEmpty() && !expected.equals(comparableCurrent))) {
             return null;

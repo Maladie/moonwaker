@@ -121,10 +121,6 @@ final class HostLaunchPreflight {
             return kind == PlayIntent.Kind.PLAYNITE_GAME;
         }
 
-        boolean requiresPlayniteBridge() {
-            return requiresPlaynite() || kind == PlayIntent.Kind.PLAYNITE_FULLSCREEN;
-        }
-
         boolean requiresPlayniteConnector() {
             return requiresPlaynite() && requiresConnector;
         }
@@ -141,12 +137,6 @@ final class HostLaunchPreflight {
         Profile(boolean selected, boolean playniteBridgeOnline,
                 boolean playniteConnectorConnected) {
             this("default", "default", "", selected, playniteBridgeOnline,
-                    playniteConnectorConnected);
-        }
-
-        Profile(String name, boolean selected, boolean playniteBridgeOnline,
-                boolean playniteConnectorConnected) {
-            this(name, name, name, selected, playniteBridgeOnline,
                     playniteConnectorConnected);
         }
 
@@ -189,7 +179,8 @@ final class HostLaunchPreflight {
         Session(String state, String reason, String attemptId, int retryAfterMs,
                 String requestId, String actorProfileId, String executionProfileId) {
             this.state = normalizeState(state, "failed");
-            this.reason = normalizeState(reason, "manual_sign_in_required");
+            // An answer without its reason proves nothing: never a manual sign-in that streams.
+            this.reason = normalizeState(reason, "");
             this.attemptId = attemptId == null ? "" : attemptId.trim();
             this.requestId = requestId == null ? "" : requestId.trim();
             this.actorProfileId = actorProfileId == null ? "" : actorProfileId.trim();
@@ -205,10 +196,6 @@ final class HostLaunchPreflight {
             return new Session(value.state, value.reason, value.attemptId,
                     value.retryAfterMs, value.requestId, value.actorProfileId,
                     value.executionProfileId);
-        }
-
-        static Session ready() {
-            return new Session("ready", "none", "", (int) SESSION_POLL_MS);
         }
 
         boolean isReady() {
@@ -229,13 +216,10 @@ final class HostLaunchPreflight {
                     || attemptId.isEmpty() || expectedAttemptId.equals(attemptId);
         }
 
+        /** The attempt states the Broker and Gateway report while a sign-in is under way. */
         private static boolean canPollState(String state) {
             return "pending".equals(state)
-                    || "credential_available".equals(state)
                     || "credential_issued".equals(state)
-                    || "credential_acquired".equals(state)
-                    || "credential_submitted".equals(state)
-                    || "sign_in_requested".equals(state)
                     || "session_starting".equals(state);
         }
 
@@ -388,7 +372,7 @@ final class HostLaunchPreflight {
 
         progress.onStage(Stage.PROFILE_READY);
         // Signed out, the profile's Bridge starts only after the user's own sign-in.
-        if (request.requiresPlayniteBridge() && !manualSignIn) {
+        if (request.requiresPlaynite() && !manualSignIn) {
             progress.onStage(Stage.PLAYNITE_READY);
             profile = awaitPlayniteProfile(request, profile, cancelled);
             if (cancelled.getAsBoolean()) return Result.cancelled();
@@ -620,12 +604,10 @@ final class HostLaunchPreflight {
 
     private static FailureReason sessionFailure(Session session) {
         String reason = session.reason;
-        if ("remote_sign_in_not_granted".equals(reason)
-                || "profile_permission_denied".equals(reason)) {
+        if ("remote_sign_in_not_granted".equals(reason)) {
             return FailureReason.REMOTE_SIGN_IN_NOT_GRANTED;
         }
-        if ("other_profile_active".equals(reason)
-                || "other_user_active".equals(reason)) {
+        if ("other_user_active".equals(reason)) {
             return FailureReason.OTHER_PROFILE_ACTIVE;
         }
         if ("broker_unavailable".equals(reason)) {

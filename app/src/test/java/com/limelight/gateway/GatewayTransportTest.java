@@ -47,7 +47,7 @@ public class GatewayTransportTest {
         assertEquals("profile-1", headers.get("X-WakePlay-Profile"));
         assertTrue(headers.get("X-MoonWaker-Profile-Session")
                 .matches("[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"));
-        assertEquals("child_profiles_v1", headers.get("X-MoonWaker-Capabilities"));
+        assertFalse(headers.containsKey("X-MoonWaker-Capabilities"));
         assertFalse(headers.containsKey("Content-Type"));
         assertEquals("get-request", headers.get("X-Request-Id"));
         assertEquals(1, calls.get());

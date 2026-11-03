@@ -1,5 +1,6 @@
 package com.limelight.console;
 
+import com.limelight.gateway.GatewayTransport;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -52,10 +53,10 @@ public class PlayniteLibraryPaginatorTest {
     @Test public void gatewayErrorsAreClassifiedWithoutRetryingAuth() {
         assertEquals(PlayniteLibraryRepository.ErrorKind.AUTHENTICATION,
                 PlayniteLibraryRepository.classify(
-                        new HostGatewayClient.GatewayException("unauthorized", 401)));
+                        new GatewayTransport.GatewayException("unauthorized", 401)));
         assertEquals(PlayniteLibraryRepository.ErrorKind.SERVER,
                 PlayniteLibraryRepository.classify(
-                        new HostGatewayClient.GatewayException("server", 503)));
+                        new GatewayTransport.GatewayException("server", 503)));
         assertEquals(PlayniteLibraryRepository.ErrorKind.TIMEOUT,
                 PlayniteLibraryRepository.classify(new SocketTimeoutException("timeout")));
         assertEquals(PlayniteLibraryRepository.ErrorKind.INVALID_RESPONSE,
@@ -65,14 +66,14 @@ public class PlayniteLibraryPaginatorTest {
     private static HostGatewayClient.PlayniteLibrary page(
             java.util.List<HostGatewayClient.PlayniteGame> games,
             String cursor, String revision) {
-        return new HostGatewayClient.PlayniteLibrary(games, cursor, games.size(),
-                revision, "1");
+        return new HostGatewayClient.PlayniteLibrary(games, cursor, games.size(), revision);
     }
 
     private static HostGatewayClient.PlayniteGame game(int suffix) {
         String id = String.format(java.util.Locale.US,
                 "%08d-0000-0000-0000-000000000000", suffix);
-        return new HostGatewayClient.PlayniteGame(id, "Game " + suffix, true,
-                false, false, "", "", "", "Steam", "", 0L);
+        return new HostGatewayClient.PlayniteGame(id, "Game " + suffix, true, false, false,
+                "", "", "", "", "", 0, "Steam", "", 0L, false, "", "", "", "", -1, false,
+                "playnite", id, id, "steam", "Steam", true, true, true, true, false);
     }
 }

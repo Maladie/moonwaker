@@ -273,8 +273,6 @@ public final class StreamRuntime implements NvConnectionListener,
         }
     }
 
-    public synchronized boolean isConnecting() { return state == State.CONNECTING; }
-
     public synchronized boolean isConnected() { return state == State.CONNECTED; }
 
     public synchronized boolean isStopping() {
@@ -364,7 +362,7 @@ public final class StreamRuntime implements NvConnectionListener,
             stopWaiters.clear();
         }
         if (releaseLocks) platform.releaseWifiLocks();
-        if (attachedAtStop() == null) platform.runtimeEnded();
+        if (attached() == null) platform.runtimeEnded();
         if (serviceRequested) {
             platform.endService(streamSessionId, generation(), retainedByCoordinator());
         }
@@ -696,8 +694,6 @@ public final class StreamRuntime implements NvConnectionListener,
     // ---- NvConnectionListener (the one MoonBridge listener) -----------------------------------
 
     private synchronized Presentation attached() { return presentation; }
-
-    private synchronized Presentation attachedAtStop() { return presentation; }
 
     @Override public void stageStarting(String stage) {
         Presentation p = attached();

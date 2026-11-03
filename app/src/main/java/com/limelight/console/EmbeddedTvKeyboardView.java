@@ -115,7 +115,6 @@ public final class EmbeddedTvKeyboardView extends FrameLayout {
         rebuild();
     }
 
-    String selectedKeyId() { return model.selectedId(); }
     EmbeddedTvKeyboardModel.Page page() { return model.page(); }
     EmbeddedTvKeyboardModel.Shift shift() { return model.shift(); }
 

@@ -180,13 +180,9 @@ public class S05ControlPlaneContractTest {
         assertTrue(overlay.substring(suspend, quit).contains("}"));
     }
 
-    @Test public void capabilityAndPostQuitWarmupSuppressionAreProductionWired()
+    @Test public void postQuitWarmupSuppressionIsProductionWired()
             throws Exception {
-        String gateway = source("com/limelight/console/HostGatewayClient.java");
         String console = source("com/limelight/console/ConsoleActivity.java");
-        assertTrue(gateway.contains("available(capabilities, \"control_operations_v2\")"));
-        assertTrue(console.contains(
-                "if (!hostGatewayClient.getCapabilities(connection).controlOperations)"));
         assertTrue(console.contains("EXTRA_SUPPRESS_AUTO_WARM_UP"));
         assertTrue(source("com/limelight/Game.java").contains(
                 "home.putExtra(ConsoleActivity.EXTRA_SUPPRESS_AUTO_WARM_UP, true)"));
@@ -241,7 +237,6 @@ public class S05ControlPlaneContractTest {
         assertTrue(start.contains(
                 "\"reauthorize\".equals(controlBinding.intent) ? \"reauthorize\""));
         assertTrue(start.contains("acquireBootstrapAfterReplay("));
-        assertTrue(game.contains("SessionEvent.SuspendedEnded.forExecution("));
         assertTrue(console.contains("records.recentlyEndedForExecution("));
         String compensation = between(console, "private void failClosedActorHandoff(",
                 "private SessionOrchestrator.CloseResult switchRetainedProviderGame(");

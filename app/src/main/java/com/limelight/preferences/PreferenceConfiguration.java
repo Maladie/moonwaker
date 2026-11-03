@@ -2,7 +2,6 @@ package com.limelight.preferences;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.os.Build;
 import android.preference.PreferenceManager;
 import android.view.Display;
@@ -26,9 +25,6 @@ public class PreferenceConfiguration {
         LEFT
     }
 
-    private static final String LEGACY_RES_FPS_PREF_STRING = "list_resolution_fps";
-    private static final String LEGACY_ENABLE_51_SURROUND_PREF_STRING = "checkbox_51_surround";
-
     public static final String RESOLUTION_PREF_STRING = "list_resolution";
     public static final String FPS_PREF_STRING = "list_fps";
     public static final String BITRATE_PREF_STRING = "seekbar_bitrate_kbps";
@@ -40,7 +36,6 @@ public class PreferenceConfiguration {
     private static final String DEADZONE_PREF_STRING = "seekbar_deadzone";
     private static final String OSC_OPACITY_PREF_STRING = "seekbar_osc_opacity";
     private static final String LANGUAGE_PREF_STRING = "list_languages";
-    private static final String SMALL_ICONS_PREF_STRING = "checkbox_small_icon_mode";
     private static final String MULTI_CONTROLLER_PREF_STRING = "checkbox_multi_controller";
     static final String AUDIO_CONFIG_PREF_STRING = "list_audio_config";
     private static final String USB_DRIVER_PREF_SRING = "checkbox_usb_driver";
@@ -48,12 +43,10 @@ public class PreferenceConfiguration {
     private static final String ONSCREEN_CONTROLLER_PREF_STRING = "checkbox_show_onscreen_controls";
     private static final String ONLY_L3_R3_PREF_STRING = "checkbox_only_show_L3R3";
     private static final String SHOW_GUIDE_BUTTON_PREF_STRING = "checkbox_show_guide_button";
-    private static final String LEGACY_DISABLE_FRAME_DROP_PREF_STRING = "checkbox_disable_frame_drop";
     private static final String ENABLE_HDR_PREF_STRING = "checkbox_enable_hdr";
     private static final String ENABLE_PIP_PREF_STRING = "checkbox_enable_pip";
     private static final String ENABLE_PERF_OVERLAY_STRING = "checkbox_enable_perf_overlay";
     private static final String BIND_ALL_USB_STRING = "checkbox_usb_bind_all";
-    private static final String MOUSE_EMULATION_STRING = "checkbox_mouse_emulation";
     private static final String ANALOG_SCROLLING_PREF_STRING = "analog_scrolling";
     private static final String MOUSE_NAV_BUTTONS_STRING = "checkbox_mouse_nav_buttons";
     public static final String UNLOCK_FPS_STRING = "checkbox_unlock_fps";
@@ -68,7 +61,6 @@ public class PreferenceConfiguration {
     private static final String FRAME_PACING_PREF_STRING = "frame_pacing";
     private static final String ABSOLUTE_MOUSE_MODE_PREF_STRING = "checkbox_absolute_mouse_mode";
     private static final String ENABLE_AUDIO_FX_PREF_STRING = "checkbox_enable_audiofx";
-    private static final String USB_MICROPHONE_PREF_STRING = "checkbox_usb_microphone";
     private static final String REDUCE_REFRESH_RATE_PREF_STRING = "checkbox_reduce_refresh_rate";
     private static final String ACTUAL_DISPLAY_REFRESH_RATE_PREF_STRING = "text_actual_display_refresh_rate";
     private static final String FULL_RANGE_PREF_STRING = "checkbox_full_range";
@@ -107,10 +99,8 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_ENABLE_PIP = false;
     private static final boolean DEFAULT_ENABLE_PERF_OVERLAY = false;
     private static final boolean DEFAULT_BIND_ALL_USB = false;
-    private static final boolean DEFAULT_MOUSE_EMULATION = true;
     private static final String DEFAULT_ANALOG_STICK_FOR_SCROLLING = "right";
     private static final boolean DEFAULT_MOUSE_NAV_BUTTONS = false;
-    private static final boolean DEFAULT_UNLOCK_FPS = false;
     private static final boolean DEFAULT_VIBRATE_OSC = true;
     private static final boolean DEFAULT_VIBRATE_FALLBACK = false;
     private static final int DEFAULT_VIBRATE_FALLBACK_STRENGTH = 100;
@@ -143,13 +133,10 @@ public class PreferenceConfiguration {
     public static final int FRAME_PACING_CAP_FPS = 2;
     public static final int FRAME_PACING_MAX_SMOOTHNESS = 3;
 
-    public static final String RES_360P = "640x360";
-    public static final String RES_480P = "854x480";
     public static final String RES_720P = "1280x720";
     public static final String RES_1080P = "1920x1080";
     public static final String RES_1440P = "2560x1440";
     public static final String RES_4K = "3840x2160";
-    public static final String RES_NATIVE = "Native";
 
     public int width, height, fps;
     public int bitrate;
@@ -159,7 +146,7 @@ public class PreferenceConfiguration {
     public int oscOpacity;
     public boolean stretchVideo, enableSops, playHostAudio, disableWarnings;
     public String language;
-    public boolean smallIconMode, multiController, usbDriver, flipFaceButtons;
+    public boolean multiController, usbDriver, flipFaceButtons;
     public boolean onscreenController;
     public boolean onlyL3R3;
     public boolean showGuideButton;
@@ -168,10 +155,8 @@ public class PreferenceConfiguration {
     public boolean enablePerfOverlay;
     public boolean enableLatencyToast;
     public boolean bindAllUsb;
-    public boolean mouseEmulation;
     public AnalogStickForScrolling analogStickForScrolling;
     public boolean mouseNavButtons;
-    public boolean unlockFps;
     public boolean vibrateOsc;
     public boolean vibrateFallbackToDevice;
     public int vibrateFallbackToDeviceStrength;
@@ -183,7 +168,6 @@ public class PreferenceConfiguration {
     public int framePacing;
     public boolean absoluteMouseMode;
     public boolean enableAudioFx;
-    public boolean enableUsbMicrophone;
     public boolean reduceRefreshRate;
     public String actualDisplayRefreshRate;
     public boolean fullRange;
@@ -251,55 +235,12 @@ public class PreferenceConfiguration {
         return isSquarishScreen(width, height);
     }
 
-    private static String convertFromLegacyResolutionString(String resString) {
-        if (resString.equalsIgnoreCase("360p")) {
-            return RES_360P;
-        }
-        else if (resString.equalsIgnoreCase("480p")) {
-            return RES_480P;
-        }
-        else if (resString.equalsIgnoreCase("720p")) {
-            return RES_720P;
-        }
-        else if (resString.equalsIgnoreCase("1080p")) {
-            return RES_1080P;
-        }
-        else if (resString.equalsIgnoreCase("1440p")) {
-            return RES_1440P;
-        }
-        else if (resString.equalsIgnoreCase("4K")) {
-            return RES_4K;
-        }
-        else {
-            // Should be unreachable
-            return RES_720P;
-        }
-    }
-
     private static int getWidthFromResolutionString(String resString) {
         return Integer.parseInt(resString.split("x")[0]);
     }
 
     private static int getHeightFromResolutionString(String resString) {
         return Integer.parseInt(resString.split("x")[1]);
-    }
-
-    private static String getResolutionString(int width, int height) {
-        switch (height) {
-            case 360:
-                return RES_360P;
-            case 480:
-                return RES_480P;
-            default:
-            case 720:
-                return RES_720P;
-            case 1080:
-                return RES_1080P;
-            case 1440:
-                return RES_1440P;
-            case 2160:
-                return RES_4K;
-        }
     }
 
     public static int getDefaultBitrate(String resString, String fpsString) {
@@ -365,26 +306,6 @@ public class PreferenceConfiguration {
         return (int)Math.round(resolutionFactor * frameRateFactor) * 1000;
     }
 
-    public static boolean getDefaultSmallMode(Context context) {
-        PackageManager manager = context.getPackageManager();
-        if (manager != null) {
-            // TVs shouldn't use small mode by default
-            if (manager.hasSystemFeature(PackageManager.FEATURE_TELEVISION)) {
-                return false;
-            }
-
-            // API 21 uses LEANBACK instead of TELEVISION
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
-                if (manager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
-                    return false;
-                }
-            }
-        }
-
-        // Use small mode on anything smaller than a 7" tablet
-        return context.getResources().getConfiguration().smallestScreenWidthDp < 500;
-    }
-
     public static int getDefaultBitrate(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         return getDefaultBitrate(
@@ -433,15 +354,6 @@ public class PreferenceConfiguration {
     private static int getFramePacingValue(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
 
-        // Migrate legacy never drop frames option to the new location
-        if (prefs.contains(LEGACY_DISABLE_FRAME_DROP_PREF_STRING)) {
-            boolean legacyNeverDropFrames = prefs.getBoolean(LEGACY_DISABLE_FRAME_DROP_PREF_STRING, false);
-            prefs.edit()
-                    .remove(LEGACY_DISABLE_FRAME_DROP_PREF_STRING)
-                    .putString(FRAME_PACING_PREF_STRING, legacyNeverDropFrames ? "balanced" : "latency")
-                    .apply();
-        }
-
         String str = prefs.getString(FRAME_PACING_PREF_STRING, DEFAULT_FRAME_PACING);
         if (str.equals("latency")) {
             return FRAME_PACING_MIN_LATENCY;
@@ -474,21 +386,6 @@ public class PreferenceConfiguration {
         else {
             return AnalogStickForScrolling.NONE;
         }
-    }
-
-    public static void resetStreamingSettings(Context context) {
-        // We consider resolution, FPS, bitrate, HDR, and video format as "streaming settings" here
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        prefs.edit()
-                .remove(BITRATE_PREF_STRING)
-                .remove(LEGACY_RES_FPS_PREF_STRING)
-                .remove(RESOLUTION_PREF_STRING)
-                .remove(FPS_PREF_STRING)
-                .remove(VIDEO_FORMAT_PREF_STRING)
-                .remove(ENABLE_HDR_PREF_STRING)
-                .remove(UNLOCK_FPS_STRING)
-                .remove(FULL_RANGE_PREF_STRING)
-                .apply();
     }
 
     public static void saveLanguage(Context context, String language) {
@@ -555,91 +452,10 @@ public class PreferenceConfiguration {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         PreferenceConfiguration config = new PreferenceConfiguration();
 
-        // Migrate legacy preferences to the new locations
-        if (prefs.contains(LEGACY_ENABLE_51_SURROUND_PREF_STRING)) {
-            if (prefs.getBoolean(LEGACY_ENABLE_51_SURROUND_PREF_STRING, false)) {
-                prefs.edit()
-                        .remove(LEGACY_ENABLE_51_SURROUND_PREF_STRING)
-                        .putString(AUDIO_CONFIG_PREF_STRING, "51")
-                        .apply();
-            }
-        }
-
-        String str = prefs.getString(LEGACY_RES_FPS_PREF_STRING, null);
-        if (str != null) {
-            if (str.equals("360p30")) {
-                config.width = 640;
-                config.height = 360;
-                config.fps = 30;
-            }
-            else if (str.equals("360p60")) {
-                config.width = 640;
-                config.height = 360;
-                config.fps = 60;
-            }
-            else if (str.equals("720p30")) {
-                config.width = 1280;
-                config.height = 720;
-                config.fps = 30;
-            }
-            else if (str.equals("720p60")) {
-                config.width = 1280;
-                config.height = 720;
-                config.fps = 60;
-            }
-            else if (str.equals("1080p30")) {
-                config.width = 1920;
-                config.height = 1080;
-                config.fps = 30;
-            }
-            else if (str.equals("1080p60")) {
-                config.width = 1920;
-                config.height = 1080;
-                config.fps = 60;
-            }
-            else if (str.equals("4K30")) {
-                config.width = 3840;
-                config.height = 2160;
-                config.fps = 30;
-            }
-            else if (str.equals("4K60")) {
-                config.width = 3840;
-                config.height = 2160;
-                config.fps = 60;
-            }
-            else {
-                // Should never get here
-                config.width = 1280;
-                config.height = 720;
-                config.fps = 60;
-            }
-
-            prefs.edit()
-                    .remove(LEGACY_RES_FPS_PREF_STRING)
-                    .putString(RESOLUTION_PREF_STRING, getResolutionString(config.width, config.height))
-                    .putString(FPS_PREF_STRING, ""+config.fps)
-                    .apply();
-        }
-        else {
-            // Use the new preference location
-            String resStr = prefs.getString(RESOLUTION_PREF_STRING, PreferenceConfiguration.DEFAULT_RESOLUTION);
-
-            // Convert legacy resolution strings to the new style
-            if (!resStr.contains("x")) {
-                resStr = PreferenceConfiguration.convertFromLegacyResolutionString(resStr);
-                prefs.edit().putString(RESOLUTION_PREF_STRING, resStr).apply();
-            }
-
-            config.width = PreferenceConfiguration.getWidthFromResolutionString(resStr);
-            config.height = PreferenceConfiguration.getHeightFromResolutionString(resStr);
-            config.fps = Integer.parseInt(prefs.getString(FPS_PREF_STRING, PreferenceConfiguration.DEFAULT_FPS));
-        }
-
-        if (!prefs.contains(SMALL_ICONS_PREF_STRING)) {
-            // We need to write small icon mode's default to disk for the settings page to display
-            // the current state of the option properly
-            prefs.edit().putBoolean(SMALL_ICONS_PREF_STRING, getDefaultSmallMode(context)).apply();
-        }
+        String resStr = prefs.getString(RESOLUTION_PREF_STRING, PreferenceConfiguration.DEFAULT_RESOLUTION);
+        config.width = PreferenceConfiguration.getWidthFromResolutionString(resStr);
+        config.height = PreferenceConfiguration.getHeightFromResolutionString(resStr);
+        config.fps = Integer.parseInt(prefs.getString(FPS_PREF_STRING, PreferenceConfiguration.DEFAULT_FPS));
 
         if (!prefs.contains(GAMEPAD_MOTION_SENSORS_PREF_STRING) && Build.VERSION.SDK_INT == Build.VERSION_CODES.S) {
             // Android 12 has a nasty bug that causes crashes when the app touches the InputDevice's
@@ -650,7 +466,6 @@ public class PreferenceConfiguration {
             prefs.edit().putBoolean(GAMEPAD_MOTION_SENSORS_PREF_STRING, false).apply();
         }
 
-        // This must happen after the preferences migration to ensure the preferences are populated
         // Set with the resolution and FPS (their recommended value); a game's own comes from
         // the stream menu through its app settings.
         config.bitrate = prefs.getInt(BITRATE_PREF_STRING, getDefaultBitrate(context));
@@ -683,7 +498,6 @@ public class PreferenceConfiguration {
         config.enableSops = prefs.getBoolean(SOPS_PREF_STRING, DEFAULT_SOPS);
         config.stretchVideo = prefs.getBoolean(STRETCH_PREF_STRING, DEFAULT_STRETCH);
         config.playHostAudio = prefs.getBoolean(HOST_AUDIO_PREF_STRING, DEFAULT_HOST_AUDIO);
-        config.smallIconMode = prefs.getBoolean(SMALL_ICONS_PREF_STRING, getDefaultSmallMode(context));
         config.multiController = prefs.getBoolean(MULTI_CONTROLLER_PREF_STRING, DEFAULT_MULTI_CONTROLLER);
         config.usbDriver = prefs.getBoolean(USB_DRIVER_PREF_SRING, DEFAULT_USB_DRIVER);
         config.onscreenController = prefs.getBoolean(ONSCREEN_CONTROLLER_PREF_STRING, ONSCREEN_CONTROLLER_DEFAULT);
@@ -693,9 +507,7 @@ public class PreferenceConfiguration {
         config.enablePip = prefs.getBoolean(ENABLE_PIP_PREF_STRING, DEFAULT_ENABLE_PIP);
         config.enablePerfOverlay = prefs.getBoolean(ENABLE_PERF_OVERLAY_STRING, DEFAULT_ENABLE_PERF_OVERLAY);
         config.bindAllUsb = prefs.getBoolean(BIND_ALL_USB_STRING, DEFAULT_BIND_ALL_USB);
-        config.mouseEmulation = prefs.getBoolean(MOUSE_EMULATION_STRING, DEFAULT_MOUSE_EMULATION);
         config.mouseNavButtons = prefs.getBoolean(MOUSE_NAV_BUTTONS_STRING, DEFAULT_MOUSE_NAV_BUTTONS);
-        config.unlockFps = prefs.getBoolean(UNLOCK_FPS_STRING, DEFAULT_UNLOCK_FPS);
         config.vibrateOsc = prefs.getBoolean(VIBRATE_OSC_PREF_STRING, DEFAULT_VIBRATE_OSC);
         config.vibrateFallbackToDevice = prefs.getBoolean(VIBRATE_FALLBACK_PREF_STRING, DEFAULT_VIBRATE_FALLBACK);
         config.vibrateFallbackToDeviceStrength = prefs.getInt(VIBRATE_FALLBACK_STRENGTH_PREF_STRING, DEFAULT_VIBRATE_FALLBACK_STRENGTH);
@@ -706,7 +518,6 @@ public class PreferenceConfiguration {
         config.enableLatencyToast = prefs.getBoolean(LATENCY_TOAST_PREF_STRING, DEFAULT_LATENCY_TOAST);
         config.absoluteMouseMode = prefs.getBoolean(ABSOLUTE_MOUSE_MODE_PREF_STRING, DEFAULT_ABSOLUTE_MOUSE_MODE);
         config.enableAudioFx = prefs.getBoolean(ENABLE_AUDIO_FX_PREF_STRING, DEFAULT_ENABLE_AUDIO_FX);
-        config.enableUsbMicrophone = prefs.getBoolean(USB_MICROPHONE_PREF_STRING, false);
         config.reduceRefreshRate = prefs.getBoolean(REDUCE_REFRESH_RATE_PREF_STRING, DEFAULT_REDUCE_REFRESH_RATE);
         config.actualDisplayRefreshRate = prefs.getString(ACTUAL_DISPLAY_REFRESH_RATE_PREF_STRING, DEFAULT_ACTUAL_DISPLAY_REFRESH_RATE);
         config.fullRange = prefs.getBoolean(FULL_RANGE_PREF_STRING, DEFAULT_FULL_RANGE);

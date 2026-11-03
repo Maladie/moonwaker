@@ -470,22 +470,6 @@ public final class HostGatewayStore {
         preferences.edit().putBoolean(discordKey(hostUuid, profileId, "enabled"), enabled).apply();
     }
 
-    String loadLastDiscordGuildId(String hostUuid, String profileId) {
-        if (!validProfile(hostUuid, profileId)) return "";
-        return preferences.getString(discordKey(hostUuid, profileId, "last_guild_id"), "");
-    }
-
-    void saveLastDiscordGuild(String hostUuid, String profileId,
-                              String guildId, String guildName) {
-        if (!validProfile(hostUuid, profileId) || guildId == null
-                || !guildId.matches("[0-9]{5,32}")) return;
-        preferences.edit()
-                .putString(discordKey(hostUuid, profileId, "last_guild_id"), guildId)
-                .putString(discordKey(hostUuid, profileId, "last_guild_name"),
-                        guildName == null ? "" : guildName)
-                .apply();
-    }
-
     void setDiscordAutoConnectEnabled(String hostUuid, String profileId, boolean enabled) {
         if (!validProfile(hostUuid, profileId)) return;
         preferences.edit().putBoolean(discordKey(hostUuid, profileId, "auto_connect"), enabled)

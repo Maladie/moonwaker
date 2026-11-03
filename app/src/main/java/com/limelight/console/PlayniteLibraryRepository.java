@@ -1,5 +1,6 @@
 package com.limelight.console;
 
+import com.limelight.gateway.GatewayTransport;
 import com.limelight.gateway.GatewayConnection;
 
 import java.io.IOException;
@@ -76,14 +77,14 @@ final class PlayniteLibraryRepository {
                 PlayniteLibraryCache.Entry entry = fetchAll(connection, cancellation);
                 cache.write(key, entry);
                 return Result.success(entry);
-            } catch (HostGatewayClient.GatewayException error) {
-                if (error.statusCode == 401 || error.statusCode == 403) {
+            } catch (GatewayTransport.GatewayException error) {
+                if (error.statusCode() == 401 || error.statusCode() == 403) {
                     return Result.failure(ErrorKind.AUTHENTICATION);
                 }
-                if (error.statusCode >= 400 && error.statusCode < 500) {
+                if (error.statusCode() >= 400 && error.statusCode() < 500) {
                     return Result.failure(ErrorKind.API_VERSION);
                 }
-                serverFailure = error.statusCode >= 500;
+                serverFailure = error.statusCode() >= 500;
                 last = error;
             } catch (java.net.SocketTimeoutException error) {
                 last = error;
@@ -102,19 +103,13 @@ final class PlayniteLibraryRepository {
     private boolean waitForFreshSnapshot(GatewayConnection connection,
                                          String previousRevision,
                                          Cancellation cancellation) throws IOException {
-        long now = System.currentTimeMillis();
-        long legacyFallbackAt = now + 750L;
-        long deadline = now + 10_000L;
+        long deadline = System.currentTimeMillis() + 10_000L;
         while (System.currentTimeMillis() < deadline) {
             if (cancellation.cancelled() || Thread.currentThread().isInterrupted()) return false;
             HostGatewayClient.PlayniteLibrary first =
                     client.getPlayniteLibrary(connection, "", 1);
             if (!first.revision.isEmpty()
                     && !first.revision.equals(previousRevision)) return true;
-            // Compatibility with an older Bridge which cannot expose revisions:
-            // allow it a short grace period, then read its current cache normally.
-            if (first.revision.isEmpty()
-                    && System.currentTimeMillis() >= legacyFallbackAt) return true;
             if (!sleep(250L, cancellation)) return false;
         }
         return false;
@@ -142,12 +137,12 @@ final class PlayniteLibraryRepository {
                     .withAgeRating(game.ageRating));
         }
         return new PlayniteLibraryCache.Entry(games, System.currentTimeMillis(),
-                pages.revision, pages.apiVersion);
+                pages.revision);
     }
 
     static ErrorKind classify(IOException error) {
-        if (error instanceof HostGatewayClient.GatewayException) {
-            int status = ((HostGatewayClient.GatewayException) error).statusCode;
+        if (error instanceof GatewayTransport.GatewayException) {
+            int status = ((GatewayTransport.GatewayException) error).statusCode();
             if (status == 401 || status == 403) return ErrorKind.AUTHENTICATION;
             if (status >= 500) return ErrorKind.SERVER;
             if (status >= 400) return ErrorKind.API_VERSION;

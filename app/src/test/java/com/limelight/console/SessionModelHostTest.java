@@ -32,6 +32,7 @@ public class SessionModelHostTest {
         private final long fakeGeneration =
                 com.limelight.session.SessionModelDriver.nextTransportGeneration();
         @Override public long transportGeneration() { return fakeGeneration; }
+        @Override public String getExecutionProfileId() { return "parent"; }
         @Override public SessionModel.ParkOutcome parkRetainedTransport() {
             return SessionModel.ParkOutcome.PARKED;
         }
@@ -216,7 +217,8 @@ public class SessionModelHostTest {
         assertNotNull(m.model.records().pending);
         SessionSnapshot unknown = render("host");
         assertFalse("resume material is not a live connection", unknown.retainedTransport);
-        assertFalse("nothing names the stream yet", unknown.isReconnectRequired());
+        assertFalse("nothing names the stream yet",
+                unknown.state == SessionSnapshot.State.RECONNECT_REQUIRED);
 
         // The Gateway names the recorded stream as held: it reads as paused, Play reconnects.
         long ordinal = dispatch("host");

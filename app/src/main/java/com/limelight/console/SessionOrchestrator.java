@@ -22,7 +22,13 @@ import java.util.function.Consumer;
  */
 public final class SessionOrchestrator implements AutoCloseable {
     enum Rejection { INITIALIZING, UNPAIRED }
-    enum CloseResult { CLOSED, REUSED, CANCELLED, NEEDS_REPLACEMENT, PRESENTATION_REQUIRED }
+    /**
+     * SWITCH_REFUSED: the live stream refused or could not take the switch; for the rest of the
+     * request the common close and a fresh launch replace it ({@link #switchRefusal}).
+     */
+    enum CloseResult {
+        CLOSED, REUSED, CANCELLED, NEEDS_REPLACEMENT, PRESENTATION_REQUIRED, SWITCH_REFUSED
+    }
 
     /** What a Play queued behind a close does once the session changed ({@link #queuedStep}). */
     enum QueueStep { WAIT, START, DROP_CLOSE_FAILED }
@@ -142,20 +148,23 @@ public final class SessionOrchestrator implements AutoCloseable {
         final Recovery recovery;
         /** The failure the close or recovery this pass follows raised; null otherwise. */
         final SessionFailure.Raised closeFailure;
+        /** A switch of the live stream was refused in this request: it is never tried again. */
+        final boolean switchRefused;
 
         Progress(boolean replacementAuthorized, boolean reuseOnly, boolean opaqueReady,
                  NvApp target, int pass, Refresh refresh, CloseResult closed,
                  SwitchStop switchChoice, SwitchStop switchStop) {
             this(replacementAuthorized, reuseOnly, opaqueReady, target, pass, refresh, closed,
-                    switchChoice, switchStop, Recovery.NONE, null);
+                    switchChoice, switchStop, Recovery.NONE, null, false);
         }
 
         private Progress(boolean replacementAuthorized, boolean reuseOnly, boolean opaqueReady,
                          NvApp target, int pass, Refresh refresh, CloseResult closed,
                          SwitchStop switchChoice, SwitchStop switchStop, Recovery recovery,
-                         SessionFailure.Raised closeFailure) {
+                         SessionFailure.Raised closeFailure, boolean switchRefused) {
             this.recovery = recovery;
             this.closeFailure = closeFailure;
+            this.switchRefused = switchRefused;
             this.replacementAuthorized = replacementAuthorized;
             this.reuseOnly = reuseOnly;
             this.opaqueReady = opaqueReady;
@@ -170,7 +179,7 @@ public final class SessionOrchestrator implements AutoCloseable {
         /** The next pass with these grants, under the loading layer. */
         Progress next(boolean authorized, boolean reuse) {
             return new Progress(authorized, reuse, true, target, pass + 1, Refresh.NONE, null,
-                    switchChoice, SwitchStop.STOP, recovery, null);
+                    switchChoice, SwitchStop.STOP, recovery, null, switchRefused);
         }
 
         Progress next(Action action) {
@@ -178,19 +187,20 @@ public final class SessionOrchestrator implements AutoCloseable {
                     : action.kind == ActionKind.RECOVER_BY_HARD_RESET ? Recovery.HARD_RESET
                     : recovery;
             return new Progress(action.replacementAuthorized, action.reuseOnly, true, target,
-                    pass + 1, Refresh.NONE, null, switchChoice, action.switchStop, taken, null);
+                    pass + 1, Refresh.NONE, null, switchChoice, action.switchStop, taken, null,
+                    switchRefused);
         }
 
         /** The next pass once the user confirmed; a loading layer not yet raised still is. */
         Progress confirmed() {
             return new Progress(true, false, opaqueReady, target, pass + 1, Refresh.NONE, null,
-                    null, SwitchStop.STOP, recovery, null);
+                    null, SwitchStop.STOP, recovery, null, switchRefused);
         }
 
         /** The next pass once the user answered a Quick Resume question; the stream stays. */
         Progress chose(SwitchStop choice) {
             return new Progress(false, reuseOnly, opaqueReady, target, pass + 1, Refresh.NONE,
-                    null, choice, SwitchStop.STOP, recovery, null);
+                    null, choice, SwitchStop.STOP, recovery, null, switchRefused);
         }
 
         // The three below complete a step already taken with next(): the pass it starts reads
@@ -198,24 +208,35 @@ public final class SessionOrchestrator implements AutoCloseable {
 
         Progress prepared(NvApp prepared) {
             return new Progress(replacementAuthorized, reuseOnly, true, prepared, pass,
-                    Refresh.NONE, null, switchChoice, switchStop, recovery, null);
+                    Refresh.NONE, null, switchChoice, switchStop, recovery, null, switchRefused);
         }
 
         Progress refreshed(Refresh result) {
             return new Progress(replacementAuthorized, reuseOnly, true, target, pass,
-                    result, null, switchChoice, switchStop, recovery, null);
+                    result, null, switchChoice, switchStop, recovery, null, switchRefused);
         }
 
         /** After a close only the replacement is left: no confirmation, no reuse. */
         Progress closed(CloseResult result) {
             return new Progress(true, false, true, target, pass, Refresh.NONE, result,
-                    null, switchStop, recovery, null);
+                    null, switchStop, recovery, null,
+                    switchRefused || result == CloseResult.SWITCH_REFUSED);
+        }
+
+        /**
+         * A Play whose handed-off switch failed with {@code result} ({@link #continueHandoff}):
+         * the next screen's first pass, under a loading layer it has yet to raise.
+         */
+        static Progress handedBack(CloseResult result) {
+            return new Progress(true, false, false, null, 0, Refresh.NONE, result, null,
+                    SwitchStop.STOP, Recovery.NONE, null, result == CloseResult.SWITCH_REFUSED);
         }
 
         /** The close or recovery raised {@code failure}; the table decides what follows. */
         Progress closeFailed(SessionFailure.Raised failure) {
             return new Progress(replacementAuthorized, reuseOnly, true, target, pass,
-                    Refresh.NONE, null, switchChoice, switchStop, recovery, failure);
+                    Refresh.NONE, null, switchChoice, switchStop, recovery, failure,
+                    switchRefused);
         }
     }
 
@@ -275,11 +296,14 @@ public final class SessionOrchestrator implements AutoCloseable {
         /** A live warm-up attempt carries the intent's game into the resumed neutral stream. */
         boolean warmUpCarriesGame();
         /**
-         * Starts the attaching stream presentation carrying the target and how its switch ends
-         * the current game; ends the request.
+         * Starts the attaching stream presentation carrying the target, how its switch ends
+         * the current game and {@code handoff}, the id its failure is reported back with
+         * ({@link PlayQueue#switchFailed}); ends the request.
          */
-        void attachPresentationForSwitch(long orchestrationId, PlayIntent intent, NvApp target,
+        void attachPresentationForSwitch(long handoff, PlayIntent intent, NvApp target,
                                          SwitchStop stop);
+        /** The attached stream's switch failure {@code error}, as {@link #switchRetained} raises it. */
+        SessionFailure.Raised switchFailure(PlayIntent intent, String error);
         void reject(Rejection reason);
         /**
          * The replacement question with Quick Resume's second answer: {@code replace} stops the
@@ -322,8 +346,11 @@ public final class SessionOrchestrator implements AutoCloseable {
         void launch(PlayIntent intent, NvApp target, LaunchTransitionType type,
                     String sourceSuspendId, boolean ownsFreshSunshineSession);
         void preflightFailed(HostLaunchPreflight.Failure failure);
-        /** Shows the failure screen for this exact path; the orchestrator recorded it. */
-        void sessionFailed(PlayIntent intent, SessionFailure reason);
+        /**
+         * Shows the failure screen for this exact path; the orchestrator recorded it.
+         * {@code detail}: the raised reason token (a child's own refusal), "" for none.
+         */
+        void sessionFailed(PlayIntent intent, SessionFailure reason, String detail);
         /**
          * Wakes, preflights and reads the host for a warm-up the table started; null, its
          * failure shown as the warm-up status, when it does not answer. Runs on the worker.
@@ -375,6 +402,8 @@ public final class SessionOrchestrator implements AutoCloseable {
     /** The request that restarted a queued Play: its re-queue keeps the first queued time. */
     private long restartedRequest;
     private long restartedSince;
+    /** This screen's queue step while it is resumed ({@link #screenShown}). */
+    private final Runnable queueStep = this::advanceQueue;
 
     SessionOrchestrator(Effects effects, Executor executor, Dispatcher dispatcher,
                         PlayQueue queue) {
@@ -393,6 +422,8 @@ public final class SessionOrchestrator implements AutoCloseable {
 
     /** {@code queuedSince}: when the queued Play this restarts was first queued (0: none). */
     private void play(PlayIntent intent, long queuedSince) {
+        // A newer Play: a switch handed to a stream screen no longer decides anything.
+        queue.dropHandoff();
         if (handoffPreparingGame(intent)) return;
         lastIntent = intent;
         long request = orchestrationId.incrementAndGet();
@@ -494,6 +525,7 @@ public final class SessionOrchestrator implements AutoCloseable {
      * console replacing a stream Home whose stream closed). Its own cancel follows.
      */
     void screenLeft() {
+        queue.paused(queueStep);
         long current = orchestrationId.get();
         if (closed || inFlight != current || restartedRequest != current
                 || lastIntent == null || queue.intent() != null) return;
@@ -534,13 +566,34 @@ public final class SessionOrchestrator implements AutoCloseable {
     }
 
     /**
+     * This screen was resumed: the queued Play takes its next step, and a handed-off switch
+     * failing while it stays resumed is decided at once, not on its next snapshot.
+     */
+    void screenShown() {
+        queue.resumed(queueStep);
+        advanceQueue();
+    }
+
+    /**
      * A Play queued behind a close starts as a normal Play once the close is confirmed, and is
      * dropped when it failed. Its bound (counted from its first queueing) passing while the
      * latest snapshot still reads closing drops it; one that ended by then still starts.
+     * A handed-off switch failure no screen decided within that bound is dropped: the user
+     * moved on, so nothing is decided or closed for it, and their next Play starts afresh.
      */
     private void advanceQueue() {
+        if (closed || !effects.drivesQueue()) return;
+        PlayQueue.Handoff failed = queue.takeFailedHandoff();
+        if (failed != null) {
+            if (!queueExpired(failed.failedAt)) {
+                continueHandoff(failed);
+                return;
+            }
+            diagnostic("WARN", "orchestration.handoff_dropped", orchestrationId.get(),
+                    failed.intent, "handoff_id", failed.id);
+        }
         PlayIntent waiting = queue.intent();
-        if (waiting == null || closed || !effects.drivesQueue()) return;
+        if (waiting == null) return;
         switch (queuedStep(effects.rendered(waiting.profileKey))) {
             case WAIT:
                 if (queueExpired(queue.since())) dropQueued(QueueDrop.CLOSE_UNCONFIRMED);
@@ -561,6 +614,32 @@ public final class SessionOrchestrator implements AutoCloseable {
                 effects.queueChanged();
                 play(waiting, since);
         }
+    }
+
+    /**
+     * The attaching stream screen's switch of a Play this table handed it failed: decided as
+     * the console's own switch failure ({@link #close}, {@link #switchRefusal}). A switch the
+     * stream refused or could not take is replaced by the common close and a fresh launch; one
+     * meant to keep the running game, and a child's own refusal, end on the failure screen with
+     * Retry. A handed-off freeze or swap was never an authorized replacement ({@link #switchStop}).
+     */
+    private void continueHandoff(PlayQueue.Handoff failed) {
+        PlayIntent intent = failed.intent;
+        lastIntent = intent;
+        restartedRequest = 0L;
+        long request = orchestrationId.incrementAndGet();
+        SessionFailure.Raised refused = effects.switchFailure(intent, failed.failure);
+        CloseResult fallback = switchRefusal(refused.reason, false, failed.keepsRunningGame);
+        diagnostic("WARN", "orchestration.handoff_failed", request, intent,
+                "handoff_id", failed.id, "reason", refused.reason.code,
+                "detail", SessionFailure.safeDetail(refused.detail),
+                "status", fallback == null ? "FAILED" : fallback.name());
+        if (fallback == null) {
+            fail(request, intent, refused.reason, refused);
+            return;
+        }
+        inFlight = request;
+        evaluate(request, intent, Progress.handedBack(fallback));
     }
 
     private void queue(long request, PlayIntent intent) {
@@ -736,6 +815,13 @@ public final class SessionOrchestrator implements AutoCloseable {
         SessionSnapshot session;
         /** The retained stream can take this game without being closed. */
         boolean canSwitchRetained;
+        /**
+         * The live stream cannot take this game: a switch of it was refused in this request, or
+         * it carries no game while the host verifiably runs this one for another actor
+         * ({@link #gamelessOtherActor}). Nothing returns to it; the common close and a fresh
+         * launch replace it.
+         */
+        boolean replaceRetained;
         /** The live stream carries no game and the host names one without process proof. */
         boolean retainedGameUnproven;
         /**
@@ -745,6 +831,8 @@ public final class SessionOrchestrator implements AutoCloseable {
         boolean retainedObservationPending;
         /** A live warm-up attempt carries the game into the resumed neutral stream. */
         boolean warmUpCarriesGame;
+        /** This client saved a reconnect record of this host and execution profile. */
+        boolean reconnectRecord;
         boolean replacementAuthorized;
         boolean reuseOnly;
         /** The user's answer to a Quick Resume question (STOP, FREEZE); null: none asked. */
@@ -812,6 +900,11 @@ public final class SessionOrchestrator implements AutoCloseable {
         public boolean failedStartCleanup;
         /** The host granted this transport a control generation. */
         public boolean controlGranted;
+        /**
+         * This start thaws or joins a game the user kept (Quick Resume; the coordinator's
+         * startKeepsGame): no cleanup of it stops that game. A reveal is no such fact.
+         */
+        public boolean startKeepsGame;
         public boolean authorizationRetryOffered;
         public boolean failedStartObservation;
         public boolean retainedSwitch;
@@ -1125,7 +1218,8 @@ public final class SessionOrchestrator implements AutoCloseable {
         switch (s.closeOutcome) {
             // The user's Cancel (of the close or of the switch on the stream) wins: nothing more.
             case CANCELLED: return Action.of(ActionKind.IGNORE);
-            case NEEDS_REPLACEMENT: return Action.of(ActionKind.REPLACE);
+            case NEEDS_REPLACEMENT:
+            case SWITCH_REFUSED: return Action.of(ActionKind.REPLACE);
             case REUSED: return Action.of(ActionKind.RETURN_TO_STREAM);
             case PRESENTATION_REQUIRED: return Action.of(ActionKind.ATTACH_PRESENTATION);
             default: break;
@@ -1189,7 +1283,9 @@ public final class SessionOrchestrator implements AutoCloseable {
         }
         if (snapshot.state == SessionSnapshot.State.UNCERTAIN) {
             // Once recovered, an observation not yet newer than the recovery decides nothing.
-            if (game && s.recovery == Recovery.NONE) {
+            // The installation stream recovers what runs like a game does, then launches.
+            if ((game || intent.kind == PlayIntent.Kind.INSTALLATION_SUPPORT)
+                    && s.recovery == Recovery.NONE) {
                 return Action.step(s.opaqueReady ? ActionKind.REFRESH_SESSION
                                 : ActionKind.SHOW_LOADING, fresh, null,
                         s.replacementAuthorized, s.reuseOnly);
@@ -1218,10 +1314,11 @@ public final class SessionOrchestrator implements AutoCloseable {
             }
             return Action.failing(ActionKind.FAIL, SessionFailure.UNCERTAIN_AFTER_REFRESH);
         }
-        boolean matches = intent.matches(snapshot) && !s.canSwitchRetained;
+        boolean matches = intent.matches(snapshot) && !s.canSwitchRetained
+                && !s.replaceRetained;
+        // ACTIVE is this client's live stream (the resolver's knownLive): the user returns to it.
         if (snapshot.state == SessionSnapshot.State.ACTIVE && matches) {
-            return snapshot.retainedTransport ? Action.of(ActionKind.RETURN_TO_STREAM)
-                    : connect(s);
+            return Action.of(ActionKind.RETURN_TO_STREAM);
         }
         boolean reconnectingWarmUp = snapshot.state == SessionSnapshot.State.RECONNECT_REQUIRED
                 && snapshot.neutralStreamTarget
@@ -1245,6 +1342,9 @@ public final class SessionOrchestrator implements AutoCloseable {
         }
         if (!carriesNoGame && snapshot.state == SessionSnapshot.State.RECONNECT_REQUIRED
                 && (matches || reconnectingWarmUp)) {
+            // A failed close cleared the record before the host refused: nothing is left to
+            // resume, so the session the host runs is connected to instead.
+            if (!s.reconnectRecord) return connect(s);
             if (!s.opaqueReady) {
                 return Action.step(ActionKind.SHOW_LOADING, LaunchTransitionType.GENERIC, null,
                         s.replacementAuthorized, s.reuseOnly);
@@ -1334,7 +1434,7 @@ public final class SessionOrchestrator implements AutoCloseable {
      * first (the replacement question; for a frozen target with its "freeze" answer). A
      * confirmed replacement stops; a game the stream carries for another actor, or none, is
      * never frozen here. A freeze or swap the host refuses comes back as
-     * {@link SessionFailure#SWITCH_FREEZE_REFUSED}: the replacement question, then the stop.
+     * {@link SessionFailure#SWITCH_FREEZE_REFUSED}: the replacement with the stop follows.
      * Decided from the published slot: no host read before the switch.
      */
     static SwitchStop switchStop(State s, PlayIntent intent) {
@@ -1434,9 +1534,11 @@ public final class SessionOrchestrator implements AutoCloseable {
         if (s.retainedSwitch) return Action.of(ActionKind.CANCEL_RETAINED_SWITCH);
         if (retainedLiveStream(s)) return Action.of(ActionKind.COVER_AND_SHOW_HOME);
         boolean startsGame = s.type == LaunchTransitionType.GAME && s.hasGame;
-        // A start the host never confirmed ready closes its session, even manually revealed.
+        // A start the host never confirmed ready closes its session, even manually revealed;
+        // a thawed or joined game runs on: like a cancelled reconnect, only the transport ends.
         if (startsGame && (!s.revealed || !s.gameReadyConfirmed) && s.controlGranted) {
-            return Action.of(ActionKind.CLOSE_STARTED_SESSION);
+            return Action.of(s.startKeepsGame ? ActionKind.STOP_TRANSPORT_KEEP_SESSION
+                    : ActionKind.CLOSE_STARTED_SESSION);
         }
         // A cancelled reconnect to a running game never ends that game or its host stream.
         if (s.type == LaunchTransitionType.GAME_CONNECTION && s.hasGame) {
@@ -1513,6 +1615,7 @@ public final class SessionOrchestrator implements AutoCloseable {
                 && r.projection != null
                 && r.projection.streamerAppId == s.appId
                 && switchKeepsHostGame(s.playniteGameId, r.projection, intent.playniteGameId)
+                && !gamelessOtherActor(intent, r)
                 && s.hostId.equalsIgnoreCase(intent.hostId)
                 && (!s.profileId.equals(intent.profileId)
                         || !s.playniteGameId.equalsIgnoreCase(intent.playniteGameId))
@@ -1530,6 +1633,28 @@ public final class SessionOrchestrator implements AutoCloseable {
                                        String gameId) {
         return !retainedGameId.isEmpty() || projection.playniteGameId.isEmpty()
                 || projection.verifiedRunningGameId().equals(SessionSnapshot.normalize(gameId));
+    }
+
+    /**
+     * The live stream of this intent carries no game while the host verifiably runs exactly this
+     * game, and this actor is not the stream's own parent. The host reauthorizes a gameless
+     * stream only over an idle provider and never lets another actor take what it runs
+     * ({@link PlayniteIdentityResolutionPolicy#gamelessSwitch}): no switch adopts it, and a
+     * return would show it without this actor's own start. Adopting it in place needs the host.
+     */
+    static boolean gamelessOtherActor(PlayIntent intent, Retained r) {
+        SessionModel.Snapshot s = r.stream;
+        boolean sameParentActor = intent.profileId.equals(r.executionProfileId)
+                && s.profileId.equals(intent.profileId);
+        return !sameParentActor && r.projection != null
+                && intent.kind == PlayIntent.Kind.PLAYNITE_GAME
+                && (s.state == SessionModel.State.HOME_LIVE
+                || s.state == SessionModel.State.PARKED_LIVE)
+                && s.hostId.equalsIgnoreCase(intent.hostId)
+                && s.executionProfileId.equals(r.executionProfileId)
+                && s.playniteGameId.isEmpty()
+                && r.projection.verifiedRunningGameId().equals(
+                SessionSnapshot.normalize(intent.playniteGameId));
     }
 
     /** The live stream of this intent carries no game and the host names one without proof. */
@@ -1564,13 +1689,15 @@ public final class SessionOrchestrator implements AutoCloseable {
      * How the competing session gives way, read at effect time. Any actor, a child over its
      * parent's game included, switches on the live stream without asking (owner 2026-10-14):
      * the host gates the child's start. Everything else is a close and a fresh launch; this
-     * client's exact retained stream (the app the host runs) closes through its owner.
+     * client's exact retained stream (the app the host runs) closes through its owner. A switch
+     * the stream refused in this request ({@code switchRefused}) is never tried again.
      */
-    static ClosePath closePath(PlayIntent intent, NvApp target, boolean authorized, Retained r) {
+    static ClosePath closePath(PlayIntent intent, NvApp target, boolean authorized,
+                               boolean switchRefused, Retained r) {
         // Fails first: the close of an unknown host could not be acted on.
         if (r.projection == null) return ClosePath.HOST_UNAVAILABLE;
         SessionModel.Snapshot s = r.stream;
-        if (intent.kind == PlayIntent.Kind.PLAYNITE_GAME
+        if (!switchRefused && intent.kind == PlayIntent.Kind.PLAYNITE_GAME
                 && PlayniteTargetResolver.isNeutralStream(target)
                 && s.appId == target.getAppId() && canSwitchRetained(intent, r)) {
             // No Activity presents the retained transport: the switch must run inside an
@@ -1585,11 +1712,40 @@ public final class SessionOrchestrator implements AutoCloseable {
         return exactRetained ? ClosePath.CLOSE_RETAINED : ClosePath.CLOSE_DIRECT;
     }
 
-    /** A switch the stream refused as ineligible falls back to a close and a fresh launch. */
-    static boolean switchRefusalReplaces(SessionFailure reason, boolean authorized) {
-        return !authorized && (reason == SessionFailure.SWITCH_NOT_ELIGIBLE
-                || reason == SessionFailure.SWITCH_REFUSED
-                || reason == SessionFailure.SWITCH_FREEZE_REFUSED);
+    /**
+     * How a refused switch goes on; null: it fails. A freeze or swap the host refused asks, then
+     * switches with the stop. A switch the stream refused or could not take (ineligible, a game
+     * another actor holds) falls back to the common close and a fresh launch: Retry would only
+     * repeat it. A failed switch falls back only when its own stop would have ended the running
+     * game anyway ({@code keepsRunningGame} false); one meant to keep that game (the same game,
+     * a freeze or a swap) fails and leaves it running. A child's own host refusal (time,
+     * schedule, sharing) closes nothing, and a switch that timed out or was interrupted may
+     * still run: both fail.
+     */
+    static CloseResult switchRefusal(SessionFailure reason, boolean authorized,
+                                     boolean keepsRunningGame) {
+        switch (reason) {
+            case SWITCH_FREEZE_REFUSED:
+                return authorized ? null : CloseResult.NEEDS_REPLACEMENT;
+            case SWITCH_FAILED:
+                return keepsRunningGame ? null : CloseResult.SWITCH_REFUSED;
+            case SWITCH_NOT_ELIGIBLE:
+            case SWITCH_REFUSED:
+            case SESSION_HELD_BY_OTHER_ACTOR:
+                return CloseResult.SWITCH_REFUSED;
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * The switch keeps a running game instead of stopping it: it freezes or swaps, or its target
+     * is the game the stream carries or the host verifiably runs (the switch adopts it).
+     */
+    static boolean switchKeepsRunningGame(PlayIntent intent, SwitchStop stop, Retained r) {
+        String game = SessionSnapshot.normalize(intent.playniteGameId);
+        return stop != SwitchStop.STOP || r.stream.playniteGameId.equalsIgnoreCase(game)
+                || r.projection.verifiedRunningGameId().equals(game);
     }
 
     /**
@@ -1600,6 +1756,13 @@ public final class SessionOrchestrator implements AutoCloseable {
     static QueueStep queuedStep(SessionSnapshot s) {
         if (s.state == SessionSnapshot.State.TERMINATING || s.endingGame) return QueueStep.WAIT;
         return s.closeFailed ? QueueStep.DROP_CLOSE_FAILED : QueueStep.START;
+    }
+
+    /** The saved reconnect record is this intent's: the same host and execution profile. */
+    static boolean hasReconnectRecord(PlayIntent intent, String executionProfileId,
+                                      SessionResumeManager.PendingSession pending) {
+        return pending != null && pending.hostUuid.equalsIgnoreCase(intent.hostId)
+                && pending.executionProfileId.equals(executionProfileId);
     }
 
     /** A warm-up starts only while no other host, profile or close holds this client's stream. */
@@ -1714,15 +1877,16 @@ public final class SessionOrchestrator implements AutoCloseable {
     /**
      * A failed fresh neutral start closes the host session it began. A start the host refused
      * ({@code hostRefusedStart}) began none: closing would act without a control generation,
-     * be rejected and report a session left on the host that this attempt never started.
+     * be rejected and report a session left on the host that this attempt never started. A
+     * committed start (a thawed or joined Quick Resume game) runs on: only its transport ends.
      */
     public static boolean shouldTerminateFreshOwnedSunshineSession(
             boolean ownsFreshSession, boolean neutralTarget,
-            LaunchTransitionType type, boolean startsProviderGame,
+            LaunchTransitionType type, boolean startsProviderGame, boolean launchCommitted,
             boolean streamEverRevealed, boolean retainedSession, boolean hostRefusedStart) {
         return ownsFreshSession && neutralTarget && type == LaunchTransitionType.GAME
-                && startsProviderGame && !streamEverRevealed && !retainedSession
-                && !hostRefusedStart;
+                && startsProviderGame && !launchCommitted && !streamEverRevealed
+                && !retainedSession && !hostRefusedStart;
     }
 
     /**
@@ -1882,12 +2046,16 @@ public final class SessionOrchestrator implements AutoCloseable {
         SessionSnapshot snapshot = effects.resolve(intent.profileKey);
         if (!current(request)) return;
         Retained retained = effects.retained(intent);
-        State state = State.forPlay(snapshot, canSwitchRetained(intent, retained),
+        State state = State.forPlay(snapshot,
+                !p.switchRefused && canSwitchRetained(intent, retained),
                 effects.warmUpCarriesGame(), p.replacementAuthorized, p.reuseOnly,
                 p.opaqueReady, p.target != null, p.refresh == Refresh.OBSERVATION,
                 effects.isHostOnline(intent.hostId), effects.isPaired(intent.hostId));
+        state.replaceRetained = p.switchRefused || gamelessOtherActor(intent, retained);
         state.retainedGameUnproven = retainedGameUnproven(intent, retained);
         state.retainedObservationPending = retainedObservationPending(intent, retained);
+        state.reconnectRecord = hasReconnectRecord(intent, retained.executionProfileId,
+                effects.pendingResume());
         state.sessionRefreshed = p.refresh == Refresh.OBSERVATION
                 || p.refresh == Refresh.SESSION;
         state.refreshFailed = p.refresh == Refresh.FAILED;
@@ -1970,9 +2138,14 @@ public final class SessionOrchestrator implements AutoCloseable {
                         () -> evaluate(request, intent, p.chose(SwitchStop.FREEZE)));
                 break;
             case ATTACH_PRESENTATION:
-                diagnostic("INFO", "orchestration.presentation_required", request, intent);
                 inFlight = 0L;
-                effects.attachPresentationForSwitch(request, intent, p.target, p.switchStop);
+                // The stream screen runs the switch; a failure comes back to the next screen's
+                // table through the queue (continueHandoff). Unknown host: nothing is closed.
+                long handoff = queue.handOff(intent, retained.projection == null
+                        || switchKeepsRunningGame(intent, p.switchStop, retained));
+                diagnostic("INFO", "orchestration.presentation_required", request, intent,
+                        "handoff_id", handoff);
+                effects.attachPresentationForSwitch(handoff, intent, p.target, p.switchStop);
                 break;
             case IGNORE:
                 break;
@@ -2080,7 +2253,8 @@ public final class SessionOrchestrator implements AutoCloseable {
     private CloseResult close(PlayIntent intent, Progress step, BooleanSupplier cancelled)
             throws Exception {
         Retained retained = effects.retained(intent);
-        switch (closePath(intent, step.target, step.replacementAuthorized, retained)) {
+        switch (closePath(intent, step.target, step.replacementAuthorized, step.switchRefused,
+                retained)) {
             case ATTACH: return CloseResult.PRESENTATION_REQUIRED;
             case REPLACE: return CloseResult.NEEDS_REPLACEMENT;
             case HOST_UNAVAILABLE: throw SessionFailure.CLOSE_HOST_UNAVAILABLE.raise();
@@ -2089,10 +2263,14 @@ public final class SessionOrchestrator implements AutoCloseable {
                     return effects.switchRetained(intent, step.target, step.switchStop,
                             cancelled);
                 } catch (SessionFailure.Raised refused) {
-                    if (switchRefusalReplaces(refused.reason, step.replacementAuthorized)) {
-                        return CloseResult.NEEDS_REPLACEMENT;
-                    }
-                    throw refused;
+                    CloseResult fallback = switchRefusal(refused.reason,
+                            step.replacementAuthorized,
+                            switchKeepsRunningGame(intent, step.switchStop, retained));
+                    if (fallback == null) throw refused;
+                    diagnostic("WARN", "orchestration.switch_refused", orchestrationId.get(),
+                            intent, "reason", refused.reason.code,
+                            "detail", SessionFailure.safeDetail(refused.detail));
+                    return fallback;
                 }
             case CLOSE_RETAINED: return effects.closeSession(intent, retained.stream, cancelled);
             default: return effects.closeSession(intent, null, cancelled);
@@ -2121,7 +2299,7 @@ public final class SessionOrchestrator implements AutoCloseable {
         reason.record(request, intent.hostId, intent.profileId,
                 effects.resolve(intent.profileKey), raised ? cause.detail : "",
                 raised ? cause.errorType : "");
-        effects.sessionFailed(intent, reason);
+        effects.sessionFailed(intent, reason, raised ? cause.detail : "");
     }
 
     private void returnToRetained(long request, PlayIntent intent) {
@@ -2161,10 +2339,7 @@ public final class SessionOrchestrator implements AutoCloseable {
     private boolean current(long request) { return !closed && orchestrationId.get() == request; }
 
     private static LaunchTransitionType freshType(PlayIntent intent) {
-        switch (intent.kind) {
-            case PLAYNITE_GAME: return LaunchTransitionType.GAME;
-            case PLAYNITE_FULLSCREEN: return LaunchTransitionType.PLAYNITE;
-            default: return LaunchTransitionType.GENERIC;
-        }
+        return intent.kind == PlayIntent.Kind.PLAYNITE_GAME
+                ? LaunchTransitionType.GAME : LaunchTransitionType.GENERIC;
     }
 }

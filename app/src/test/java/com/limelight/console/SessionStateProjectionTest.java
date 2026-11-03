@@ -13,6 +13,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -138,8 +139,8 @@ public class SessionStateProjectionTest {
         // app was gone: autoResume false, so it counts only while the Gateway names its stream.
         SessionResumeManager.PendingSession adopted = SessionModelDriver.reconnectRecord(
                 "session", "host", "child", "parent", 42, "game", false);
-        assertFalse("no observation names it yet", owner.rendered(m.snapshot(),
-                local(adopted), 0L).isReconnectRequired());
+        assertNotEquals("no observation names it yet", SessionSnapshot.State.RECONNECT_REQUIRED,
+                owner.rendered(m.snapshot(), local(adopted), 0L).state);
         long ordinal = owner.nextRequestOrdinal();
         assertNotNull(owner.accept(ready("boot-a", ordinal), m.snapshot(), 0L));
 
@@ -151,6 +152,7 @@ public class SessionStateProjectionTest {
                 ConsoleHostPresentation.State.ONLINE, paused));
         SessionOrchestrator.State play = SessionOrchestrator.State.forPlay(paused,
                 false, false, false, false, true, true, false, true, true);
+        play.reconnectRecord = true;
         assertEquals(SessionOrchestrator.ActionKind.RECONNECT, SessionOrchestrator.transition(
                 play, SessionOrchestrator.UserIntent.play(PlayIntent.playniteGame(
                         "host", "child", 42, "Game", false, "game", "game"))).kind);
@@ -158,11 +160,13 @@ public class SessionStateProjectionTest {
         // A record of a stream the Gateway does not name is nothing to resume.
         SessionResumeManager.PendingSession gone = SessionModelDriver.reconnectRecord(
                 "gone-stream", "host", "child", "parent", 42, "game", false);
-        assertFalse(owner.rendered(m.snapshot(), local(gone), 0L).isReconnectRequired());
+        assertNotEquals(SessionSnapshot.State.RECONNECT_REQUIRED,
+                owner.rendered(m.snapshot(), local(gone), 0L).state);
         // Another execution profile's record is never this profile's session.
         SessionResumeManager.PendingSession foreign = SessionModelDriver.reconnectRecord(
                 "session", "host", "other", "other", 42, "game", false);
-        assertFalse(owner.rendered(m.snapshot(), local(foreign), 0L).isReconnectRequired());
+        assertNotEquals(SessionSnapshot.State.RECONNECT_REQUIRED,
+                owner.rendered(m.snapshot(), local(foreign), 0L).state);
     }
 
     private static SessionStateResolver.LocalFacts local(

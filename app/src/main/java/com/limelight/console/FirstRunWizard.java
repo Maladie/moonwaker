@@ -16,6 +16,7 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -50,6 +51,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -68,13 +70,14 @@ import java.util.function.Consumer;
 final class FirstRunWizard {
     /** Step B's download link (design 5.2); the QR is generated from it at runtime. */
     static final String INSTALLER_URL = "https://is.gd/moonwaker_host_083";
-    static final String STEAM_KEY_URL = "https://steamcommunity.com/dev/apikey";
     static final String PREFS = "first_run_wizard";
     static final long REFRESH_MS = 3_000L;
     static final long WAKE_TICK_MS = 1_000L;
     /** After this long without a host, step C lights "I can't see the computer". */
     static final long NOT_FOUND_AFTER_MS = 30_000L;
     static final int CODE_LENGTH = 6;
+    /** The Gateway's limit on a host name. */
+    static final int HOST_NAME_MAX_LENGTH = 32;
     private static final String NEXT_AFTER_LANGUAGE = "next_after_language";
     private static final String RESUME_ENTRY = "resume_entry";
     private static final String RESUME_STEP = "resume_step";
@@ -98,13 +101,13 @@ final class FirstRunWizard {
         /** The console's sleep request, as from the host panel. */
         void sleep(ComputerDetails host, GatewayConnection connection);
 
-        /** #45 "Add profile"; {@code done} gets the new profile ID, or null. */
-        void createAdultProfile(ComputerDetails host, HostGatewayClient.IntegrationProfile actor,
-                                Consumer<String> done);
-
         /** #44: the first PIN of an adult profile on the PIN page; {@code done} on any exit. */
         void setAdultPin(ComputerDetails host, HostGatewayClient.IntegrationProfile profile,
                          GatewayConnection connection, Runnable done);
+
+        /** Step D: the PIN page unlocks {@code profile}; {@code done} gets whether it did. */
+        void unlockProfile(ComputerDetails host, HostGatewayClient.IntegrationProfile profile,
+                           Consumer<Boolean> done);
 
         void saveProfiles(String hostId, HostGatewayClient.IntegrationProfiles profiles);
 
@@ -126,6 +129,10 @@ final class FirstRunWizard {
         boolean menuSounds();
 
         void setMenuSounds(boolean on);
+
+        boolean reducedMotion();
+
+        void setReducedMotion(boolean on);
 
         boolean playStationButtons();
 
@@ -163,6 +170,12 @@ final class FirstRunWizard {
 
     private Entry entry = Entry.FIRST_RUN;
     private Step step = Step.WELCOME;
+    /** Opened on one step from Settings: leaving it ends the run. */
+    private boolean singleStep;
+    /** This run already asked for the profile's PIN after a refusal. */
+    private boolean unlockAsked;
+    /** Step H3 opens the features once the host's capabilities are read. */
+    private boolean featuresPending;
     private String hostId;
     /** Picked in step D; the console switches to it when the wizard ends. */
     private String chosenProfileId;
@@ -184,6 +197,13 @@ final class FirstRunWizard {
     private final StringBuilder code = new StringBuilder();
     /** Paired by this run; the manager's next poll confirms it. */
     private String justPaired;
+    /** C: "Name the computer" is open over the paired screen. */
+    private boolean naming;
+    private boolean savingName;
+    private String nameError;
+    /** The name this run saved for {@link #renamedHost}, until the manager's poll reads it. */
+    private String renamedHost;
+    private String renamedTo;
 
     private WakePhase wake = WakePhase.NOT_TESTED;
     private long wakePhaseAt;
@@ -242,14 +262,34 @@ final class FirstRunWizard {
         openAt(entry, hostId, FirstRunPlan.first(entry));
     }
 
-    /** Opens a run at {@code step}, e.g. a "To finish" item from Settings. */
+    /** Opens a run at {@code step} that goes on through the following steps. */
     void openAt(Entry entry, String hostId, Step step) {
         this.entry = entry;
         this.hostId = hostId;
         chosenProfileId = null;
         parentPanel = false;
         capabilities = null;
+        singleStep = false;
+        unlockAsked = false;
         go(step);
+    }
+
+    /**
+     * Settings › Setup: just {@code step} (a wake test, a "To finish" item); Next, Skip and Back
+     * leave the wizard instead of walking through the other steps.
+     */
+    void openStep(String hostId, Step step) {
+        openAt(Entry.SETTINGS, hostId, step);
+        singleStep = true;
+    }
+
+    /** The steps Settings offers one by one: those after pairing, before the end. */
+    static List<Step> settingsSteps() {
+        List<Step> steps = new ArrayList<>();
+        for (Step item : Step.values()) {
+            if (item.compareTo(Step.PROFILE) >= 0 && item != Step.DONE) steps.add(item);
+        }
+        return steps;
     }
 
     boolean isShowing() {
@@ -366,8 +406,7 @@ final class FirstRunWizard {
         ComputerDetails chosen = chosenHost();
         HostGatewayClient.IntegrationProfile profile = chosenProfile();
         return new FirstRunPlan.Facts(chosen != null && isPaired(chosen), profile != null,
-                profile != null && profile.isChild(),
-                capabilities != null && capabilities.childProfiles, true);
+                profile != null && profile.isChild(), true);
     }
 
     private void go(Step target) {
@@ -383,6 +422,7 @@ final class FirstRunWizard {
     private void enter() {
         notFound = false;
         chooseHost = false;
+        featuresPending = false;
         // A run opened on a later step (a "To finish" item) reads the host's facts first: they
         // decide which steps the run has, so its numbering and dots.
         if (capabilities == null && step.compareTo(Step.READINESS) > 0) fetchProfiles();
@@ -391,6 +431,7 @@ final class FirstRunWizard {
                 discoveryStartedAt = SystemClock.elapsedRealtime();
                 break;
             case PAIR:
+                naming = false;
                 pairing = Pairing.IDLE;
                 pairingFailure = null;
                 code.setLength(0);
@@ -421,7 +462,13 @@ final class FirstRunWizard {
                 proposeAutoLogin();
                 break;
             case FEATURES:
-                host.showFeatures(capabilities, eyebrow(), this::next);
+                // Opens by itself, with the host's cards: read the host first when needed.
+                if (capabilities != null) {
+                    host.showFeatures(capabilities, eyebrow(), this::next);
+                } else {
+                    featuresPending = true;
+                    fetchProfiles();
+                }
                 break;
             default:
                 break;
@@ -431,7 +478,7 @@ final class FirstRunWizard {
     private void next() {
         if (!FirstRunPlan.canContinue(step, facts())) return;
         leave();
-        Step following = FirstRunPlan.next(step, entry, facts());
+        Step following = singleStep ? null : FirstRunPlan.next(step, entry, facts());
         if (following == null) finish();
         else go(following);
     }
@@ -439,7 +486,7 @@ final class FirstRunWizard {
     private void skip() {
         if (!FirstRunPlan.skippable(step)) return;
         leave();
-        Step following = FirstRunPlan.next(step, entry, facts());
+        Step following = singleStep ? null : FirstRunPlan.next(step, entry, facts());
         if (following == null) finish();
         else go(following);
     }
@@ -456,13 +503,18 @@ final class FirstRunWizard {
         } else if (step == Step.PAIR && pairing == Pairing.FAILED) {
             pairing = Pairing.IDLE;
             code.setLength(0);
+        } else if (step == Step.PAIR && naming) {
+            // A save still running reports to a generation that is gone.
+            generation++;
+            naming = false;
+            savingName = false;
         } else if (step == Step.PAIR && chooseHost && hostId != null) {
             chooseHost = false;
         } else if (step == Step.READINESS
                 && (wake == WakePhase.SLEEPING || wake == WakePhase.WAKING)) {
             wake = WakePhase.NOT_TESTED;
         } else {
-            Step previous = FirstRunPlan.previous(step, entry, facts());
+            Step previous = singleStep ? null : FirstRunPlan.previous(step, entry, facts());
             if (previous == null) close();
             else go(previous);
             return;
@@ -602,16 +654,25 @@ final class FirstRunWizard {
             } catch (IOException | RuntimeException unavailable) {
                 return;
             }
+            boolean locked = false;
             try {
                 read = client.getCapabilities(connection);
             } catch (IOException | RuntimeException unavailable) {
                 // The profile list stands on its own.
+                locked = HostGatewayClient.isProfileUnlockRequired(unavailable);
             }
             HostGatewayClient.Capabilities result = read;
+            boolean askPin = locked;
             main.post(() -> {
                 if (token != generation || !forHost.equals(hostId)) return;
                 host.saveProfiles(forHost, profiles);
                 if (result != null) capabilities = result;
+                // Step D asks for the PIN itself when a profile is picked.
+                if (askPin && step != Step.PROFILE) askUnlock();
+                if (featuresPending && step == Step.FEATURES && result != null) {
+                    featuresPending = false;
+                    host.showFeatures(capabilities, eyebrow(), this::next);
+                }
                 if (page.onScreen()) render(false);
                 schedule();
             });
@@ -626,11 +687,14 @@ final class FirstRunWizard {
         executor.execute(() -> {
             HostGatewayClient.Capabilities read;
             HostGatewayClient.IntegrationProfiles profiles = null;
+            boolean locked = false;
             try {
                 read = client.getCapabilities(connection);
             } catch (IOException | RuntimeException unavailable) {
                 read = null;
+                locked = HostGatewayClient.isProfileUnlockRequired(unavailable);
             }
+            boolean askPin = locked;
             try {
                 profiles = client.getIntegrationProfiles(connection);
             } catch (IOException | RuntimeException unavailable) {
@@ -645,8 +709,24 @@ final class FirstRunWizard {
                     capabilities = result;
                 }
                 if (profileResult != null) host.saveProfiles(forHost, profileResult);
+                if (askPin) askUnlock();
                 if (page.onScreen()) render(false);
             });
+        });
+    }
+
+    /**
+     * The Gateway answers this profile only once its PIN was entered (e.g. the app restarted
+     * mid-run): ask once per run, not on every refresh.
+     */
+    private void askUnlock() {
+        ComputerDetails computer = chosenHost();
+        HostGatewayClient.IntegrationProfile profile = chosenProfile();
+        if (unlockAsked || computer == null || profile == null || !page.onScreen()) return;
+        unlockAsked = true;
+        host.unlockProfile(computer, profile, unlocked -> {
+            page.show();
+            refresh();
         });
     }
 
@@ -657,7 +737,7 @@ final class FirstRunWizard {
         return new FirstRunPlan.Readiness(
                 read == null ? null : read.vibepolloFix,
                 read == null ? null : read.playnite,
-                setup == null ? null : setup.steamApiKeySaved,
+                setup == null ? null : setup.steamConnected,
                 setup == null ? null : setup.epicSignedIn,
                 profile == null ? null
                         : profile.remoteSignIn && "ready".equals(profile.remoteSignInState),
@@ -927,7 +1007,7 @@ final class FirstRunWizard {
         if (chosen == null || chooseHost) return hostList(found);
         if (pairing == Pairing.BUSY) return pairingProgress(chosen);
         if (pairing == Pairing.FAILED && pairingFailure != null) return repair(chosen, found);
-        if (isPaired(chosen)) return paired(chosen, found);
+        if (isPaired(chosen)) return naming ? naming(chosen) : paired(chosen, found);
         GatewayConnection gateway = connection();
         if (chosen.state != ComputerDetails.State.ONLINE) return asleep(chosen, found);
         if (gateway != null) return streamOnly(chosen, gateway, found);
@@ -1120,6 +1200,18 @@ final class FirstRunWizard {
                 primary = page.pill("c.retry", text(R.string.first_run_enter_new_code), 0,
                         this::retypeCode);
                 break;
+            case CODE_INVALID:
+                problem = text(R.string.first_run_code_failed_title);
+                help = text(R.string.first_run_code_check_body);
+                primary = page.pill("c.retry", text(R.string.first_run_enter_code_again), 0,
+                        this::retypeCode);
+                break;
+            case RATE_LIMITED:
+                problem = text(R.string.first_run_code_rate_limited_title);
+                help = text(R.string.first_run_code_rate_limited_body);
+                primary = page.pill("c.retry", text(R.string.first_run_retry), 0,
+                        this::resendCode);
+                break;
             case UNREACHABLE:
                 problem = text(R.string.first_run_unreachable_title, chosen.name);
                 help = text(R.string.first_run_unreachable_body);
@@ -1179,6 +1271,19 @@ final class FirstRunWizard {
         render(true);
     }
 
+    /** After the Gateway's one-minute rate limit the same code is sent again. */
+    private void resendCode() {
+        ComputerDetails current = chosenHost();
+        if (current == null || current.activeAddress == null || code.length() < CODE_LENGTH) {
+            retypeCode();
+            return;
+        }
+        pairing = Pairing.BUSY;
+        pairingStage = 0;
+        pairingFlow.pairWithCode(current, code.toString(), pairingListener());
+        render(true);
+    }
+
     /** A message card with a mark, then pills; for C's simple sub-screens. */
     private LinearLayout messageBody(int markKind, String message, View... pills) {
         LinearLayout body = page.column(Gravity.CENTER_HORIZONTAL);
@@ -1195,16 +1300,111 @@ final class FirstRunWizard {
     }
 
     private Screen paired(ComputerDetails chosen, List<ComputerDetails> found) {
-        Screen screen = new Screen("C:paired:" + chosen.uuid + ":" + found.size());
-        screen.title = text(R.string.first_run_paired_title, chosen.name);
-        screen.subtitle = text(R.string.first_run_paired_subtitle);
+        String name = hostName(chosen);
+        Screen screen = new Screen("C:paired:" + chosen.uuid + ":" + found.size() + ":" + name);
+        screen.title = text(R.string.first_run_paired_title, name);
+        screen.subtitle = text(chosen.uuid.equals(renamedHost) ? R.string.first_run_name_saved
+                : R.string.first_run_paired_subtitle);
         TextView next = page.pill("c.next", text(R.string.first_run_next), 0, this::next);
-        screen.body = messageBody(Mark.OK, text(R.string.first_run_paired_body, chosen.name),
-                next, otherHostPill(found));
+        TextView rename = connection() == null ? null : page.pill("c.rename",
+                text(R.string.first_run_name_open), 0, () -> {
+                    naming = true;
+                    nameError = null;
+                    render(true);
+                });
+        screen.body = messageBody(Mark.OK, text(R.string.first_run_paired_body, name),
+                next, rename, otherHostPill(found));
         screen.focus = next;
         selectKey(screen, R.string.console_select_hint);
         backKey(screen, R.string.first_run_back);
         return screen;
+    }
+
+    /** The name this run saved, until the manager's poll of the host reads it. */
+    private String hostName(ComputerDetails chosen) {
+        return chosen.uuid.equals(renamedHost) ? renamedTo : chosen.name;
+    }
+
+    // C: name the computer in Vibepollo, so mDNS and every client show it.
+    private Screen naming(ComputerDetails chosen) {
+        Screen screen = new Screen("C:name:" + chosen.uuid);
+        screen.title = text(R.string.first_run_name_title);
+        screen.subtitle = text(R.string.first_run_name_subtitle);
+        LinearLayout body = page.column(Gravity.CENTER_HORIZONTAL);
+        EditText field = page.add(body, page.field("c.name.field", hostName(chosen),
+                HOST_NAME_MAX_LENGTH), 420, 0);
+        TextView hint = page.add(body, page.wrapped("", 13, FirstRunWizardPage.TEXT_SECONDARY,
+                false, 2), 460, 12);
+        hint.setGravity(Gravity.CENTER);
+        TextView save = page.pill("c.name.save", text(R.string.first_run_name_save), 0,
+                () -> saveName(chosen, field));
+        TextView skip = page.pill("c.name.skip", text(R.string.first_run_skip), 0, this::next);
+        field.setOnEditorActionListener((view, action, event) -> {
+            save.requestFocus();
+            return false;
+        });
+        page.add(body, page.pills(save, skip), ViewGroup.LayoutParams.WRAP_CONTENT, 22);
+        screen.bind(() -> {
+            field.setEnabled(!savingName);
+            save.setText(text(savingName ? R.string.first_run_name_saving
+                    : R.string.first_run_name_save));
+            hint.setTextColor(nameError == null ? FirstRunWizardPage.TEXT_SECONDARY
+                    : FirstRunWizardPage.WARN);
+            hint.setText(nameError != null ? nameError
+                    : text(R.string.first_run_name_hint, chosen.name));
+        });
+        screen.body = body;
+        screen.focus = field;
+        selectKey(screen, R.string.first_run_type);
+        backKey(screen, R.string.first_run_back);
+        return screen;
+    }
+
+    private void saveName(ComputerDetails chosen, EditText field) {
+        if (savingName) return;
+        String name = field.getText().toString().trim();
+        GatewayConnection gateway = connection();
+        if (name.isEmpty() || gateway == null) {
+            nameError = text(name.isEmpty() ? R.string.first_run_name_invalid
+                    : R.string.first_run_name_failed);
+            render(false);
+            return;
+        }
+        if (name.equals(hostName(chosen))) {
+            naming = false;
+            render(true);
+            return;
+        }
+        savingName = true;
+        nameError = null;
+        render(false);
+        int token = generation;
+        String requestId = UUID.randomUUID().toString();
+        executor.execute(() -> {
+            String saved = null;
+            String failure = null;
+            try {
+                saved = client.setHostName(gateway, name, requestId);
+            } catch (IOException | RuntimeException error) {
+                failure = String.valueOf(error.getMessage());
+            }
+            String result = saved;
+            String reason = failure;
+            main.post(() -> {
+                if (token != generation) return;
+                savingName = false;
+                if (result != null) {
+                    renamedHost = chosen.uuid;
+                    renamedTo = result;
+                    naming = false;
+                    render(true);
+                } else {
+                    nameError = text("host_name_invalid".equals(reason)
+                            ? R.string.first_run_name_invalid : R.string.first_run_name_failed);
+                    render(false);
+                }
+            });
+        });
     }
 
     private Screen asleep(ComputerDetails chosen, List<ComputerDetails> found) {
@@ -1290,8 +1490,8 @@ final class FirstRunWizard {
             }
 
             @Override public void onPaired(ComputerDetails paired) {
-                feedback.dismissModal();
                 if (token != generation) return;
+                feedback.dismissModal();
                 pairing = Pairing.IDLE;
                 justPaired = paired.uuid;
                 host.paired(paired.uuid);
@@ -1300,8 +1500,8 @@ final class FirstRunWizard {
 
             @Override public void onFailed(ComputerDetails failed,
                                            HostPairingFlow.Failure failure) {
-                feedback.dismissModal();
                 if (token != generation) return;
+                feedback.dismissModal();
                 pairing = Pairing.FAILED;
                 pairingFailure = failure;
                 render(true);
@@ -1326,13 +1526,9 @@ final class FirstRunWizard {
         LinearLayout avatars = page.line(Gravity.TOP);
         int count = profiles.size() + (canAdd ? 1 : 0);
         int column = Math.min(160, 900 / Math.max(1, count));
-        HostGatewayClient.IntegrationProfile adult = null;
         boolean onlyChildren = !profiles.isEmpty();
         for (HostGatewayClient.IntegrationProfile profile : profiles) {
-            if (!profile.isChild()) {
-                onlyChildren = false;
-                if (adult == null) adult = profile;
-            }
+            if (!profile.isChild()) onlyChildren = false;
             String id = profile.id;
             LinearLayout avatar = page.avatar("d.profile:" + id, profile,
                     ConsoleProfileSelectView.displayName(activity, profile),
@@ -1341,7 +1537,22 @@ final class FirstRunWizard {
                         chosenProfileId = id;
                         capabilities = null;
                         saveResume();
-                        next();
+                        // A PIN set in Host Control: the next steps read the host as this
+                        // profile, which the Gateway answers only once it is unlocked.
+                        if (!profile.pinRequired || computer == null) {
+                            next();
+                            return;
+                        }
+                        host.unlockProfile(computer, profile, unlocked -> {
+                            page.show();
+                            if (unlocked) {
+                                next();
+                                return;
+                            }
+                            refresh();
+                            View again = page.find("d.profile:" + id);
+                            if (again != null) again.requestFocus();
+                        });
                     });
             avatars.addView(avatar, new LinearLayout.LayoutParams(page.dp(column),
                     ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -1350,24 +1561,19 @@ final class FirstRunWizard {
             }
         }
         if (canAdd) {
-            HostGatewayClient.IntegrationProfile actor = adult;
+            // Profiles are made in Host Control on the PC; this list picks them up by itself.
             LinearLayout add = page.avatar("d.add", null, text(R.string.first_run_profile_add),
                     text(R.string.first_run_profile_add_detail),
-                    () -> host.createAdultProfile(computer, actor, created -> {
-                        if (created != null) {
-                            chosenProfileId = created;
-                            saveResume();
-                        }
-                        page.show();
-                        refresh();
-                        View again = page.find("d.add");
-                        if (again != null) again.requestFocus();
-                    }));
+                    () -> feedback.showMessage(text(R.string.first_run_profile_add),
+                            text(R.string.first_run_profile_add_on_pc),
+                            text(R.string.console_close), null));
             avatars.addView(add, new LinearLayout.LayoutParams(page.dp(column),
                     ViewGroup.LayoutParams.WRAP_CONTENT));
             if (screen.focus == null) screen.focus = add;
         }
-        body.addView(avatars);
+        // Its own width, so the column centres the row of avatars.
+        body.addView(avatars, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         TextView note = page.wrapped(text(onlyChildren ? R.string.first_run_profile_adult_needed
                 : profiles.isEmpty() ? R.string.first_run_profile_none
                 : R.string.first_run_profile_refresh), 13,
@@ -1402,8 +1608,10 @@ final class FirstRunWizard {
             });
             screen.bind(() -> {
                 Status status = FirstRunPlan.status(check, readiness());
+                // Not answered yet is still being checked: a spinner, not an alarm.
                 row.mark.set(status == Status.OK ? Mark.OK : status == Status.ATTENTION
-                        ? Mark.ATTENTION : status == Status.CHECKING ? Mark.SPINNER : Mark.EMPTY);
+                        ? Mark.ATTENTION : status == Status.CHECKING || status == Status.UNKNOWN
+                        ? Mark.SPINNER : Mark.EMPTY);
                 row.detail.setText(statusText(check, status));
             });
             list.addView(match(row.view));
@@ -1434,30 +1642,27 @@ final class FirstRunWizard {
         return screen;
     }
 
-    /** E's right-hand card: how to fix the focused check, with a QR code for Steam's key. */
+    /** E's right-hand card: how to fix the focused check. */
     private final class InfoCard {
         final LinearLayout card = page.card(22, 20);
         final TextView title = page.wrapped("", 16, FirstRunWizardPage.TEXT, true, 2);
         final TextView body = page.wrapped("", 13, FirstRunWizardPage.TEXT_SECONDARY, false, 10);
-        final LinearLayout link = page.line(Gravity.CENTER_VERTICAL);
+        final TextView wakeTest = page.pill("e.wake.run", text(R.string.first_run_wake_test_run),
+                0, FirstRunWizard.this::confirmWakeTest);
         Check check = Check.VIBEPOLLO;
 
         InfoCard() {
             card.addView(match(title));
             page.add(card, body, ViewGroup.LayoutParams.MATCH_PARENT, 10);
-            link.addView(page.qr(STEAM_KEY_URL, 96));
-            LinearLayout words = page.column(Gravity.START);
-            words.addView(match(page.wrapped(STEAM_KEY_URL.replaceFirst("^https://", ""), 13,
-                    FirstRunWizardPage.TEXT, true, 3)));
-            page.add(words, page.wrapped(text(R.string.first_run_steam_key_caption), 11,
-                    FirstRunWizardPage.TEXT_SECONDARY, false, 3),
-                    ViewGroup.LayoutParams.MATCH_PARENT, 8);
-            page.beside(link, words, 0, 14);
-            page.add(card, link, ViewGroup.LayoutParams.MATCH_PARENT, 12);
+            page.add(card, wakeTest, ViewGroup.LayoutParams.WRAP_CONTENT, 14);
         }
 
         void show(Check shown) {
             check = shown;
+            boolean wakeRow = shown == Check.WAKE
+                    && FirstRunPlan.status(Check.WAKE, readiness()) != Status.CHECKING;
+            // Keeps its focus while shown: focus only moves to it from the wake row.
+            if (!wakeTest.isFocused()) wakeTest.setVisibility(wakeRow ? View.VISIBLE : View.GONE);
             title.setText(array(R.array.first_run_check_names)[shown.ordinal()]);
             String fix = array(R.array.first_run_check_fixes)[shown.ordinal()];
             if (shown == Check.EPIC && readiness().epicSignedIn == Boolean.TRUE
@@ -1466,7 +1671,6 @@ final class FirstRunWizard {
                 fix = text(R.string.first_run_epic_signed_in, capabilities.setup.epicDisplayName);
             }
             body.setText(fix);
-            link.setVisibility(shown == Check.STEAM_LIBRARY ? View.VISIBLE : View.GONE);
         }
     }
 
@@ -1599,8 +1803,8 @@ final class FirstRunWizard {
                 result = StreamingAutopilotController.analyze(activity, display, glRenderer,
                         http, http.getServerInfo(true), gateway);
             } catch (Exception failure) {
-                error = failure.getMessage() == null
-                        ? text(R.string.console_autopilot_error_unknown) : failure.getMessage();
+                error = HostGatewayClient.failureText(activity, failure,
+                        text(R.string.console_autopilot_error_unknown));
             }
             StreamingAutopilotController.Analysis done = result;
             String failed = error;
@@ -1809,17 +2013,27 @@ final class FirstRunWizard {
                     View again = page.find("g.pin");
                     if (again != null) again.requestFocus();
                 }) : null;
+        // A PIN already set is changed on the PC; the card still takes focus and says so.
+        Runnable pinInfo = () -> feedback.showMessage(text(R.string.first_run_family_pin_done),
+                text(R.string.first_run_family_pin_done_detail), text(R.string.console_close),
+                null);
         View pin = page.choiceCard("g.pin", pinSet ? R.drawable.ic_console_check_on
                         : R.drawable.ic_console_lock,
                 pinSet ? text(R.string.first_run_family_pin_done) : name.isEmpty()
                         ? text(R.string.console_adult_pin_set)
                         : text(R.string.first_run_family_pin_for, name),
                 text(pinSet ? R.string.first_run_family_pin_done_detail
-                        : R.string.first_run_family_pin_detail), setPin);
-        // A child is added in the parent panel, behind the parent's PIN: set one first.
-        Runnable addChild = !canSetPin ? null : () -> {
+                        : R.string.first_run_family_pin_detail), pinSet ? pinInfo : setPin);
+        boolean manages = profile != null && profile.manageChildren;
+        // A child is added in the parent panel, behind the parent's PIN: set one first. Without
+        // the "manage children" grant the TV cannot add one: Host Control does.
+        Runnable addChild = !canSetPin ? null : !manages ? () -> feedback.showMessage(
+                text(R.string.first_run_family_child), text(R.string.first_run_family_child_on_pc),
+                text(R.string.console_close), null) : () -> {
             if (chosenProfile() != null && chosenProfile().pinRequired) {
                 parentPanel = true;
+                ConsoleUiFeedback.makeText(activity, R.string.first_run_family_child_later,
+                        android.widget.Toast.LENGTH_LONG).show();
                 next();
                 return;
             }
@@ -1922,12 +2136,36 @@ final class FirstRunWizard {
         }
         toggle(screen, card, "h.sounds", text(R.string.first_run_extra_sounds),
                 text(R.string.first_run_extra_sounds_detail), host::menuSounds, host::setMenuSounds);
-        page.add(body, card, 560, 0);
+        toggle(screen, card, "h.motion", text(R.string.console_reduced_motion_label),
+                text(R.string.console_settings_desc_reduced_motion), host::reducedMotion,
+                host::setReducedMotion);
+        // Up to eight toggles: two columns keep the card and its buttons apart on the band.
+        View first = card.getChildAt(0);
+        List<View> rows = new ArrayList<>();
+        while (card.getChildCount() > 0) {
+            rows.add(card.getChildAt(0));
+            card.removeViewAt(0);
+        }
+        LinearLayout columns = page.line(Gravity.TOP);
+        int half = (rows.size() + 1) / 2;
+        for (int column = 0; column < 2; column++) {
+            LinearLayout list = page.column(Gravity.START);
+            for (View row : rows.subList(column == 0 ? 0 : half,
+                    column == 0 ? half : rows.size())) {
+                list.addView(match(row));
+            }
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            if (column == 1) params.leftMargin = page.dp(12);
+            columns.addView(list, params);
+        }
+        card.addView(match(columns));
+        page.add(body, card, 880, 0);
         TextView next = page.pill("h.next", text(R.string.first_run_next), 0, this::next);
         TextView skip = page.pill("h.skip", text(R.string.first_run_skip), 0, this::skip);
-        page.add(body, page.pills(next, skip), ViewGroup.LayoutParams.WRAP_CONTENT, 0);
+        page.add(body, page.pills(next, skip), ViewGroup.LayoutParams.WRAP_CONTENT, 18);
         screen.body = body;
-        screen.focus = card.getChildAt(0);
+        screen.focus = first;
         selectKey(screen, R.string.first_run_toggle);
         skipKey(screen, R.string.first_run_next);
         backKey(screen, R.string.first_run_back);
@@ -2043,7 +2281,10 @@ final class FirstRunWizard {
             card.addView(match(heading));
             for (Step item : open) {
                 Row row = page.row("i.todo:" + item.name(), true, stepName(item), null, false,
-                        () -> go(item));
+                        () -> {
+                            singleStep = true;
+                            go(item);
+                        });
                 row.mark.set(item == Step.READINESS ? Mark.ATTENTION : Mark.EMPTY);
                 row.view.setMinimumHeight(page.dp(32));
                 page.add(card, row.view, ViewGroup.LayoutParams.MATCH_PARENT, 4);

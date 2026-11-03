@@ -11,7 +11,6 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 public class ConsoleSessionSubscriberTest {
     private final SessionModelDriver m = new SessionModelDriver();
@@ -23,6 +22,7 @@ public class ConsoleSessionSubscriberTest {
                 private final long fakeGeneration =
                         com.limelight.session.SessionModelDriver.nextTransportGeneration();
                 @Override public long transportGeneration() { return fakeGeneration; }
+                @Override public String getExecutionProfileId() { return "default"; }
                 @Override public SessionModel.ParkOutcome parkRetainedTransport() { return SessionModel.ParkOutcome.PARKED; }
                 @Override public void disconnectRetainedStream(
                         SessionModel.TerminationCallback completion) { }
@@ -40,35 +40,8 @@ public class ConsoleSessionSubscriberTest {
     @Test public void nothingIsHeldBeforeTheFirstDelivery() {
         m.enterHome(owner, "session", "host", 7, "game-a");
 
-        assertFalse(subscriber.holdsTarget("host", 7, "game-a"));
         assertFalse(subscriber.reconnectRequired("host"));
         assertEquals(0, subscriber.warmUpStatus("host", true));
-    }
-
-    @Test public void retainedTargetFollowsTheDeliveredGameNotTheHomeLaunch() {
-        m.enterHome(owner, "session", "host", 7, "game-a");
-        deliverCurrent();
-        assertTrue(subscriber.holdsTarget("host", 0, "game-a"));
-
-        // The Home was launched for game-a; the stream now runs game-b.
-        m.enterHome(owner, "session", "host", 7, "game-b");
-        deliverCurrent();
-
-        assertTrue(subscriber.holdsTarget("HOST", 0, "game-b"));
-        assertFalse(subscriber.holdsTarget("host", 0, "game-a"));
-        assertTrue(subscriber.holdsTarget("host", 7, "other"));
-        assertFalse(subscriber.holdsTarget("other-host", 7, "game-b"));
-        assertEquals(2, renders.size());
-    }
-
-    @Test public void endedRetainedStreamHoldsNoTarget() {
-        m.enterHome(owner, "session", "host", 7, "game-a");
-        deliverCurrent();
-        assertTrue(m.clearIfMatches("session"));
-        deliverCurrent();
-
-        assertFalse(subscriber.holdsTarget("host", 7, "game-a"));
-        assertFalse(subscriber.holdsTarget("", 0, ""));
     }
 
     @Test public void sameSnapshotDeliveredAgainDoesNotRenderTwice() {

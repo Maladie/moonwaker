@@ -197,7 +197,7 @@ public class DiscordOverlayControllerTest {
                 "22222", true, true, 2, Arrays.asList(
                 new HostGatewayClient.DiscordParticipant("1", "Self", 80, true, true, true),
                 new HostGatewayClient.DiscordParticipant("2", "Friend", 125, false, false, false)));
-        OverlayMenuView.VoiceSummary projected = DiscordOverlayController.projectVerifiedVoice(verified, "Guild");
+        OverlayMenuView.VoiceSummary projected = DiscordOverlayController.projectVoice(verified, "Guild", null);
 
         assertTrue(projected.connected);
         assertEquals("Guild", projected.guildName);
@@ -234,14 +234,17 @@ public class DiscordOverlayControllerTest {
     }
 
     @Test
-    public void immediateLeaveOverrideShowsRejoinDespiteAStaleLegacyConnection() {
+    public void onlyAPollAgreeingWithAJoinOrLeaveConfirmsIt() {
         HostGatewayClient.DiscordVoice disconnected = new HostGatewayClient.DiscordVoice(false,
                 "", "", "", false, false, 0);
         HostGatewayClient.DiscordVoice joined = new HostGatewayClient.DiscordVoice(true,
                 "11111", "Voice", "22222", false, false, 1);
 
-        assertFalse(DiscordOverlayController.effectiveVoiceConnected(disconnected, null));
-        assertTrue(DiscordOverlayController.effectiveVoiceConnected(joined, null));
+        assertTrue(DiscordOverlayController.voiceMatchesExpected(false, "", disconnected));
+        assertFalse(DiscordOverlayController.voiceMatchesExpected(false, "", joined));
+        assertTrue(DiscordOverlayController.voiceMatchesExpected(true, "11111", joined));
+        assertFalse(DiscordOverlayController.voiceMatchesExpected(true, "33333", joined));
+        assertFalse(DiscordOverlayController.voiceMatchesExpected(true, "11111", null));
     }
 
     @Test
@@ -252,7 +255,7 @@ public class DiscordOverlayControllerTest {
                 text.indexOf("public void onDiscordCommunityOpenFriendChat("));
         String leave = text.substring(text.indexOf("public void leave()"), text.indexOf("public void rejoin()"));
 
-        assertTrue(join.contains("communityVoiceOverride = finalVerified"));
+        assertTrue(join.contains("voice = finalVerified"));
         assertTrue(join.contains("expectVoice(true, channel.id)"));
         assertTrue(join.contains("refresh(true)"));
         assertTrue(leave.contains("new HostGatewayClient.DiscordVoice(false"));
@@ -260,7 +263,7 @@ public class DiscordOverlayControllerTest {
         assertTrue(text.contains("if (force) pendingForceRefresh = true"));
         assertTrue(text.contains("if (pendingForceRefresh)"));
         assertTrue(text.contains("refresh(true);"));
-        assertTrue(text.contains("effectiveVoiceConnected(communityVoiceOverride, voice)"));
+        assertTrue(text.contains("acceptVoice(finalForce, finalResult)"));
     }
 
     @Test
@@ -271,12 +274,6 @@ public class DiscordOverlayControllerTest {
                 DiscordOverlayController.friendPresence(DiscordSocialClient.Friend.Group.ONLINE));
         assertEquals(OverlayMenuView.FriendPresence.OFFLINE,
                 DiscordOverlayController.friendPresence(DiscordSocialClient.Friend.Group.OFFLINE));
-    }
-
-    @Test
-    public void sendResultOnlyClearsDraftOnSuccess() {
-        assertEquals("", DiscordOverlayController.directMessageDraftAfterSendResult("draft", true));
-        assertEquals("draft", DiscordOverlayController.directMessageDraftAfterSendResult("draft", false));
     }
 
     @Test

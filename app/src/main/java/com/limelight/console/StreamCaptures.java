@@ -84,7 +84,7 @@ public final class StreamCaptures {
 
     /** The host's refusal reason; a lost or garbled answer is "failed". */
     static String reason(Exception error) {
-        String message = error instanceof HostGatewayClient.GatewayException
+        String message = error instanceof GatewayTransport.GatewayException
                 ? error.getMessage() : null;
         return message != null && message.matches("[a-z_]{1,32}") ? message : "failed";
     }

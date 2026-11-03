@@ -44,15 +44,13 @@ public class PlayniteIdentityPatternsTest {
         assertFalse(HostGatewayClient.isPlayniteId(repeat('a', 33) + ":1"));
     }
 
-    @Test public void providerFallsBackToTheSourceAndThenToPlaynite() {
-        assertEquals("steam", HostGatewayClient.providerOrLegacy(" Steam ", "gog"));
-        assertEquals("gog", HostGatewayClient.providerOrLegacy("", " GOG "));
-        assertEquals("epic", HostGatewayClient.providerOrLegacy("x", "epic"));
-        assertEquals("gog", HostGatewayClient.providerOrLegacy("bad provider", "gog"));
-        assertEquals("playnite", HostGatewayClient.providerOrLegacy("9steam", "also bad!"));
-        assertEquals("playnite", HostGatewayClient.providerOrLegacy(null, null));
-        assertEquals("playnite",
-                HostGatewayClient.providerOrLegacy(repeat('a', 33), "steam\nx"));
+    @Test public void providerIsTheRecordsOwnNameOnly() {
+        assertEquals("steam", HostGatewayClient.normalizedProvider(" Steam "));
+        assertEquals("", HostGatewayClient.normalizedProvider(""));
+        assertEquals("", HostGatewayClient.normalizedProvider("bad provider"));
+        assertEquals("", HostGatewayClient.normalizedProvider("9steam"));
+        assertEquals("", HostGatewayClient.normalizedProvider(null));
+        assertEquals("", HostGatewayClient.normalizedProvider(repeat('a', 33)));
     }
 
     @Test public void exactProviderIdentityNeverLoosens() {

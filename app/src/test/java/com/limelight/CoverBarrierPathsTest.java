@@ -291,8 +291,6 @@ public class CoverBarrierPathsTest {
         assertFalse(console.contains("doAfterNextFrame"));
         assertOrdered(console, "@Override public void showLoading(PlayIntent intent",
                 "afterLoadingCover(opaqueFrameReady);");
-        assertOrdered(console, "private void beginInstallationSupportStream(",
-                "afterLoadingCover(startAfterOverlayFrame);");
         assertOrdered(console, "private void afterLoadingCover(Runnable effect) {",
                 "streamLoadingView.frames().await(LOADING_COVER_FENCE,",
                 "LaunchTransitionController.runUnlessCancelled(effect));");

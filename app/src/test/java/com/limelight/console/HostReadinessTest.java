@@ -163,36 +163,6 @@ public class HostReadinessTest {
         assertNull(fresh.serverCert);
     }
 
-    @Test public void priorDecisionCanSkipWake() {
-        AtomicInteger sends = new AtomicInteger();
-
-        HostReadiness.awaitAfterWakeDecision(() -> null, new ComputerDetails(), false,
-                cancelAfterEntry(), ignored -> { }, "wake", "wait",
-                ignored -> sends.incrementAndGet());
-
-        assertEquals(0, sends.get());
-    }
-
-    @Test public void priorDecisionSendsWakeExactlyOnce() {
-        AtomicInteger sends = new AtomicInteger();
-
-        HostReadiness.awaitAfterWakeDecision(() -> null, new ComputerDetails(), true,
-                cancelAfterEntry(), ignored -> { }, "wake", "wait",
-                ignored -> sends.incrementAndGet());
-
-        assertEquals(1, sends.get());
-    }
-
-    @Test public void cancellationBeforeEntrySkipsWake() {
-        AtomicInteger sends = new AtomicInteger();
-
-        HostReadiness.awaitAfterWakeDecision(() -> null, new ComputerDetails(), true,
-                () -> true, ignored -> { }, "wake", "wait",
-                ignored -> sends.incrementAndGet());
-
-        assertEquals(0, sends.get());
-    }
-
     @Test public void awaitDownReturnsOnceThePortStopsAnswering() {
         ComputerDetails host = onlineHost();
         AtomicInteger probes = new AtomicInteger();

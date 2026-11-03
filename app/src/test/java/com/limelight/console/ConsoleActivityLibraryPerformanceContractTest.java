@@ -198,7 +198,7 @@ public class ConsoleActivityLibraryPerformanceContractTest {
         assertTrue(navigation.contains("candidate = buildPendingCarouselCard(candidate);"));
         String reveal = source.substring(source.indexOf(
                         "private void revealNormalLibraryAfterTransition()"),
-                source.indexOf("private void createCarouselToGridGhosts()"));
+                source.indexOf("private void focusExpandedLibrary()"));
         assertEquals(2, reveal.split("carouselCard\\(libraryTransitionGameId\\)", -1).length - 1);
     }
 

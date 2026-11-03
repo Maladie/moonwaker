@@ -69,6 +69,7 @@ final class ConsoleUiFeedback {
     private final ConsoleAudioEngine audio;
     private boolean reducedMotion;
     private Dialog modal;
+    private boolean released;
 
     ConsoleUiFeedback(Activity activity, FrameLayout root, ConsoleAudioEngine audio,
                       boolean reducedMotion) {
@@ -200,12 +201,19 @@ final class ConsoleUiFeedback {
                 }));
     }
 
-    /** A confirmation with a second answer; the last one ({@code primaryLabel}) has focus. */
+    /**
+     * A confirmation with a second answer; the last one ({@code primaryLabel}) has focus. Only
+     * the user's Cancel or Back runs {@code onCancel}: a modal replacing it or the release of
+     * this feedback dismisses it without an answer.
+     */
     void showChoice(CharSequence title, CharSequence message, CharSequence cancelLabel,
-                    CharSequence destructiveLabel, Runnable onDestructive,
+                    Runnable onCancel, CharSequence destructiveLabel, Runnable onDestructive,
                     CharSequence primaryLabel, Runnable onPrimary) {
         showModal(title, message, null,
-                new ModalAction(cancelLabel, false, value -> null),
+                new ModalAction(cancelLabel, false, value -> {
+                    onCancel.run();
+                    return null;
+                }),
                 new ModalAction(destructiveLabel, true, value -> {
                     onDestructive.run();
                     return null;
@@ -214,13 +222,18 @@ final class ConsoleUiFeedback {
                     onPrimary.run();
                     return null;
                 }));
+        Dialog shown = modal;
+        // Back cancels the dialog; its listener runs posted, so never after release().
+        if (shown != null) shown.setOnCancelListener(ignored -> {
+            if (!released) onCancel.run();
+        });
     }
 
     void showInput(CharSequence title, CharSequence message, String initialValue,
                    CharSequence hint, boolean numeric, int maxLength,
                    CharSequence cancelLabel, CharSequence secondaryLabel,
                    InputAction secondaryAction, CharSequence confirmLabel,
-                   InputAction confirmAction, Runnable onDismiss) {
+                   InputAction confirmAction) {
         ArrayDeque<ModalAction> actions = new ArrayDeque<>();
         actions.add(new ModalAction(cancelLabel, false, value -> null));
         if (secondaryLabel != null && secondaryAction != null) {
@@ -234,14 +247,7 @@ final class ConsoleUiFeedback {
                     if (primary != null) primary.performClick();
                 });
         showModal(title, message, entry[0], actions.toArray(new ModalAction[0]));
-        Dialog shown = modal;
-        if (shown != null) {
-            shown.setOnDismissListener(ignored -> {
-                modal = null;
-                if (onDismiss != null) onDismiss.run();
-            });
-            entry[0].post(entry[0]::requestFocus);
-        }
+        if (modal != null) entry[0].post(entry[0]::requestFocus);
     }
 
     boolean isModalShowing() {
@@ -253,6 +259,7 @@ final class ConsoleUiFeedback {
     }
 
     void release() {
+        released = true;
         handler.removeCallbacksAndMessages(null);
         dismissModal();
         notifications.clear();
@@ -295,7 +302,7 @@ final class ConsoleUiFeedback {
             }
             if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_BUTTON_B) {
                 if (audio != null) audio.playSystemBack();
-                dialog.dismiss();
+                dialog.cancel();
                 return true;
             }
             if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
@@ -305,7 +312,9 @@ final class ConsoleUiFeedback {
             }
             return false;
         });
-        dialog.setOnDismissListener(ignored -> modal = null);
+        dialog.setOnDismissListener(ignored -> {
+            if (modal == dialog) modal = null;
+        });
         Window window = dialog.getWindow();
         if (window != null) {
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));

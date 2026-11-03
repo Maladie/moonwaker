@@ -37,28 +37,6 @@ public class PlayniteIdentityResolutionPolicyTest {
                         true, true, SessionSnapshot.State.RECONNECT_REQUIRED));
     }
 
-    @Test public void responseRequiresExactHostGenerationAndSunshineApp() {
-        assertTrue(PlayniteIdentityResolutionPolicy.acceptsResponse(
-                "host", 7, 0, "HOST", 7, 0, true, true));
-        assertFalse(PlayniteIdentityResolutionPolicy.acceptsResponse(
-                "host", 7, 0, "other", 7, 0, true, true));
-        assertFalse(PlayniteIdentityResolutionPolicy.acceptsResponse(
-                "host", 7, 0, "host", 8, 0, true, true));
-        assertFalse(PlayniteIdentityResolutionPolicy.acceptsResponse(
-                "host", 7, 0, "host", 7, 42, true, true));
-    }
-
-    @Test public void observationRequiresMatchingAppAndBoundedAge() {
-        assertTrue(PlayniteIdentityResolutionPolicy.isFreshObservation(
-                0, 0, 100L, 110L, 15L));
-        assertFalse(PlayniteIdentityResolutionPolicy.isFreshObservation(
-                0, 0, 100L, 116L, 15L));
-        assertFalse(PlayniteIdentityResolutionPolicy.isFreshObservation(
-                0, 42, 100L, 110L, 15L));
-        assertFalse(PlayniteIdentityResolutionPolicy.isFreshObservation(
-                0, 0, 0L, 0L, 15L));
-    }
-
     @Test public void providerStopUsesOnlyFreshExactCurrentIdentity() {
         String game = "steam:224760";
         assertEquals("", PlayniteIdentityResolutionPolicy.verifiedStopTarget(
@@ -67,7 +45,7 @@ public class PlayniteIdentityResolutionPolicyTest {
                 game, "running", game));
         assertEquals(game, PlayniteIdentityResolutionPolicy.verifiedStopTarget(
                 "", "starting", game));
-        assertEquals(game, PlayniteIdentityResolutionPolicy.verifiedStopTarget(
+        assertEquals(null, PlayniteIdentityResolutionPolicy.verifiedStopTarget(
                 game, "stopping", game));
         assertEquals(null, PlayniteIdentityResolutionPolicy.verifiedStopTarget(
                 game, "running", "steam:other"));

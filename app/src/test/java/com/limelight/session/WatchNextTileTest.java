@@ -12,8 +12,10 @@ import static org.junit.Assert.assertTrue;
 public class WatchNextTileTest {
     private final SessionModelDriver driver = new SessionModelDriver();
     private final MemoryPreferences consent = new MemoryPreferences();
+    private String executionProfileId = "parent";
     private final SessionModel.Controller owner = new SessionModel.Controller() {
         private final long generation = SessionModelDriver.nextTransportGeneration();
+        @Override public String getExecutionProfileId() { return executionProfileId; }
         @Override public boolean isRetainedTransportLive() { return true; }
         @Override public long transportGeneration() { return generation; }
         @Override public boolean hasAttachedPresentation() { return false; }
@@ -34,6 +36,7 @@ public class WatchNextTileTest {
         driver.resume.values.put("streamSessionId", sessionId);
         driver.resume.values.put("pcUuid", "host");
         driver.resume.values.put("profileId", profileId);
+        driver.resume.values.put(com.limelight.Game.EXTRA_EXECUTION_PROFILE_ID, profileId);
         driver.resume.values.put("transitionGameId", gameId);
         driver.resume.values.put("neutralStreamTarget", neutral);
         driver.resume.values.put("appName", "Hades");
@@ -48,6 +51,7 @@ public class WatchNextTileTest {
     }
 
     private void live(String profileId, String gameId) {
+        executionProfileId = profileId;
         driver.enterHome(owner, "s1", "host", profileId, 7, gameId);
         record("s1", profileId, gameId, gameId.isEmpty());
     }

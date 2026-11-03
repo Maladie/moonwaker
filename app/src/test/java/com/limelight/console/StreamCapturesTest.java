@@ -1,5 +1,6 @@
 package com.limelight.console;
 
+import com.limelight.gateway.GatewayTransport;
 import static org.junit.Assert.assertEquals;
 
 import com.limelight.R;
@@ -34,9 +35,9 @@ public class StreamCapturesTest {
 
     @Test public void onlyAHostRefusalNamesAReason() {
         assertEquals("buffer_starting", StreamCaptures.reason(
-                new HostGatewayClient.GatewayException("buffer_starting", 409)));
+                new GatewayTransport.GatewayException("buffer_starting", 409)));
         assertEquals("failed", StreamCaptures.reason(
-                new HostGatewayClient.GatewayException("The capture could not be saved.", 502)));
+                new GatewayTransport.GatewayException("The capture could not be saved.", 502)));
         assertEquals("failed", StreamCaptures.reason(new IOException("buffer_off")));
     }
 }

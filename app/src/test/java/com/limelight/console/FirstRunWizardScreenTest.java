@@ -19,9 +19,11 @@ import android.text.Layout;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
+import com.limelight.R;
 import com.limelight.gateway.GatewayConnection;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.PairingManager;
@@ -96,11 +98,14 @@ public class FirstRunWizardScreenTest {
         @Override public void addHostByAddress() { addByAddress++; }
         @Override public void wake(ComputerDetails host) { }
         @Override public void sleep(ComputerDetails host, GatewayConnection connection) { }
-        @Override public void createAdultProfile(ComputerDetails host,
-                HostGatewayClient.IntegrationProfile actor, Consumer<String> done) { }
         @Override public void setAdultPin(ComputerDetails host,
                 HostGatewayClient.IntegrationProfile profile, GatewayConnection connection,
                 Runnable done) { }
+        @Override public boolean reducedMotion() { return false; }
+        @Override public void setReducedMotion(boolean on) { }
+        @Override public void unlockProfile(ComputerDetails host,
+                HostGatewayClient.IntegrationProfile profile,
+                java.util.function.Consumer<Boolean> done) { }
         @Override public void saveProfiles(String hostId,
                 HostGatewayClient.IntegrationProfiles profiles) { }
         @Override public void paired(String hostId) { }
@@ -233,6 +238,18 @@ public class FirstRunWizardScreenTest {
 
         wizard.openAt(first, HOST, FirstRunPlan.Step.PAIR);
         shot(language, "03e-sparowano");
+        page().find("c.rename").performClick();
+        shot(language, "03f-nazwa-komputera");
+        set("nameError", activity.getString(R.string.first_run_name_failed));
+        wizard.refresh();
+        shot(language, "03g-nazwa-blad");
+        set("nameError", null);
+        set("naming", false);
+        set("renamedHost", HOST);
+        set("renamedTo", "Salon PC");
+        wizard.refresh();
+        shot(language, "03h-nazwa-zapisana");
+        set("renamedHost", null);
 
         wizard.openAt(first, HOST, FirstRunPlan.Step.PROFILE);
         shot(language, "04-profil");
@@ -241,6 +258,8 @@ public class FirstRunWizardScreenTest {
         set("capabilities", capabilities());
         wizard.refresh();
         shot(language, "05-gotowosc");
+        activity.getWindow().getDecorView().findViewWithTag("e.check:WAKE").requestFocus();
+        shot(language, "05-gotowosc-budzenie");
         set("wake", FirstRunPlan.WakePhase.WAKING);
         set("wakePhaseAt", SystemClock.elapsedRealtime() - 12_000L);
         wizard.refresh();
@@ -268,6 +287,15 @@ public class FirstRunWizardScreenTest {
         set("capabilities", capabilities());
         wizard.refresh();
         shot(language, "08-dodatki");
+        // Google TV adds the "Continue" tile toggle: seven rows.
+        org.robolectric.Shadows.shadowOf(activity.getPackageManager())
+                .setSystemFeature("com.google.android.tv", true);
+        wizard.openAt(first, HOST, FirstRunPlan.Step.EXTRAS);
+        set("capabilities", capabilities());
+        wizard.refresh();
+        shot(language, "08-dodatki-google-tv");
+        org.robolectric.Shadows.shadowOf(activity.getPackageManager())
+                .setSystemFeature("com.google.android.tv", false);
 
         host.pad = true;
         wizard.openAt(first, HOST, FirstRunPlan.Step.CONTROLS);
@@ -393,7 +421,7 @@ public class FirstRunWizardScreenTest {
         start("en");
         set("capabilities", capabilities());
         List<FirstRunPlan.Step> steps = FirstRunPlan.steps(FirstRunPlan.Entry.FIRST_RUN,
-                new FirstRunPlan.Facts(true, true, false, true, true));
+                new FirstRunPlan.Facts(true, true, false, true));
         for (int index = steps.size() - 1; index > 0; index--) {
             wizard.openAt(FirstRunPlan.Entry.FIRST_RUN, HOST, steps.get(index));
             set("capabilities", capabilities());
@@ -415,6 +443,24 @@ public class FirstRunWizardScreenTest {
         key(KeyEvent.KEYCODE_BACK);
         assertEquals(FirstRunPlan.Step.INSTALL, get("step"));
         assertEquals("B", page().shape());
+    }
+
+    @Test
+    public void namingTheComputerOpensOverThePairedScreenAndBackClosesIt() throws Exception {
+        start("en");
+        wizard.openAt(FirstRunPlan.Entry.FIRST_RUN, HOST, FirstRunPlan.Step.PAIR);
+        page().find("c.rename").performClick();
+        assertEquals("C:name:" + HOST, page().shape());
+        EditText field = (EditText) page().find("c.name.field");
+        assertEquals("Komputer Ani", field.getText().toString());
+        field.setText("Salon PC");
+        page().find("c.name.save").performClick();
+        assertEquals(true, get("savingName"));
+        key(KeyEvent.KEYCODE_BACK);
+        assertEquals(false, get("naming"));
+        assertEquals(false, get("savingName"));
+        assertTrue(page().shape().startsWith("C:paired:" + HOST));
+        assertEquals(FirstRunPlan.Step.PAIR, get("step"));
     }
 
     @Test
@@ -580,8 +626,8 @@ public class FirstRunWizardScreenTest {
     }
 
     private static HostGatewayClient.Capabilities capabilities() {
-        return new HostGatewayClient.Capabilities(true, true, true, true, true, true, true, true,
-                true, new HostGatewayClient.SetupFacts(false, true, false, "", "linked"));
+        return new HostGatewayClient.Capabilities(true, true, true, true, true, true,
+                true, new HostGatewayClient.SetupFacts(false, false, "", "linked"));
     }
 
     /** A finished analysis: Wi-Fi 412 Mb/s, a 4K60 TV, 4K60 at 80 Mb/s proposed. */

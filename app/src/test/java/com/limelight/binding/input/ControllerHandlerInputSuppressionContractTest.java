@@ -16,7 +16,7 @@ public class ControllerHandlerInputSuppressionContractTest {
         String source = source();
         String publicMethod = between(source,
                 "public void releaseAllControllerInputsAndSuppress()",
-                "public boolean isInputSuppressed()");
+                "public void announceConnectedControllers()");
         String release = between(source, "private void releaseAllControllerInputs()",
                 "private static void resetControllerInput(");
 

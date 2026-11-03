@@ -17,7 +17,7 @@ final class ConsoleHostPanel {
         SLEEP(R.drawable.ic_console_moon), RESTART(R.drawable.ic_console_restart),
         SHUTDOWN(R.drawable.ic_console_power), CLOSE_SESSION(R.drawable.ic_console_close),
         WINDOWS_UPDATE(R.drawable.ic_console_download),
-        TEST_CONNECTION(R.drawable.ic_console_pulse), REPORT_PROBLEM(R.drawable.ic_console_attention),
+        REPORT_PROBLEM(R.drawable.ic_console_attention),
         CHANGE_HOST(R.drawable.ic_console_leave_host),
         HARD_TERMINATE(R.drawable.ic_console_power),
         UNPAIR(R.drawable.ic_console_unlink), REMOVE(R.drawable.ic_console_trash),
@@ -72,8 +72,7 @@ final class ConsoleHostPanel {
             power(menu, facts);
             menu.add(Action.CLOSE_SESSION, R.string.console_close_session, closeSession);
         }
-        menu.group(R.string.console_section_more)
-                .add(Action.TEST_CONNECTION, R.string.pcview_menu_test_network, true);
+        menu.group(R.string.console_section_more);
         // Reports go to the owner's Discord webhook: tester builds (-Ptesting) only.
         if (BuildConfig.TESTING) {
             menu.add(Action.REPORT_PROBLEM, R.string.problem_report_title, true);

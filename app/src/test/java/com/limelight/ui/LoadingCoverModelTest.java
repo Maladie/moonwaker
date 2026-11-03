@@ -228,14 +228,10 @@ public class LoadingCoverModelTest {
         assertEquals(LoadingCoverModel.Kicker.STARTING, locked.kicker());
     }
 
-    @Test public void aConnectionStageNeverOverwritesAFailure() {
+    @Test public void theNextStepAfterAFailureLoadsAgain() {
         LoadingCoverModel model = new LoadingCoverModel("Game", 0L);
-        assertTrue(model.connectionStage("Connecting the stream", 3));
-        assertEquals(3, model.step());
         model.error("Failed", "Details", "", false, true);
-        assertFalse(model.connectionStage("Connecting the stream", 3));
         assertEquals("Failed", model.stage());
-        // The next step after a failure loads again.
         assertTrue(model.step(4, "Verifying", ""));
         assertEquals(Collections.singletonList(CANCEL), model.actions());
         assertEquals("", model.notice());

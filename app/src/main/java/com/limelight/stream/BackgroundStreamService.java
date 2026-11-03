@@ -13,8 +13,8 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 
-import com.limelight.Game;
 import com.limelight.R;
+import com.limelight.console.ConsoleActivity;
 import com.limelight.diagnostics.MoonWakerDiagnostics;
 import com.limelight.session.SessionEvent;
 import com.limelight.session.SessionModel;
@@ -195,8 +195,9 @@ public final class BackgroundStreamService extends Service {
         Intent resume = pending != null && pending.matches(sessionId)
                 ? SessionResumeManager.buildResumeIntent(this, pending) : null;
         if (resume == null) {
-            resume = new Intent(this, Game.class)
-                    .putExtra(Game.EXTRA_STREAM_SESSION_ID, sessionId);
+            // No reconnect record to rebuild the stream screen from: the console resumes a
+            // stream it can still show, or opens where the user picks the session up again.
+            resume = new Intent(this, ConsoleActivity.class);
         }
         resume.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .setData(Uri.parse(BackgroundStreamCorrelation.intentIdentity(

@@ -23,56 +23,21 @@ public class ConsoleActionCatalogTest {
     }
 
     @Test
-    public void offlineHostOnlyExposesOfflineActions() {
-        assertTrue(host(ConsoleActionCatalog.HostCapability.WAKE,
-                false, true, true, false, true, false));
-        assertTrue(host(ConsoleActionCatalog.HostCapability.REFRESH,
-                false, true, true, false, true, false));
-        assertTrue(host(ConsoleActionCatalog.HostCapability.DETAILS,
-                false, true, true, false, true, false));
-        assertFalse(host(ConsoleActionCatalog.HostCapability.SELECT_APPS,
-                false, true, true, false, true, false));
-        assertFalse(host(ConsoleActionCatalog.HostCapability.NETWORK_TEST,
-                false, true, true, false, true, false));
-        assertFalse(host(ConsoleActionCatalog.HostCapability.HOST_INTEGRATIONS,
-                false, true, true, false, true, false));
-    }
-
-    @Test
-    public void unpairedHostOnlyExposesPairAndManagement() {
-        assertTrue(host(ConsoleActionCatalog.HostCapability.PAIR,
-                true, true, false, false, true, false));
-        assertTrue(host(ConsoleActionCatalog.HostCapability.HOST_INTEGRATIONS,
-                true, true, false, false, true, false));
-        assertFalse(host(ConsoleActionCatalog.HostCapability.SELECT_APPS,
-                true, true, false, false, true, false));
-        assertFalse(host(ConsoleActionCatalog.HostCapability.UNPAIR,
-                true, true, false, false, true, false));
-    }
-
-    @Test
     public void activeAppHasResumeAndQuitButNotLaunch() {
         assertTrue(app(ConsoleActionCatalog.AppCapability.RESUME,
-                true, true, true, false, false, true));
+                true, true, true, false, false));
         assertTrue(app(ConsoleActionCatalog.AppCapability.QUIT,
-                true, true, true, false, false, true));
+                true, true, true, false, false));
         assertFalse(app(ConsoleActionCatalog.AppCapability.LAUNCH,
-                true, true, true, false, false, true));
+                true, true, true, false, false));
         assertFalse(app(ConsoleActionCatalog.AppCapability.HIDE,
-                true, true, true, false, false, true));
-    }
-
-    private static boolean host(ConsoleActionCatalog.HostCapability capability,
-                                boolean online, boolean known, boolean paired,
-                                boolean active, boolean mac, boolean gateway) {
-        return ConsoleActionCatalog.hostActionVisible(capability, online, known,
-                paired, active, mac, gateway);
+                true, true, true, false, false));
     }
 
     private static boolean app(ConsoleActionCatalog.AppCapability capability,
                                boolean online, boolean paired, boolean current,
-                               boolean another, boolean hidden, boolean artwork) {
+                               boolean another, boolean hidden) {
         return ConsoleActionCatalog.appActionVisible(capability, online, paired,
-                current, another, hidden, artwork);
+                current, another, hidden);
     }
 }

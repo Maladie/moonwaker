@@ -15,6 +15,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -43,8 +44,7 @@ public class SessionTransitionTableTest {
 
     @Test public void cancelledUnrevealedDesktopClosesItsHostStreamAlsoAfterTheAcquire() {
         for (LaunchTransitionType type : new LaunchTransitionType[] {
-                LaunchTransitionType.GENERIC, LaunchTransitionType.PLAYNITE,
-                LaunchTransitionType.GAME_CONNECTION}) {
+                LaunchTransitionType.GENERIC, LaunchTransitionType.GAME_CONNECTION}) {
             for (boolean granted : new boolean[] {false, true}) {
                 State state = covered(type, false);
                 state.controlGranted = granted;
@@ -58,6 +58,20 @@ public class SessionTransitionTableTest {
     @Test public void cancelledGameStartBeforeTheGrantLeavesTheCloseToTheStoppedTransport() {
         State state = covered(LaunchTransitionType.GAME, true);
         assertEquals(ActionKind.STOP_TRANSPORT_CLOSE_HOST_STREAM, cancel(state));
+    }
+
+    /**
+     * Contract: a cancelled thaw (Quick Resume) ends only the transport, as a cancelled
+     * reconnect does; the thawed game runs on and its host stream stays to be resumed.
+     */
+    @Test public void cancelledCommittedStartKeepsItsGameAndHostStream() {
+        for (boolean revealed : new boolean[] {false, true}) {
+            State state = covered(LaunchTransitionType.GAME, true);
+            state.controlGranted = true;
+            state.startKeepsGame = true;
+            state.revealed = revealed;
+            assertEquals(ActionKind.STOP_TRANSPORT_KEEP_SESSION, cancel(state));
+        }
     }
 
     @Test public void cancelledGameStartClosesTheSessionUntilTheHostConfirmedTheGameReady() {
@@ -334,8 +348,7 @@ public class SessionTransitionTableTest {
 
     @Test public void retryOfAFailedConnectionOrObservationObservesAgainOnTheLiveStream() {
         for (LaunchTransitionType type : new LaunchTransitionType[] {
-                LaunchTransitionType.GAME_CONNECTION, LaunchTransitionType.PLAYNITE,
-                LaunchTransitionType.GENERIC}) {
+                LaunchTransitionType.GAME_CONNECTION, LaunchTransitionType.GENERIC}) {
             State state = covered(type, type == LaunchTransitionType.GAME_CONNECTION);
             state.connected = true;
             assertEquals(type.name(), ActionKind.RETRY_OBSERVATION, retry(state));
@@ -450,25 +463,19 @@ public class SessionTransitionTableTest {
                 play(live, game(), false, false, false).kind);
     }
 
-    @Test public void playOfTheRunningGameWithoutATransportConnectsToIt() {
-        for (SessionSnapshot.State state : new SessionSnapshot.State[] {
-                SessionSnapshot.State.ACTIVE, SessionSnapshot.State.SUSPENDED}) {
-            SessionSnapshot running = snapshot(state, 42, "game");
-            assertEquals(LaunchTransitionType.GENERIC,
-                    play(running, game(), false, false, false).type);
-            assertEquals(HostLaunchPreflight.Action.LAUNCH,
-                    play(running, game(), true, false, false).preflight);
-            // A suspended game is read once after the wake: the host may have frozen it.
-            boolean suspended = state == SessionSnapshot.State.SUSPENDED;
-            if (suspended) {
-                assertEquals(ActionKind.REFRESH_OBSERVATION,
-                        play(running, game(), true, true, false).kind);
-            }
-            Action launch = play(running, game(), true, true, suspended);
-            assertEquals(ActionKind.LAUNCH, launch.kind);
-            assertEquals(LaunchTransitionType.GENERIC, launch.type);
-            assertFalse(launch.ownsFreshSunshineSession);
-        }
+    @Test public void playOfTheSuspendedRunningGameConnectsToIt() {
+        SessionSnapshot running = snapshot(SessionSnapshot.State.SUSPENDED, 42, "game");
+        assertEquals(LaunchTransitionType.GENERIC,
+                play(running, game(), false, false, false).type);
+        assertEquals(HostLaunchPreflight.Action.LAUNCH,
+                play(running, game(), true, false, false).preflight);
+        // A suspended game is read once after the wake: the host may have frozen it.
+        assertEquals(ActionKind.REFRESH_OBSERVATION,
+                play(running, game(), true, true, false).kind);
+        Action launch = play(running, game(), true, true, true);
+        assertEquals(ActionKind.LAUNCH, launch.kind);
+        assertEquals(LaunchTransitionType.GENERIC, launch.type);
+        assertFalse(launch.ownsFreshSunshineSession);
     }
 
     @Test public void resumingASuspendedGameTheHostFrozeThawsItInANewGameTransition() {
@@ -603,14 +610,33 @@ public class SessionTransitionTableTest {
                 SessionOrchestrator.transition(otherTarget, UserIntent.play(game())).switchStop);
     }
 
+    /**
+     * R1-3: the installation stream never returns to (or reconnects into) a session its neutral
+     * app carries for a game, and an UNCERTAIN host is refreshed and recovered before it.
+     */
+    @Test public void installationSupportNeverReusesTheNeutralAppsSession() {
+        PlayIntent support = PlayIntent.installationSupport("host", "default", 42, "Desktop",
+                false, "game-x");
+        for (SessionSnapshot.State state : new SessionSnapshot.State[] {
+                SessionSnapshot.State.ACTIVE, SessionSnapshot.State.RECONNECT_REQUIRED}) {
+            Action action = play(snapshot(state, 42, "game-g"), support, true, true, true);
+            assertNotEquals(state.name(), ActionKind.RETURN_TO_STREAM, action.kind);
+            assertNotEquals(state.name(), ActionKind.RECONNECT, action.kind);
+        }
+        assertEquals(ActionKind.REFRESH_SESSION, play(
+                snapshot(SessionSnapshot.State.UNCERTAIN, 0, "game-g"), support,
+                true, false, false).kind);
+    }
+
     /** A freeze or swap the host refused (not freezable): the question, then the stop. */
     @Test public void refusedFreezeOfASwitchFallsBackToTheStop() {
         assertEquals(SessionFailure.SWITCH_FREEZE_REFUSED, SessionFailure.ofSwitchFailure(
                 SessionFailure.SWITCH_FREEZE_REFUSED_REASON));
-        assertTrue(SessionOrchestrator.switchRefusalReplaces(
-                SessionFailure.SWITCH_FREEZE_REFUSED, false));
-        assertFalse(SessionOrchestrator.switchRefusalReplaces(
-                SessionFailure.SWITCH_FREEZE_REFUSED, true));
+        assertEquals(SessionOrchestrator.CloseResult.NEEDS_REPLACEMENT,
+                SessionOrchestrator.switchRefusal(SessionFailure.SWITCH_FREEZE_REFUSED, false,
+                        true));
+        assertNull(SessionOrchestrator.switchRefusal(SessionFailure.SWITCH_FREEZE_REFUSED, true,
+                true));
     }
 
     private static State switchState(SessionSnapshot.FrozenGame slot, String carried) {
@@ -641,6 +667,35 @@ public class SessionTransitionTableTest {
         assertEquals(HostLaunchPreflight.Action.RECONNECT,
                 play(saved, game(), true, false, false).preflight);
         assertEquals(ActionKind.RECONNECT, play(saved, game(), true, true, false).kind);
+    }
+
+    /**
+     * A-4: a whole-session close cleared the reconnect record, then the host close failed and
+     * left the session RECONNECT_REQUIRED. Nothing is left to resume: the Play connects to the
+     * session the host runs instead of failing on the missing record again on every Retry.
+     */
+    @Test public void playWithoutAReconnectRecordConnectsToTheHostSession() {
+        SessionSnapshot saved = snapshot(SessionSnapshot.State.RECONNECT_REQUIRED, 42, "game");
+        State state = playState(saved, true, false, false);
+        state.reconnectRecord = false;
+        Action preflight = SessionOrchestrator.transition(state, UserIntent.play(game()));
+        assertEquals(ActionKind.PREFLIGHT, preflight.kind);
+        assertEquals(HostLaunchPreflight.Action.LAUNCH, preflight.preflight);
+        state.targetPrepared = true;
+        Action connect = SessionOrchestrator.transition(state, UserIntent.play(game()));
+        assertEquals(ActionKind.LAUNCH, connect.kind);
+        assertEquals(LaunchTransitionType.GENERIC, connect.type);
+        // Only this host's and execution profile's record counts.
+        assertTrue(SessionOrchestrator.hasReconnectRecord(game(), "default",
+                SessionModelDriver.reconnectRecord("s", "HOST", "default", "default", 42,
+                        "game", false)));
+        assertFalse(SessionOrchestrator.hasReconnectRecord(game(), "default",
+                SessionModelDriver.reconnectRecord("s", "other", "default", "default", 42,
+                        "game", false)));
+        assertFalse(SessionOrchestrator.hasReconnectRecord(game(), "default",
+                SessionModelDriver.reconnectRecord("s", "host", "kid", "parent", 42,
+                        "game", false)));
+        assertFalse(SessionOrchestrator.hasReconnectRecord(game(), "default", null));
     }
 
     @Test public void playOfAnotherGameReplacesUnlessTheStreamCanBeReused() {
@@ -749,6 +804,7 @@ public class SessionTransitionTableTest {
         private final long fakeGeneration =
                 com.limelight.session.SessionModelDriver.nextTransportGeneration();
         @Override public long transportGeneration() { return fakeGeneration; }
+        @Override public String getExecutionProfileId() { return "default"; }
         @Override public com.limelight.session.SessionModel.ParkOutcome parkRetainedTransport() {
             return com.limelight.session.SessionModel.ParkOutcome.PARKED;
         }
@@ -887,6 +943,7 @@ public class SessionTransitionTableTest {
             private final long fakeGeneration =
                     com.limelight.session.SessionModelDriver.nextTransportGeneration();
             @Override public long transportGeneration() { return fakeGeneration; }
+            @Override public String getExecutionProfileId() { return "default"; }
             @Override public SessionModel.ParkOutcome parkRetainedTransport() {
                 return SessionModel.ParkOutcome.PARKED;
             }
@@ -924,6 +981,7 @@ public class SessionTransitionTableTest {
             private final long fakeGeneration =
                     com.limelight.session.SessionModelDriver.nextTransportGeneration();
             @Override public long transportGeneration() { return fakeGeneration; }
+            @Override public String getExecutionProfileId() { return "kid"; }
             @Override public SessionModel.ParkOutcome parkRetainedTransport() {
                 return SessionModel.ParkOutcome.PARKED;
             }
@@ -1266,16 +1324,46 @@ public class SessionTransitionTableTest {
         assertFalse(SessionOrchestrator.canSwitchRetained(child,
                 retained(live(""), parentRuns)));
         assertEquals(SessionOrchestrator.ClosePath.REPLACE, SessionOrchestrator.closePath(
-                child, neutralStream(), false, retained(live(""), parentRuns)));
+                child, neutralStream(), false, false, retained(live(""), parentRuns)));
         assertEquals(SessionOrchestrator.ClosePath.CLOSE_RETAINED,
-                SessionOrchestrator.closePath(child, neutralStream(), true,
+                SessionOrchestrator.closePath(child, neutralStream(), true, false,
                         retained(live(""), parentRuns)));
         assertTrue(SessionOrchestrator.canSwitchRetained(child,
                 retained(live("parent-y"), parentRuns)));
-        // The parent's game is the child's shared one: it is adopted.
-        assertTrue(SessionOrchestrator.canSwitchRetained(PlayIntent.playniteGame("host",
-                "child", 42, "Game", false, "parent-y", "parent-y"),
-                retained(live(""), parentRuns)));
+    }
+
+    /**
+     * A-3: the stream carries no game and the host verifiably runs the child's shared game for
+     * its parent. The stream's gameless switch refuses another actor (gamelessSwitch MISMATCH),
+     * so the table never picks it, nor returns to the stream: the common close and a fresh
+     * launch replace it (owner 2026-10-26). Adopting it in place needs the host.
+     */
+    @Test public void sharedGameAParentRunsBesideAGamelessStreamIsReplacedForAChild() {
+        PlayIntent shared = PlayIntent.playniteGame("host", "child", 42, "Game", false,
+                "parent-y", "parent-y");
+        SessionSnapshot parentRuns = hostRuns(42, "parent-y", true);
+        SessionOrchestrator.Retained gameless = retained(live(""), parentRuns);
+        assertFalse(SessionOrchestrator.canSwitchRetained(shared, gameless));
+        assertTrue(SessionOrchestrator.gamelessOtherActor(shared, gameless));
+        // The same parent on its own stream still adopts it by the switch.
+        PlayIntent parent = PlayIntent.playniteGame("host", 42, "Game", false,
+                "parent-y", "parent-y");
+        assertTrue(SessionOrchestrator.canSwitchRetained(parent, gameless));
+        assertFalse(SessionOrchestrator.gamelessOtherActor(parent, gameless));
+
+        SessionSnapshot childView = new SessionSnapshot("host", "child", "default",
+                SessionSnapshot.State.ACTIVE, 42, "parent-y", true, false, false, false, false,
+                "", true, SessionSnapshot.ObservationState.PENDING, true,
+                "", 0L, 0L, 0L, 0L, 0L, "", "", "VERIFIED", 7368, "token",
+                "PENDING", "test", 42, false);
+        State state = playState(childView, true, true, false);
+        state.replaceRetained = true;
+        assertEquals("never a return to the gameless stream", ActionKind.REPLACE,
+                SessionOrchestrator.transition(state, UserIntent.play(shared)).kind);
+        state.replacementAuthorized = true;
+        Action close = SessionOrchestrator.transition(state, UserIntent.play(shared));
+        assertEquals(ActionKind.CLOSE_COMPETING, close.kind);
+        assertFalse(close.reuseOnly);
     }
 
     @Test public void preparingNeutralStreamIsSwitchedOnlyOverAGameTheHostProves() {
@@ -1306,35 +1394,109 @@ public class SessionTransitionTableTest {
     @Test public void competingSessionGivesWayBySwitchConfirmationOrTheExactClose() {
         SessionOrchestrator.Retained switchable = retained(live(""), hostRuns(42, "", false));
         assertEquals(SessionOrchestrator.ClosePath.SWITCH,
-                SessionOrchestrator.closePath(game(), neutralStream(), false, switchable));
+                SessionOrchestrator.closePath(game(), neutralStream(), false, false, switchable));
         // Never against a headless runtime: the switch runs inside an attaching stream screen.
         assertEquals(SessionOrchestrator.ClosePath.ATTACH, SessionOrchestrator.closePath(
-                game(), neutralStream(), false, new SessionOrchestrator.Retained(live(""),
+                game(), neutralStream(), false, false, new SessionOrchestrator.Retained(live(""),
                         "default", hostRuns(42, "", false), true, true, false)));
         // A target that is not the stream's own neutral app replaces it: close, fresh launch.
         assertEquals(SessionOrchestrator.ClosePath.REPLACE, SessionOrchestrator.closePath(
-                game(), new NvApp("Game", 42, false), false, switchable));
+                game(), new NvApp("Game", 42, false), false, false, switchable));
         assertEquals(SessionOrchestrator.ClosePath.CLOSE_RETAINED, SessionOrchestrator.closePath(
-                game(), new NvApp("Game", 42, false), true, switchable));
+                game(), new NvApp("Game", 42, false), true, false, switchable));
         // Only the app the host runs is this client's exact retained stream.
         assertEquals(SessionOrchestrator.ClosePath.CLOSE_DIRECT, SessionOrchestrator.closePath(
-                game(), new NvApp("Game", 42, false), true,
+                game(), new NvApp("Game", 42, false), true, false,
                 retained(live(""), hostRuns(7, "other", true))));
         assertEquals(SessionOrchestrator.ClosePath.CLOSE_DIRECT, SessionOrchestrator.closePath(
-                game(), new NvApp("Game", 42, false), true, retained(
+                game(), new NvApp("Game", 42, false), true, false, retained(
                         new SessionModelDriver().snapshot(), hostRuns(42, "other", true))));
         // An unknown host fails before asking: its answer could not be acted on.
         for (boolean authorized : new boolean[] {false, true}) {
             assertEquals(SessionOrchestrator.ClosePath.HOST_UNAVAILABLE,
                     SessionOrchestrator.closePath(game(), new NvApp("Game", 42, false),
-                            authorized, retained(live(""), null)));
+                            authorized, false, retained(live(""), null)));
         }
-        // A refused switch falls back to a close and a fresh launch, once per request.
-        assertTrue(SessionOrchestrator.switchRefusalReplaces(SessionFailure.SWITCH_NOT_ELIGIBLE,
+        // A-3: a switch refused in this request is never picked again, however switchable the
+        // stream still reads: the exact retained stream closes and a fresh launch follows.
+        assertEquals(SessionOrchestrator.ClosePath.CLOSE_RETAINED, SessionOrchestrator.closePath(
+                game(), neutralStream(), true, true, switchable));
+        for (SessionFailure refused : new SessionFailure[] {SessionFailure.SWITCH_NOT_ELIGIBLE,
+                SessionFailure.SWITCH_REFUSED, SessionFailure.SESSION_HELD_BY_OTHER_ACTOR}) {
+            for (boolean authorized : new boolean[] {false, true}) {
+                for (boolean keeps : new boolean[] {false, true}) {
+                    assertEquals(refused.name(), SessionOrchestrator.CloseResult.SWITCH_REFUSED,
+                            SessionOrchestrator.switchRefusal(refused, authorized, keeps));
+                }
+            }
+        }
+        // A failed switch whose own stop would have ended the running game anyway closes it.
+        assertEquals(SessionOrchestrator.CloseResult.SWITCH_REFUSED, SessionOrchestrator
+                .switchRefusal(SessionFailure.SWITCH_FAILED, false, false));
+        // A child's own host refusal closes nothing; a timed-out switch may still run.
+        assertNull(SessionOrchestrator.switchRefusal(SessionFailure.SWITCH_CHILD_REFUSED, false,
                 false));
-        assertTrue(SessionOrchestrator.switchRefusalReplaces(SessionFailure.SWITCH_REFUSED, false));
-        assertFalse(SessionOrchestrator.switchRefusalReplaces(SessionFailure.SWITCH_REFUSED, true));
-        assertFalse(SessionOrchestrator.switchRefusalReplaces(SessionFailure.SWITCH_FAILED, false));
+        assertNull(SessionOrchestrator.switchRefusal(SessionFailure.SWITCH_TIMEOUT, false, false));
+    }
+
+    /**
+     * R1-1: a transient failure of a switch meant to keep the running game (the same game a
+     * child enters, a freeze, a swap) fails: the game is never closed and relaunched.
+     */
+    @Test public void failedSwitchThatKeepsTheRunningGameNeverClosesIt() {
+        PlayIntent sameGame = game();
+        SessionOrchestrator.Retained carrying = retained(live(sameGame.playniteGameId),
+                hostRuns(42, "", false));
+        assertTrue(SessionOrchestrator.switchKeepsRunningGame(sameGame, SwitchStop.STOP,
+                carrying));
+        PlayIntent other = PlayIntent.playniteGame("host", 42, "Other", false, "other-game",
+                "other-game");
+        assertFalse(SessionOrchestrator.switchKeepsRunningGame(other, SwitchStop.STOP,
+                carrying));
+        // A gameless stream adopting the game the host verifiably runs keeps it too.
+        assertTrue(SessionOrchestrator.switchKeepsRunningGame(sameGame, SwitchStop.STOP,
+                retained(live(""), hostRuns(42, sameGame.playniteGameId, true))));
+        for (SwitchStop keeping : new SwitchStop[] {SwitchStop.FREEZE, SwitchStop.SWAP}) {
+            assertTrue(SessionOrchestrator.switchKeepsRunningGame(other, keeping, carrying));
+        }
+        for (boolean authorized : new boolean[] {false, true}) {
+            assertNull(SessionOrchestrator.switchRefusal(SessionFailure.SWITCH_FAILED,
+                    authorized, true));
+        }
+    }
+
+    /**
+     * #5: the attached stream's switch failure is classified as the console's own switch raises
+     * it: a child's own host refusal stays the child's, the same reason of an adult's switch is
+     * an ordinary failure, and a refusal of the stream stays a refusal.
+     */
+    @Test public void attachedSwitchFailureIsClassifiedAsTheConsoleSwitchRaisesIt() {
+        SessionFailure.Raised child = SessionFailure.switchFailed(true, "daily_limit_reached");
+        assertEquals(SessionFailure.SWITCH_CHILD_REFUSED, child.reason);
+        assertEquals("daily_limit_reached", child.detail);
+        assertEquals(SessionFailure.SWITCH_FAILED,
+                SessionFailure.switchFailed(false, "gateway_unavailable").reason);
+        assertEquals(SessionFailure.SWITCH_REFUSED,
+                SessionFailure.switchFailed(true, "retained_switch_not_eligible").reason);
+    }
+
+    /** #5: only the current handoff's first report counts, and one screen takes it. */
+    @Test public void handoffReportIsFencedToItsRequest() {
+        PlayQueue queue = new PlayQueue(() -> 0L);
+        long older = queue.handOff(game(), false);
+        long current = queue.handOff(game(), true);
+        queue.switchFailed(older, "retained_switch_not_eligible");
+        assertNull("a newer handoff makes the older report stale", queue.takeFailedHandoff());
+        queue.switchFailed(current, "gateway_unavailable");
+        queue.switchFailed(current, "retained_switch_not_eligible");
+        PlayQueue.Handoff failed = queue.takeFailedHandoff();
+        assertEquals("gateway_unavailable", failed.failure);
+        assertTrue(failed.keepsRunningGame);
+        assertNull("taken once", queue.takeFailedHandoff());
+        long dropped = queue.handOff(game(), false);
+        queue.dropHandoff();
+        queue.switchFailed(dropped, "gateway_unavailable");
+        assertNull("a newer Play drops it", queue.takeFailedHandoff());
     }
 
     @Test public void warmUpStartsOnlyWhileNoOtherScopeOrCloseHoldsTheStream() {
@@ -1481,20 +1643,30 @@ public class SessionTransitionTableTest {
         assertFalse(SessionOrchestrator.shouldCleanupUnrevealedProviderLaunch(false, false));
         LaunchTransitionType game = LaunchTransitionType.GAME;
         assertTrue(SessionOrchestrator.shouldTerminateFreshOwnedSunshineSession(
-                true, true, game, true, false, false, false));
+                true, true, game, true, false, false, false, false));
         assertFalse("the host refused the start",
                 SessionOrchestrator.shouldTerminateFreshOwnedSunshineSession(
-                        true, true, game, true, false, false, true));
+                        true, true, game, true, false, false, false, true));
         assertFalse(SessionOrchestrator.shouldTerminateFreshOwnedSunshineSession(
-                false, true, game, true, false, false, false));
+                false, true, game, true, false, false, false, false));
         assertFalse(SessionOrchestrator.shouldTerminateFreshOwnedSunshineSession(
-                true, false, game, true, false, false, false));
+                true, false, game, true, false, false, false, false));
         assertFalse(SessionOrchestrator.shouldTerminateFreshOwnedSunshineSession(
-                true, true, LaunchTransitionType.GAME_CONNECTION, false, false, false, false));
+                true, true, LaunchTransitionType.GAME_CONNECTION, false, false, false, false,
+                false));
         assertFalse(SessionOrchestrator.shouldTerminateFreshOwnedSunshineSession(
-                true, true, game, true, true, false, false));
+                true, true, game, true, false, true, false, false));
         assertFalse(SessionOrchestrator.shouldTerminateFreshOwnedSunshineSession(
-                true, true, game, true, false, true, false));
+                true, true, game, true, false, false, true, false));
+    }
+
+    /**
+     * Contract: a failed thaw (or a joined swap) on an idle host ends only its transport; the
+     * whole-session close would stop the thawed game the close's permit verifies.
+     */
+    @Test public void failedCommittedStartNeverClosesTheFreshSessionItsGameRunsIn() {
+        assertFalse(SessionOrchestrator.shouldTerminateFreshOwnedSunshineSession(
+                true, true, LaunchTransitionType.GAME, true, true, false, false, false));
     }
 
     @Test public void onlyAParentIsOfferedToEndThePreviousLaunchsGame() {
@@ -1639,8 +1811,7 @@ public class SessionTransitionTableTest {
                 ActionKind.STOP_TRANSPORT, ActionKind.STOP_TRANSPORT_KEEP_SESSION,
                 ActionKind.STOP_TRANSPORT_CLOSE_HOST_STREAM, ActionKind.CANCEL_RETAINED_SWITCH);
         LaunchTransitionType[] types = {null, LaunchTransitionType.GAME,
-                LaunchTransitionType.GAME_CONNECTION, LaunchTransitionType.GENERIC,
-                LaunchTransitionType.PLAYNITE};
+                LaunchTransitionType.GAME_CONNECTION, LaunchTransitionType.GENERIC};
         for (LaunchTransitionType type : types) {
             for (int bits = 0; bits < 1 << 13; bits++) {
                 State state = new State();
@@ -1836,10 +2007,13 @@ public class SessionTransitionTableTest {
                 UserIntent.play(intent));
     }
 
+    /** A Play's facts; a RECONNECT_REQUIRED session has its saved record unless cleared. */
     private static State playState(SessionSnapshot snapshot, boolean opaqueReady,
                                    boolean targetPrepared, boolean observationRefreshed) {
-        return State.forPlay(snapshot, false, false, false, false, opaqueReady,
+        State state = State.forPlay(snapshot, false, false, false, false, opaqueReady,
                 targetPrepared, observationRefreshed, true, true);
+        state.reconnectRecord = true;
+        return state;
     }
 
     /** A session of a host whose sleep this client requested. */

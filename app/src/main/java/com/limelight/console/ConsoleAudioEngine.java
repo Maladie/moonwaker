@@ -27,8 +27,8 @@ import java.util.concurrent.Executors;
 final class ConsoleAudioEngine {
     private static final String TAG = "MoonWakerAudio";
     private static final int SAMPLE_RATE = 22_050;
-    private static final float DEFAULT_HOST_SELECTION_VOLUME = 0.40f;
-    private static final float DEFAULT_MENU_VOLUME = 0.30f;
+    private static final float DEFAULT_HOST_SELECTION_VOLUME = 0.70f;
+    private static final float DEFAULT_MENU_VOLUME = 0.60f;
     private static final float DEFAULT_EFFECTS_VOLUME = 0.40f;
     private static final long NAVIGATION_THROTTLE_MS = 90L;
     private static final int FADE_STEPS = 18;

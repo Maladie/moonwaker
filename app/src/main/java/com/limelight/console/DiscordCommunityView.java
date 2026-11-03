@@ -3,6 +3,7 @@ package com.limelight.console;
 import android.content.Context;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.text.Editable;
 import android.text.TextUtils;
@@ -53,9 +54,13 @@ final class DiscordCommunityView extends FrameLayout {
         void onDirectMessageDictationRequested(long recipientId, long directMessageGeneration);
         void onCloseDirectMessage();
         void onJoin(HostGatewayClient.DiscordChannel channel);
+        /** Adds the voice channel to the host's favorites, or removes it. */
+        void onToggleFavorite(HostGatewayClient.DiscordChannel channel);
         void onAuthorize();
         void onOptions();
         void onVoiceAction(DiscordPanelController.CommunityVoiceAction action);
+        /** The voice places (home) failed to load; ask the host again. */
+        void onRetryHome();
     }
 
     static final class Model {
@@ -449,16 +454,6 @@ final class DiscordCommunityView extends FrameLayout {
 
     void focusDirectComposer() {
         showEmbeddedKeyboard();
-    }
-
-    /** Select a stable inline-detail target after its previous view was rebuilt. */
-    void focusDetailEntry(String preferredTag) {
-        View target = detailFocusViewsByTag.get(preferredTag);
-        if (target == null && !detailFocusables.isEmpty()) target = detailFocusables.get(0);
-        if (target != null) {
-            View entry = target;
-            entry.post(() -> focusTarget(entry, detailScroll));
-        }
     }
 
     void focusActiveTab() {
@@ -881,7 +876,35 @@ final class DiscordCommunityView extends FrameLayout {
         LinearLayout.LayoutParams wordsParams = new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f);
         wordsParams.leftMargin = dp(20);
         card.addView(words, wordsParams);
+        if (model.homeUnavailableText != 0) bindHomeRetry(card, mark, words);
         return card;
+    }
+
+    /** A failed voice-places load: the card itself asks the host again (OK). */
+    private void bindHomeRetry(LinearLayout card, ImageView mark, LinearLayout words) {
+        TextView retry = text(getContext().getString(R.string.discord_social_retry), 13,
+                DiscordCommunityStyle.ACCENT, true);
+        words.addView(retry, margins(MATCH_PARENT, WRAP_CONTENT, 8, 0));
+        Drawable rest = card.getBackground();
+        card.setId(View.generateViewId());
+        card.setFocusable(true);
+        card.setFocusableInTouchMode(true);
+        card.setClickable(true);
+        card.setOnFocusChangeListener((ignored, focused) -> {
+            card.setBackground(focused ? fill(DiscordCommunityStyle.FOCUS_FILL, 16) : rest);
+            mark.setColorFilter(focused ? DiscordCommunityStyle.INK
+                    : DiscordCommunityStyle.TEXT_SECONDARY);
+            for (int index = 0; index < words.getChildCount(); index++) {
+                TextView line = (TextView) words.getChildAt(index);
+                line.setTextColor(focused ? DiscordCommunityStyle.INK : line == retry
+                        ? DiscordCommunityStyle.ACCENT : index == 0 && !isLinked(model.snapshot)
+                        ? DiscordCommunityStyle.TEXT : DiscordCommunityStyle.TEXT_SECONDARY);
+            }
+            if (focused) wireCommunityFocus();
+        });
+        card.setOnClickListener(ignored -> callback.onRetryHome());
+        feedFocusRows.add(new ArrayList<>(Collections.singletonList(card)));
+        if (firstDestination == null) firstDestination = card;
     }
 
     /** Mockup "feed_card": glass at rest, the light fill with dark ink on focus. */

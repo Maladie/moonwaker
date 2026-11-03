@@ -40,18 +40,6 @@ final class ConsoleSessionSubscriber implements SessionModel.Listener {
                 | ConsoleUpdateChannels.SELECTED_HOST | ConsoleUpdateChannels.SESSION);
     }
 
-    /**
-     * Whether the delivered retained stream on {@code hostId} already runs {@code appId} or
-     * Playnite game {@code gameId}. False before the first delivery.
-     */
-    boolean holdsTarget(String hostId, int appId, String gameId) {
-        if (delivered == null || delivered.hostId.isEmpty()
-                || !delivered.hostId.equalsIgnoreCase(hostId)) return false;
-        String game = gameId == null ? "" : gameId.trim();
-        return (appId > 0 && delivered.appId == appId) || (!delivered.playniteGameId.isEmpty()
-                && delivered.playniteGameId.equalsIgnoreCase(game));
-    }
-
     boolean reconnectRequired(String hostId) {
         return delivered != null
                 && delivered.state == SessionModel.State.RECONNECT_REQUIRED

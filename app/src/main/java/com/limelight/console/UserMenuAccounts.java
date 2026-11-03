@@ -56,7 +56,7 @@ final class UserMenuAccounts {
         String epicName = setup != null && Boolean.TRUE.equals(setup.epicSignedIn)
                 ? setup.epicDisplayName : "";
         return Arrays.asList(
-                new Row(Kind.STEAM, flag(setup == null ? null : setup.steamApiKeySaved,
+                new Row(Kind.STEAM, flag(setup == null ? null : setup.steamConnected,
                         State.ATTENTION), ""),
                 new Row(Kind.EPIC, flag(setup == null ? null : setup.epicSignedIn,
                         State.OPTIONAL), epicName),

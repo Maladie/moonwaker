@@ -5,21 +5,6 @@ import com.limelight.nvstream.http.PairingManager;
 
 /** Pure state rules used by every dashboard surface that exposes host/app actions. */
 final class ConsoleActionCatalog {
-    enum HostCapability {
-        SELECT_APPS,
-        PAIR,
-        UNPAIR,
-        WAKE,
-        REFRESH,
-        RESUME,
-        QUIT_SESSION,
-        NETWORK_TEST,
-        HOST_INTEGRATIONS,
-        SLEEP,
-        DETAILS,
-        REMOVE
-    }
-
     enum AppCapability {
         LAUNCH,
         RESUME,
@@ -28,46 +13,14 @@ final class ConsoleActionCatalog {
         SETTINGS,
         HIDE,
         SHOW,
-        SHORTCUT,
         DETAILS
     }
 
     private ConsoleActionCatalog() { }
 
-    static boolean hostActionVisible(HostCapability action, boolean online, boolean knownState,
-                                     boolean paired, boolean activeSession, boolean hasMac,
-                                     boolean gatewayPaired) {
-        switch (action) {
-            case SELECT_APPS:
-                return online && paired;
-            case PAIR:
-                return online && !paired;
-            case UNPAIR:
-                return online && paired;
-            case WAKE:
-                return knownState && !online && hasMac;
-            case REFRESH:
-                return !online;
-            case RESUME:
-            case QUIT_SESSION:
-                return online && paired && activeSession;
-            case NETWORK_TEST:
-                return online && paired;
-            case HOST_INTEGRATIONS:
-                return online;
-            case SLEEP:
-                return online && paired && gatewayPaired;
-            case DETAILS:
-            case REMOVE:
-                return true;
-            default:
-                return false;
-        }
-    }
-
     static boolean appActionVisible(AppCapability action, boolean online, boolean paired,
                                     boolean thisAppRunning, boolean anotherAppRunning,
-                                    boolean hidden, boolean hasArtwork) {
+                                    boolean hidden) {
         switch (action) {
             case LAUNCH:
                 return online && paired && !thisAppRunning && !anotherAppRunning;
@@ -83,8 +36,6 @@ final class ConsoleActionCatalog {
                 return !hidden && !thisAppRunning;
             case SHOW:
                 return hidden;
-            case SHORTCUT:
-                return hasArtwork;
             default:
                 return false;
         }

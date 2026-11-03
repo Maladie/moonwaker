@@ -81,7 +81,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private SurfaceHolder renderTarget;
     private volatile boolean stopping;
     private CrashListener crashListener;
-    private boolean reportedCrash;
+    /** Set once by {@link #fail}: this decoder stopped for good and its owner was told. */
+    private final AtomicBoolean failed = new AtomicBoolean();
     private int consecutiveCrashCount;
     private String glRenderer;
     private boolean foreground = true;
@@ -740,11 +741,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                         configureAndStartDecoder(configuredFormat);
                         codecRecoveryType.set(CR_RECOVERY_TYPE_NONE);
                     } catch (IllegalArgumentException e) {
-                        e.printStackTrace();
-
-                        // Our Surface is probably invalid, so just stop
-                        stopping = true;
+                        // Our Surface is probably invalid: the thread's entry point fails this
+                        // decoder (a stop already in progress is not reported again).
                         codecRecoveryType.set(CR_RECOVERY_TYPE_NONE);
+                        throw new RendererException(this, e);
                     } catch (IllegalStateException e) {
                         e.printStackTrace();
 
@@ -763,11 +763,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                         configureAndStartDecoder(configuredFormat);
                         codecRecoveryType.set(CR_RECOVERY_TYPE_NONE);
                     } catch (IllegalArgumentException e) {
-                        e.printStackTrace();
-
-                        // Our Surface is probably invalid, so just stop
-                        stopping = true;
+                        // Our Surface is probably invalid: the thread's entry point fails this
+                        // decoder (a stop already in progress is not reported again).
                         codecRecoveryType.set(CR_RECOVERY_TYPE_NONE);
+                        throw new RendererException(this, e);
                     } catch (IllegalStateException e) {
                         e.printStackTrace();
 
@@ -789,17 +788,12 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                         }
                         codecRecoveryType.set(CR_RECOVERY_TYPE_NONE);
                     } catch (IllegalArgumentException e) {
-                        e.printStackTrace();
-
-                        // Our Surface is probably invalid, so just stop
-                        stopping = true;
+                        // Our Surface is probably invalid: the thread's entry point fails this
+                        // decoder (a stop already in progress is not reported again).
                         codecRecoveryType.set(CR_RECOVERY_TYPE_NONE);
+                        throw new RendererException(this, e);
                     } catch (IllegalStateException e) {
-                        // If we failed to recover after all of these attempts, just crash
-                        if (!reportedCrash) {
-                            reportedCrash = true;
-                            crashListener.notifyCrash(e);
-                        }
+                        // Every recovery failed: the thread's entry point fails this decoder.
                         throw new RendererException(this, e);
                     }
                 }
@@ -928,10 +922,6 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 // This isn't the first time we've had an exception processing video
                 if (SystemClock.uptimeMillis() - initialExceptionTimestamp >= EXCEPTION_REPORT_DELAY_MS) {
                     // It's been over 3 seconds and we're still getting exceptions. Throw the original now.
-                    if (!reportedCrash) {
-                        reportedCrash = true;
-                        crashListener.notifyCrash(initialException);
-                    }
                     throw initialException;
                 }
             }
@@ -952,7 +942,18 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         if (stopping) {
             return;
         }
+        try {
+            renderDueFrame(frameTimeNanos);
+        } catch (RuntimeException e) {
+            fail(e);
+            return;
+        }
 
+        // Request another callback for next frame
+        Choreographer.getInstance().postFrameCallback(this);
+    }
+
+    private void renderDueFrame(long frameTimeNanos) {
         frameTimeNanos -= activity.getWindowManager().getDefaultDisplay().getAppVsyncOffsetNanos();
 
         // Don't render unless a new frame is due. This prevents microstutter when streaming
@@ -988,9 +989,20 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         // Attempt codec recovery even if we have nothing to render right now. Recovery can still
         // be required even if the codec died before giving any output.
         doCodecRecoveryIfRequired(CR_FLAG_CHOREOGRAPHER);
+    }
 
-        // Request another callback for next frame
-        Choreographer.getInstance().postFrameCallback(this);
+    /**
+     * A failure codec recovery could not repair, caught where a decoder thread starts its work:
+     * decoding stops for good and the owner rebuilds the decoder or gives the stream up. Never
+     * thrown on: an exception reaching the native decode thread would abort the process.
+     */
+    private void fail(RuntimeException e) {
+        if (stopping || !failed.compareAndSet(false, true)) return;
+        // Also wakes the threads waiting for the recovery that failed: the native decode
+        // thread must leave this decoder, or its replacement's attach waits on it forever.
+        prepareForStop();
+        LimeLog.severe("Video decoder failed: " + e);
+        crashListener.notifyCrash(this, e);
     }
 
     private void startChoreographerThread() {
@@ -1018,6 +1030,14 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         rendererThread = new Thread() {
             @Override
             public void run() {
+                try {
+                    renderLoop();
+                } catch (RuntimeException e) {
+                    fail(e);
+                }
+            }
+
+            private void renderLoop() {
                 BufferInfo info = new BufferInfo();
                 while (!stopping) {
                     try {
@@ -1169,12 +1189,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             // Report a persistent stall after recovery attempts are exhausted.
             if ((deltaMs >= 5000 || codecRecoveryAttempts >= CR_MAX_TRIES)
                     && !stopping) {
-                DecoderHungException decoderHungException = new DecoderHungException(deltaMs);
-                if (!reportedCrash) {
-                    reportedCrash = true;
-                    crashListener.notifyCrash(decoderHungException);
-                }
-                throw new RendererException(this, decoderHungException);
+                throw new RendererException(this, new DecoderHungException(deltaMs));
             }
 
             return false;
@@ -1254,7 +1269,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
     @Override
     public void cleanup() {
-        videoDecoder.release();
+        // A recreation that failed after releasing the old codec leaves none.
+        if (videoDecoder != null) videoDecoder.release();
     }
 
     @Override
@@ -1344,11 +1360,25 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         }
     }
 
-    @SuppressWarnings("deprecation")
+    /** Called on the native decode thread: nothing may be thrown back into it. */
     @Override
     public int submitDecodeUnit(byte[] decodeUnitData, int decodeUnitLength, int decodeUnitType,
                                 int frameNumber, int frameType, char frameHostProcessingLatency,
                                 long receiveTimeUs, long enqueueTimeUs, long presentationTimeUs) {
+        try {
+            return decodeUnit(decodeUnitData, decodeUnitLength, decodeUnitType, frameNumber,
+                    frameType, frameHostProcessingLatency, receiveTimeUs, enqueueTimeUs,
+                    presentationTimeUs);
+        } catch (RuntimeException e) {
+            fail(e);
+            return MoonBridge.DR_OK;
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private int decodeUnit(byte[] decodeUnitData, int decodeUnitLength, int decodeUnitType,
+                           int frameNumber, int frameType, char frameHostProcessingLatency,
+                           long receiveTimeUs, long enqueueTimeUs, long presentationTimeUs) {
         if (stopping) {
             // Don't bother if we're stopping
             return MoonBridge.DR_OK;
@@ -1689,13 +1719,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         numFramesIn++;
 
         if (decodeUnitLength > nextInputBuffer.limit() - nextInputBuffer.position()) {
-            IllegalArgumentException exception = new IllegalArgumentException(
-                    "Decode unit length "+decodeUnitLength+" too large for input buffer "+nextInputBuffer.limit());
-            if (!reportedCrash) {
-                reportedCrash = true;
-                crashListener.notifyCrash(exception);
-            }
-            throw new RendererException(this, exception);
+            throw new RendererException(this, new IllegalArgumentException(
+                    "Decode unit length "+decodeUnitLength+" too large for input buffer "+nextInputBuffer.limit()));
         }
 
         // Copy data from our buffer list into the input buffer

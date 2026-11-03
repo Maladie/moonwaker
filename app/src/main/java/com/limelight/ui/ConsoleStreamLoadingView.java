@@ -505,17 +505,6 @@ public final class ConsoleStreamLoadingView extends FrameLayout {
         return frames;
     }
 
-    public void setStage(String stage) {
-        if (Looper.myLooper() != Looper.getMainLooper()) {
-            handler.post(() -> setStage(stage));
-            return;
-        }
-        if (stopped || !model.connectionStage(friendlyStage(stage), progressForStage(stage))) {
-            return;
-        }
-        render();
-    }
-
     public void setStep(int step, String status) {
         setStep(step, status, "");
     }
@@ -732,10 +721,6 @@ public final class ConsoleStreamLoadingView extends FrameLayout {
         if (direction == activeMotionDirection) return true;
         activeMotionDirection = direction;
         return handleControllerKey(new KeyEvent(KeyEvent.ACTION_DOWN, direction));
-    }
-
-    public void waitingForVideo() {
-        setStep(4, getContext().getString(R.string.console_stream_waiting_video));
     }
 
     /**
@@ -1085,14 +1070,6 @@ public final class ConsoleStreamLoadingView extends FrameLayout {
             }
         }
         return LoadingArtworkPolicy.legibilityBoost(pixels);
-    }
-
-    private static int progressForStage(String stage) {
-        if (stage == null) return 2;
-        String lower = stage.toLowerCase(Locale.ROOT);
-        if (lower.contains("video") || lower.contains("audio")) return 3;
-        if (lower.contains("control") || lower.contains("input")) return 3;
-        return 2;
     }
 
     public String friendlyStage(String stage) {

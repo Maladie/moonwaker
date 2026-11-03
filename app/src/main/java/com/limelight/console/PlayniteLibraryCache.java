@@ -30,14 +30,11 @@ final class PlayniteLibraryCache {
         final List<PlayniteLibraryGame> games;
         final long savedAt;
         final String revision;
-        final String apiVersion;
 
-        Entry(List<PlayniteLibraryGame> games, long savedAt,
-              String revision, String apiVersion) {
+        Entry(List<PlayniteLibraryGame> games, long savedAt, String revision) {
             this.games = Collections.unmodifiableList(new ArrayList<>(games));
             this.savedAt = savedAt;
             this.revision = revision == null ? "" : revision;
-            this.apiVersion = apiVersion == null ? "" : apiVersion;
         }
     }
 
@@ -77,8 +74,8 @@ final class PlayniteLibraryCache {
                     String name = value.optString("name", "").trim();
                     if (!HostGatewayClient.isPlayniteId(id) || name.isEmpty()) continue;
                     String source = value.optString("source", "").trim();
-                    String provider = HostGatewayClient.providerOrLegacy(
-                            value.optString("provider", ""), source);
+                    String provider = HostGatewayClient.normalizedProvider(
+                            value.optString("provider", ""));
                     String providerGameId = value.optString("provider_game_id", "");
                     boolean exactIdentity = HostGatewayClient.hasExactProviderIdentity(
                             id, provider, providerGameId);
@@ -124,7 +121,7 @@ final class PlayniteLibraryCache {
                 }
             }
             Entry entry = new Entry(games, root.optLong("saved_at", file.lastModified()),
-                    root.optString("revision", ""), root.optString("api_version", ""));
+                    root.optString("revision", ""));
             MEMORY.put(cacheKey, entry);
             return entry;
         } catch (IOException | JSONException invalidCache) {
@@ -148,7 +145,6 @@ final class PlayniteLibraryCache {
         try {
             root.put("saved_at", entry.savedAt);
             root.put("revision", entry.revision);
-            root.put("api_version", entry.apiVersion);
             for (PlayniteLibraryGame game : entry.games) {
                 JSONObject value = new JSONObject();
                 value.put("id", game.playniteGameId);

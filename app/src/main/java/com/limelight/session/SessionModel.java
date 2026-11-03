@@ -55,7 +55,8 @@ public final class SessionModel {
         boolean isRetainedTransportLive();
         /** The transport generation {@code StreamRuntime} assigned this owner; never changes. */
         long transportGeneration();
-        default String getExecutionProfileId() { return null; }
+        /** The Windows profile the stream runs in; the actor's own unless it uses another's. */
+        String getExecutionProfileId();
         /** Thread-safe probe: false while the transport runs without a presentation. */
         default boolean hasAttachedPresentation() { return true; }
         ParkOutcome parkRetainedTransport();
@@ -910,7 +911,7 @@ public final class SessionModel {
         streamSessionId = sessionId;
         hostId = retainedHostId == null ? "" : retainedHostId;
         profileId = GatewayConnection.normalizeProfileId(retainedProfileId);
-        executionProfileId = origin(owner, profileId);
+        executionProfileId = origin(owner);
         appId = retainedAppId;
         playniteGameId = retainedPlayniteGameId == null ? "" : retainedPlayniteGameId;
         preparingOperation = 0L;
@@ -934,7 +935,7 @@ public final class SessionModel {
         // host's current observation names the game, and replaces the marker's below. An actor
         // using another profile's Windows session (a child on a parent's) never inherits a game
         // it did not have: there the marker's game must match too.
-        boolean ownProfile = origin(owner, profile).equals(profile);
+        boolean ownProfile = origin(owner).equals(profile);
         boolean exactReconnect = state == State.RECONNECT_REQUIRED
                 && streamSessionId.equals(sessionId)
                 && hostId.equalsIgnoreCase(host)
@@ -956,7 +957,7 @@ public final class SessionModel {
         streamSessionId = sessionId;
         hostId = host;
         profileId = profile;
-        executionProfileId = origin(owner, profileId);
+        executionProfileId = origin(owner);
         appId = preparingAppId;
         playniteGameId = normalize(preparingPlayniteGameId);
         preparingOperation = ++nextOperationId;
@@ -1462,7 +1463,7 @@ public final class SessionModel {
             transportGeneration = generation(expectedOwner);
             streamSessionId = sessionId;
             hostId = expectedHost;
-            executionProfileId = origin(expectedOwner, profileId);
+            executionProfileId = origin(expectedOwner);
             appId = expectedAppId;
             playniteGameId = "";
             setState(State.HOME_LIVE);
@@ -2063,9 +2064,8 @@ public final class SessionModel {
                 && preparingOperation == expected.preparingOperation;
     }
 
-    private static String origin(Controller owner, String actor) {
-        String value = owner == null ? null : owner.getExecutionProfileId();
-        return GatewayConnection.normalizeProfileId(value == null ? actor : value);
+    private static String origin(Controller owner) {
+        return GatewayConnection.normalizeProfileId(owner.getExecutionProfileId());
     }
 
     private static boolean matches(String current, String expectedStreamSessionId) {

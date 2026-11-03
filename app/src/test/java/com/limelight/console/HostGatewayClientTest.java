@@ -402,6 +402,58 @@ public class HostGatewayClientTest {
                 new GatewayTransport.GatewayException("attempt_expired", 409)).state);
         assertEquals("cancelled", HostGatewayClient.sessionFailure(
                 new GatewayTransport.GatewayException("attempt_cancelled", 409)).state);
+        // R1-2: a refusal without a machine reason is a failure, never a manual sign-in.
+        HostGatewayClient.WindowsSession unexplained = HostGatewayClient.sessionFailure(
+                new GatewayTransport.GatewayException("Something went wrong.", 409));
+        assertEquals("", unexplained.reason);
+        assertEquals("failed", unexplained.state);
+        assertEquals("", HostGatewayClient.parseWindowsSession(new JSONObject()).reason);
+    }
+
+    /** R3-8: a Gateway without its registry is unavailable, not the sign-in broker. */
+    @Test public void registryUnavailableIsNoBrokerFailure() throws Exception {
+        assertNull(HostGatewayClient.sessionFailure(new GatewayTransport.GatewayException(
+                "registry_unavailable", 503, 0, new JSONObject()
+                .put("error", "registry_unavailable").put("reason", "registry_unavailable"))));
+    }
+
+    /** C-1: only the Gateway's machine code asks for the PIN again; a plain 403 stays one. */
+    @Test public void profileUnlockRefusalIsClassifiedOnlyByItsCode() throws Exception {
+        GatewayTransport.GatewayException locked = new GatewayTransport.GatewayException(
+                "profile_unlock_required", 403, 0, new JSONObject()
+                .put("error", "profile_unlock_required")
+                .put("reason", "profile_unlock_required"));
+        assertTrue(HostGatewayClient.isProfileUnlockRequired(locked));
+        // No sign-in answer: the session flow throws it and the PIN gate asks again.
+        assertNull(HostGatewayClient.sessionFailure(locked));
+
+        GatewayTransport.GatewayException denied = new GatewayTransport.GatewayException(
+                "This client is not authorized.", 403, 0,
+                new JSONObject().put("error", "This client is not authorized."));
+        assertFalse(HostGatewayClient.isProfileUnlockRequired(denied));
+        assertEquals("remote_sign_in_not_granted",
+                HostGatewayClient.sessionFailure(denied).reason);
+        assertFalse(HostGatewayClient.isProfileUnlockRequired(
+                new GatewayTransport.GatewayException("profile_unlock_required", 403)));
+        assertFalse(HostGatewayClient.isProfileUnlockRequired(
+                new java.io.IOException("profile_unlock_required")));
+    }
+
+    /** C-21: each /pair refusal names its own remedy; nothing is guessed from the status. */
+    @Test public void pairingRefusalsMapToTheirRemedy() throws Exception {
+        assertEquals(HostPairingFlow.Problem.CODE, HostPairingFlow.codeProblem(refusal(
+                "pairing_inactive")));
+        assertEquals(HostPairingFlow.Problem.CODE_INVALID, HostPairingFlow.codeProblem(
+                refusal("pairing_code_invalid")));
+        assertEquals(HostPairingFlow.Problem.RATE_LIMITED, HostPairingFlow.codeProblem(
+                refusal("pairing_rate_limited")));
+        assertEquals(HostPairingFlow.Problem.OTHER, HostPairingFlow.codeProblem(
+                new GatewayTransport.GatewayException("Invalid pairing code.", 403)));
+    }
+
+    private static GatewayTransport.GatewayException refusal(String code) throws Exception {
+        return new GatewayTransport.GatewayException(code, 403, 0,
+                new JSONObject().put("error", code).put("reason", code));
     }
 
     @Test public void windowsSessionCancellationPinsOriginalRequestAndAttempt() throws Exception {
@@ -457,11 +509,11 @@ public class HostGatewayClientTest {
 
     @Test
     public void playniteContractUsesSdkSecondsAndPreservesMetadata() throws Exception {
-        JSONObject library = new JSONObject("{\"revision\":\"42\",\"api_version\":\"1\"," +
+        JSONObject library = new JSONObject("{\"revision\":\"42\"," +
                 "\"games\":[{\"id\":\"steam:289070\"," +
-                "\"name\":\"Game\",\"isInstalled\":false,\"isInstalling\":true," +
+                "\"name\":\"Game\",\"installed\":false,\"installing\":true," +
                 "\"hidden\":false," +
-                "\"playtime\":3600,\"lastActivity\":\"2026-07-20T10:00:00Z\"," +
+                "\"playtimeSeconds\":3600,\"lastPlayed\":\"2026-07-20T10:00:00Z\"," +
                 "\"source\":\"Steam\",\"provider\":\"steam\"," +
                 "\"providerGameId\":\"289070\",\"playniteGameId\":" +
                 "\"11223344-5566-7788-99aa-bbccddeeff00\"," +
@@ -484,6 +536,7 @@ public class HostGatewayClientTest {
 
         assertEquals(1, parsed.games.size());
         assertEquals(3600L, parsed.games.get(0).playtimeSeconds);
+        assertEquals("2026-07-20T10:00:00Z", parsed.games.get(0).lastPlayed);
         assertEquals("Steam", parsed.games.get(0).source);
         assertEquals("steam", parsed.games.get(0).provider);
         assertEquals("steam:289070", parsed.games.get(0).id);
@@ -536,17 +589,86 @@ public class HostGatewayClientTest {
         assertTrue(game.startBeforeStream);
     }
 
-    @Test public void legacyExternalGuidHasNoExecutableCapabilities() throws Exception {
+    @Test public void recordWithoutProviderHasNoExecutableCapabilities() throws Exception {
         HostGatewayClient.PlayniteGame game = HostGatewayClient.parsePlayniteLibrary(
                 new JSONObject("{\"games\":[{\"id\":" +
                         "\"00000001-0000-0000-0000-000000000000\"," +
-                        "\"name\":\"Old Steam Game\",\"source\":\"Steam\"}]}"))
+                        "\"name\":\"Old Steam Game\",\"source\":\"Steam\"," +
+                        "\"capabilities\":{\"launch\":true,\"install\":true," +
+                        "\"uninstall\":true}}]}"))
                 .games.get(0);
 
-        assertEquals("steam", game.provider);
+        assertEquals("", game.provider);
         assertFalse(game.canLaunch);
         assertFalse(game.canInstall);
         assertFalse(game.canUninstall);
+    }
+
+    /** C-10: one camelCase key per field, exactly what the Bridge emits; no other spelling. */
+    @Test public void libraryReadsOnlyTheBridgeKeys() throws Exception {
+        HostGatewayClient.PlayniteLibrary parsed = HostGatewayClient.parsePlayniteLibrary(
+                new JSONObject("{\"library_revision\":\"7\",\"next_cursor\":\"100\"," +
+                        "\"games\":[{\"id\":\"steam:10\",\"name\":\"Old shape\"," +
+                        "\"provider\":\"steam\",\"providerGameId\":\"10\"," +
+                        "\"isInstalled\":true,\"isInstalling\":true," +
+                        "\"playtimeMinutes\":60,\"playtime_seconds\":60,\"playtime\":60," +
+                        "\"coverImage\":\"c\",\"boxArtPath\":\"b\"," +
+                        "\"last_played\":\"x\",\"overview\":\"o\",\"play_count\":3," +
+                        "\"provider_game_id\":\"10\",\"library_key\":\"k\"," +
+                        "\"capabilities\":{\"launch\":true}}," +
+                        "{\"id\":\"epic:Fez\",\"name\":\"Fez\",\"provider\":\"epic\"," +
+                        "\"providerGameId\":\"Fez\",\"playtimeSeconds\":125}]}"));
+
+        HostGatewayClient.PlayniteGame old = parsed.games.get(0);
+        assertFalse(old.installed);
+        assertFalse(old.installing);
+        assertEquals(0L, old.playtimeSeconds);
+        // R3-1: Playnite's own box art is the cover when the provider has none.
+        assertEquals("b", old.cover);
+        assertEquals("", old.lastPlayed);
+        assertEquals("", old.description);
+        assertEquals(0, old.playCount);
+        assertEquals("", old.libraryKey);
+        assertTrue(old.canLaunch);
+        assertEquals(125L, parsed.games.get(1).playtimeSeconds);
+        assertFalse(parsed.games.get(1).canLaunch);
+        assertEquals("", parsed.revision);
+        assertEquals("100", parsed.nextCursor);
+    }
+
+    /**
+     * R5-1: after a Bridge restart every event is older than the cursor: they are the new
+     * boot's, accepted, and the cursor follows them (no hot loop of immediate answers).
+     */
+    @Test public void eventCursorFollowsARestartedBridge() throws Exception {
+        org.json.JSONArray restarted = new org.json.JSONArray("[" +
+                "{\"sequence\":1,\"event\":\"gameStarting\",\"payload\":{\"id\":\"a\"}}," +
+                "{\"sequence\":2,\"event\":\"gameStarted\",\"payload\":{\"id\":\"a\"}}]");
+        HostGatewayClient.PlayniteEvents events =
+                HostGatewayClient.parsePlayniteEvents(restarted, 150L);
+        assertEquals(2, events.events.size());
+        assertEquals(2L, events.latestSequence);
+
+        // The same boot: only the events after the cursor count.
+        org.json.JSONArray same = new org.json.JSONArray("[" +
+                "{\"sequence\":150,\"event\":\"gameStarting\"}," +
+                "{\"sequence\":151,\"event\":\"gameStarted\"}]");
+        events = HostGatewayClient.parsePlayniteEvents(same, 150L);
+        assertEquals(1, events.events.size());
+        assertEquals(151L, events.latestSequence);
+        // Nothing new keeps the cursor.
+        assertEquals(150L, HostGatewayClient.parsePlayniteEvents(
+                new org.json.JSONArray(), 150L).latestSequence);
+    }
+
+    /** R3-1: cover/background win; Playnite's own art fills only an empty one. */
+    @Test public void libraryArtworkPrefersProviderArtThenPlayniteArt() throws Exception {
+        HostGatewayClient.PlayniteGame game = HostGatewayClient.parsePlayniteLibrary(
+                new JSONObject("{\"games\":[{\"id\":\"steam:10\",\"name\":\"Game\"," +
+                        "\"cover\":\"c\",\"boxArtPath\":\"b\"," +
+                        "\"backgroundImagePath\":\"p\"}]}")).games.get(0);
+        assertEquals("c", game.cover);
+        assertEquals("p", game.background);
     }
 
     @Test public void profileProjectionPreservesPlayniteConnectorState() throws Exception {
@@ -578,14 +700,9 @@ public class HostGatewayClientTest {
         assertEquals("", child.scanState);
     }
 
-    @Test public void childCapabilityAndManagementPermissionAreParsedTogether() throws Exception {
+    @Test public void capabilitiesAndManagementPermissionAreParsed() throws Exception {
         HostGatewayClient.Capabilities capabilities = HostGatewayClient.parseCapabilities(
-                new JSONObject().put("capabilities", new JSONObject()
-                        .put("child_profiles_v1", new JSONObject().put("available", true))
-                        .put("control_operations_v2",
-                                new JSONObject().put("available", true))));
-        assertTrue(capabilities.childProfiles);
-        assertTrue(capabilities.controlOperations);
+                new JSONObject().put("capabilities", new JSONObject()));
         assertFalse(capabilities.hostPlus);
         assertTrue(HostGatewayClient.parseCapabilities(new JSONObject().put("capabilities",
                 new JSONObject().put("host_plus", new JSONObject().put("available", true)
@@ -594,11 +711,6 @@ public class HostGatewayClientTest {
         assertTrue(HostGatewayClient.parseCapabilities(new JSONObject().put("capabilities",
                 new JSONObject().put("captures", new JSONObject().put("available", true))))
                 .captures);
-        // A host before the abandon endpoint and the close refusal reasons is refused.
-        assertFalse(HostGatewayClient.parseCapabilities(new JSONObject().put("capabilities",
-                new JSONObject().put("control_operations_v1",
-                        new JSONObject().put("available", true)))).controlOperations);
-
         HostGatewayClient.IntegrationProfiles profiles =
                 HostGatewayClient.parseIntegrationProfiles(new JSONObject()
                         .put("profiles", new org.json.JSONArray().put(new JSONObject()
@@ -613,13 +725,11 @@ public class HostGatewayClientTest {
     @Test public void setupFactsAreParsedAndAbsentForChildProfiles() throws Exception {
         HostGatewayClient.SetupFacts facts = HostGatewayClient.parseCapabilities(
                 new JSONObject().put("setup", new JSONObject()
-                        .put("steam", new JSONObject().put("api_key_saved", true)
-                                .put("steam_id_available", JSONObject.NULL))
+                        .put("steam", new JSONObject().put("connected", true))
                         .put("epic", new JSONObject().put("signed_in", false)
                                 .put("display_name", "Basia"))
                         .put("discord", new JSONObject().put("state", "linked")))).setup;
-        assertEquals(Boolean.TRUE, facts.steamApiKeySaved);
-        assertNull(facts.steamIdAvailable);
+        assertEquals(Boolean.TRUE, facts.steamConnected);
         assertEquals(Boolean.FALSE, facts.epicSignedIn);
         assertEquals("Basia", facts.epicDisplayName);
         assertEquals("linked", facts.discordState);
@@ -627,13 +737,6 @@ public class HostGatewayClientTest {
         assertEquals("unknown", HostGatewayClient.parseCapabilities(new JSONObject()
                 .put("setup", new JSONObject().put("discord",
                         new JSONObject().put("state", "bogus")))).setup.discordState);
-    }
-
-    @Test public void missingControlOperationCapabilityFailsClosed() {
-        HostGatewayClient.Capabilities capabilities = HostGatewayClient.parseCapabilities(
-                new JSONObject());
-
-        assertFalse(capabilities.controlOperations);
     }
 
     @Test public void childProfileKeepsActorPolicyMetadataWithoutShowingOpaqueId()
@@ -825,6 +928,55 @@ public class HostGatewayClientTest {
             fail("an accepted start without its boot is unbound");
         } catch (java.io.IOException expected) {
             assertEquals("game_start_unbound", expected.getMessage());
+        }
+    }
+
+    /** W-6: the wanted state is sent with the channel (the same again changes nothing). */
+    @Test public void discordFavoriteSendsTheWantedStateAndReadsItsNewState() throws Exception {
+        List<String> calls = new ArrayList<>();
+        JSONObject[] sent = new JSONObject[1];
+        JSONObject[] answer = new JSONObject[1];
+        HostGatewayClient client = new HostGatewayClient() {
+            @Override JSONObject request(com.limelight.gateway.GatewayConnection connection,
+                                         String path, String method, JSONObject body,
+                                         int readTimeoutMs) {
+                calls.add(method + " " + path);
+                sent[0] = body;
+                return answer[0];
+            }
+        };
+        HostGatewayClient.DiscordChannel channel = new HostGatewayClient.DiscordChannel(
+                "123456789", "987654321", "Guild", "General", -1, false);
+
+        answer[0] = new JSONObject("{\"ok\": true, \"favorite\": true, \"channel_id\": \"123456789\"}");
+        assertTrue(client.setDiscordFavorite(null, channel, true));
+        assertEquals("POST /api/v1/discord/favorite", calls.get(0));
+        assertEquals(Boolean.TRUE, sent[0].get("favorite"));
+        assertEquals("123456789", sent[0].getString("channel_id"));
+        assertEquals("987654321", sent[0].getString("guild_id"));
+        assertEquals("Guild", sent[0].getString("guild_name"));
+        assertEquals("General", sent[0].getString("channel_name"));
+        answer[0] = new JSONObject("{\"ok\": true, \"favorite\": false, \"channel_id\": \"123456789\"}");
+        assertFalse(client.setDiscordFavorite(null, channel, false));
+        assertEquals(Boolean.FALSE, sent[0].get("favorite"));
+
+        for (String unusable : new String[] {"{\"ok\": true, \"channel_id\": \"123456789\"}",
+                "{\"ok\": true, \"favorite\": \"true\", \"channel_id\": \"123456789\"}",
+                "{\"ok\": true, \"favorite\": true, \"channel_id\": \"111111111\"}"}) {
+            answer[0] = new JSONObject(unusable);
+            try {
+                client.setDiscordFavorite(null, channel, true);
+                fail("no state of this channel: " + unusable);
+            } catch (java.io.IOException expected) {
+                // The caller shows the failure with its Retry.
+            }
+        }
+        try {
+            client.setDiscordFavorite(null, new HostGatewayClient.DiscordChannel(
+                    "../x", "987654321", "Guild", "General", -1, false), true);
+            fail("an invalid channel id is never sent");
+        } catch (IllegalArgumentException expected) {
+            assertEquals("nothing was sent for it", 5, calls.size());
         }
     }
 }

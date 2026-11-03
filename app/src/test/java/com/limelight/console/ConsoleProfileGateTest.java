@@ -227,7 +227,6 @@ public class ConsoleProfileGateTest {
                 "applySelectedProfile(");
         assertFalse(selection.contains("changeSelectedProfile("));
         assertTrue(selectorRefresh.contains("!selection.selected.pinRequired"));
-        assertTrue(verification.contains("gatewayError == null && transportError == null"));
         assertTrue(verification.contains("changeSelectedProfile(host, profileId)"));
         assertTrue(verification.contains("applySelectedProfile(host, profileId)"));
     }

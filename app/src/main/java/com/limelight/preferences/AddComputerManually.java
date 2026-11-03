@@ -17,9 +17,7 @@ import com.limelight.computers.ComputerManagerService;
 import com.limelight.R;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvHTTP;
-import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.utils.Dialog;
-import com.limelight.utils.ServerHelper;
 import com.limelight.utils.SpinnerDialog;
 import com.limelight.utils.UiHelper;
 
@@ -127,10 +125,9 @@ public class AddComputerManually extends Activity {
         boolean wrongSiteLocal = false;
         boolean invalidInput = false;
         boolean success;
-        int portTestResult;
 
         SpinnerDialog dialog = SpinnerDialog.displayDialog(this, getResources().getString(R.string.title_add_pc),
-            getResources().getString(R.string.msg_add_pc), false);
+            getResources().getString(R.string.msg_add_pc));
 
         try {
             ComputerDetails details = new ComputerDetails();
@@ -168,33 +165,16 @@ public class AddComputerManually extends Activity {
             invalidInput = true;
         }
 
-        // Keep the SpinnerDialog open while testing connectivity
-        if (!success && !wrongSiteLocal && !invalidInput) {
-            // Run the test before dismissing the spinner because it can take a few seconds.
-            portTestResult = MoonBridge.testClientConnectivity(ServerHelper.CONNECTION_TEST_SERVER, 443,
-                    MoonBridge.ML_PORT_FLAG_TCP_47984 | MoonBridge.ML_PORT_FLAG_TCP_47989);
-        } else {
-            // Don't bother with the test if we succeeded or the IP address was bogus
-            portTestResult = MoonBridge.ML_TEST_RESULT_INCONCLUSIVE;
-        }
-
         dialog.dismiss();
 
         if (invalidInput) {
-            Dialog.displayDialog(this, getResources().getString(R.string.conn_error_title), getResources().getString(R.string.addpc_unknown_host), false);
+            Dialog.displayDialog(this, getResources().getString(R.string.conn_error_title), getResources().getString(R.string.addpc_unknown_host));
         }
         else if (wrongSiteLocal) {
-            Dialog.displayDialog(this, getResources().getString(R.string.conn_error_title), getResources().getString(R.string.addpc_wrong_sitelocal), false);
+            Dialog.displayDialog(this, getResources().getString(R.string.conn_error_title), getResources().getString(R.string.addpc_wrong_sitelocal));
         }
         else if (!success) {
-            String dialogText;
-            if (portTestResult != MoonBridge.ML_TEST_RESULT_INCONCLUSIVE && portTestResult != 0)  {
-                dialogText = getResources().getString(R.string.nettest_text_blocked);
-            }
-            else {
-                dialogText = getResources().getString(R.string.addpc_fail);
-            }
-            Dialog.displayDialog(this, getResources().getString(R.string.conn_error_title), dialogText, false);
+            Dialog.displayDialog(this, getResources().getString(R.string.conn_error_title), getResources().getString(R.string.addpc_fail));
         }
         else {
             AddComputerManually.this.runOnUiThread(new Runnable() {

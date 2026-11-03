@@ -107,7 +107,6 @@ public final class DiscordDmNotificationCoordinator
         boolean foreground;
         boolean focused;
         boolean pictureInPicture;
-        boolean authorizationActive;
         boolean screenSaverActive;
         boolean presentationBlocked;
         long visiblePeerId;
@@ -118,8 +117,7 @@ public final class DiscordDmNotificationCoordinator
         }
 
         boolean eligible() {
-            return foreground && focused && !pictureInPicture && !authorizationActive
-                    && !screenSaverActive;
+            return foreground && focused && !pictureInPicture && !screenSaverActive;
         }
     }
 
@@ -275,10 +273,6 @@ public final class DiscordDmNotificationCoordinator
         updateGuard(token, registration -> registration.pictureInPicture = active);
     }
 
-    public synchronized void setAuthorizationActive(HostToken token, boolean active) {
-        updateGuard(token, registration -> registration.authorizationActive = active);
-    }
-
     public synchronized void setScreenSaverActive(HostToken token, boolean active) {
         updateGuard(token, registration -> registration.screenSaverActive = active);
     }
@@ -332,39 +326,25 @@ public final class DiscordDmNotificationCoordinator
         return peerId;
     }
 
-    public synchronized void invalidateQuickAction() {
-        clearQuickActionLocked();
-    }
-
     @Override public void onMessageEvent(DiscordSocialClient.MessageEvent event) {
-        if (event == null || event.type != DiscordSocialClient.MessageEvent.Type.CREATED) return;
+        if (event == null) return;
         DiscordSocialClient.Snapshot snapshot = DiscordSocialClient.getSnapshot();
         long selfId = positiveLong(snapshot.userId);
-        if (!snapshot.connected || selfId <= 0L || event.authorId == selfId) return;
-        long peerId = DiscordSocialClient.directMessagePeer(selfId, event.authorId, event.recipientId);
-        if (peerId <= 0L) return;
-
+        String peer = Long.toString(
+                DiscordSocialClient.directMessagePeer(selfId, event.authorId, event.recipientId));
         DiscordSocialClient.Friend friend = null;
-        String peer = Long.toString(peerId);
         for (DiscordSocialClient.Friend candidate : snapshot.friendDetails) {
             if (peer.equals(candidate.userId)) {
                 friend = candidate;
                 break;
             }
         }
-        String sender = friend == null ? "Discord" : sanitize(friend.displayName,
-                MAX_SENDER_CODE_POINTS);
-        if (sender.isEmpty()) sender = "Discord";
-        boolean neutral = event.disclosure || event.additionalContentCount > 0
-                || !event.additionalContentType.isEmpty() || !event.additionalContentTitle.isEmpty();
-        String content = sanitize(event.content, MAX_SNIPPET_CODE_POINTS);
-        if (content.isEmpty() || URL.matcher(content).find()) {
-            content = "";
-            neutral = true;
-        }
-        accept(new IncomingMessage(event.messageId, peerId, sender,
-                friend == null ? "" : friend.avatarUrl, content, neutral,
-                friend != null && DiscordSocialClient.canUseDirectMessages()));
+        receive(event.messageId, selfId, event.authorId, event.recipientId, snapshot.connected,
+                friend == null ? "" : friend.displayName, friend == null ? "" : friend.avatarUrl,
+                event.content, event.disclosure || event.additionalContentCount > 0
+                        || !event.additionalContentType.isEmpty()
+                        || !event.additionalContentTitle.isEmpty(),
+                friend != null, DiscordSocialClient.canUseDirectMessages(), event.type);
     }
 
     @Override public synchronized void onSocialStateChanged(
@@ -579,20 +559,16 @@ public final class DiscordDmNotificationCoordinator
         return result.toString();
     }
 
-    // Narrow test seam: event filtering uses the same queue path without mutating SDK snapshots.
-    void acceptForTest(long messageId, long selfId, long authorId, long recipientId,
-                       boolean connected, String senderName, String avatarUrl, String content,
-                       boolean mediaOrDisclosure, boolean knownPeer,
-                       DiscordSocialClient.MessageEvent.Type type) {
-        acceptForTest(messageId, selfId, authorId, recipientId, connected, senderName, avatarUrl,
-                content, mediaOrDisclosure, knownPeer, true, type);
-    }
-
-    void acceptForTest(long messageId, long selfId, long authorId, long recipientId,
-                       boolean connected, String senderName, String avatarUrl, String content,
-                       boolean mediaOrDisclosure, boolean knownPeer,
-                       boolean directMessagesAvailable,
-                       DiscordSocialClient.MessageEvent.Type type) {
+    /**
+     * The one filter of an incoming message (the SDK's events and tests alike): only another
+     * user's new direct message while connected queues; media, disclosures, URLs and empty
+     * text show no content.
+     */
+    void receive(long messageId, long selfId, long authorId, long recipientId,
+                 boolean connected, String senderName, String avatarUrl, String content,
+                 boolean mediaOrDisclosure, boolean knownPeer,
+                 boolean directMessagesAvailable,
+                 DiscordSocialClient.MessageEvent.Type type) {
         if (type != DiscordSocialClient.MessageEvent.Type.CREATED || !connected || selfId <= 0L
                 || authorId == selfId) return;
         long peerId = DiscordSocialClient.directMessagePeer(selfId, authorId, recipientId);

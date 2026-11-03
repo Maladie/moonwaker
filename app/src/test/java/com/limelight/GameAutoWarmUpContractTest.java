@@ -45,9 +45,15 @@ public class GameAutoWarmUpContractTest {
         String restore = between(game, "private void restoreParkedStream(",
                 "private void scheduleRetainedRestoreWatchdog()");
 
-        assertOrdered(restore, "if (!streamHomeVisible) {", "setInputGrabState(true);");
+        String grab = between(game, "private void updateInputGrab()",
+                "private final Runnable toggleGrab");
+
+        // One rule decides the grab; the Home and the restore only ask it again.
+        assertTrue(grab.contains("!streamHomeVisible"));
+        assertOrdered(restore, "if (!streamHomeVisible && controllerHandler != null)",
+                "updateInputGrab();");
         assertOrdered(resume, "if (streamHomeVisible) {", "streamHomeVisible = false;",
-                "if (isTransportConnected()) {", "setInputGrabState(true);",
+                "if (isTransportConnected()) {", "updateInputGrab();",
                 "restoreParkedStream(");
     }
 
@@ -111,7 +117,7 @@ public class GameAutoWarmUpContractTest {
         assertOrdered(complete, "autoWarmUpRetained = true;", "done.accept(completed);",
                 "if (completed) returnFromStreamHome();");
         assertOrdered(submit, "pendingRetainedSwitch.completed();", "returnFromStreamHome();",
-                "pendingRetainedSwitch.completed();", "returnFromStreamHome();");
+                "pendingRetainedSwitch.completed();", "handBackFailedSwitch(");
     }
 
     @Test public void warmUpUsesNeutralOpaqueGateAndRestoresGameTransitionUi()
@@ -125,7 +131,7 @@ public class GameAutoWarmUpContractTest {
         assertTrue(create.contains("if (hasAutoWarmUpTransportIdentity() && !autoWarmUpConvertedToGame)"));
         assertTrue(create.contains("consoleLoadingView.showNeutralWarmUpAppearance()"));
         assertTrue(create.contains("else {\n"
-                + "                consoleLoadingView.setSplashArtwork("));
+                + "            consoleLoadingView.setSplashArtwork("));
         assertOrdered(create, "consoleLoadingView.showNeutralWarmUpAppearance()",
                 "awaitCover(startId, outcome -> {");
         assertTrue(apply.indexOf("consoleLoadingView.showFullTransitionAppearance()")
@@ -229,7 +235,7 @@ public class GameAutoWarmUpContractTest {
         assertOrdered(runtimeStarted, "state = State.CONNECTED",
                 "p.connectionStarted()");
         assertTrue(connected.contains("completeAutoWarmUpPreparing("));
-        assertOrdered(connected, "spinner.dismiss()",
+        assertOrdered(connected, "transitionController.streamConnected(transitionSpec.id);",
                 "completeAutoWarmUpPreparing(");
         assertOrdered(connected, "autoWarmUpTransportStopRequested.compareAndSet(false, true)",
                 "stopConnection(() -> finish())");
@@ -259,9 +265,10 @@ public class GameAutoWarmUpContractTest {
         assertTrue(snapshot.contains("!isOwnedHiddenAutoWarmUp()"));
         assertTrue(start.indexOf("applyStreamAudio(currentTransitionSnapshot());")
                 < start.indexOf("runtime.start();"));
-        assertTrue(connected.contains(
-                "if (!isDestroyed() && !isOwnedHiddenAutoWarmUp())"));
-        assertTrue(connected.contains("setInputGrabState(true)"));
+        // The grab's one rule takes no input a hidden warm-up keeps from the host.
+        assertTrue(connected.contains("if (!isDestroyed()) updateInputGrab();"));
+        assertTrue(between(game, "private void updateInputGrab()",
+                "private final Runnable toggleGrab").contains("!isTransitionInputBlocked()"));
     }
 
     @Test public void preparingHomeDoesNotEnterHomeAndBackgroundUsesFullToken()

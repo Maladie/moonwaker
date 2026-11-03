@@ -59,13 +59,6 @@ public final class DiscordAudioDownlink {
         if (old != null) old.close();
     }
 
-    public void setPlaybackEnabled(boolean enabled) {
-        synchronized (lock) {
-            playbackEnabled = enabled;
-            if (session != null) session.setPresentation(enabled, gain);
-        }
-    }
-
     public void stop() {
         Session old;
         synchronized (lock) {

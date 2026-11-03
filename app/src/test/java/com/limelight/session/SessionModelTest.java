@@ -29,7 +29,7 @@ public class SessionModelTest {
 
     static class FakeController
             implements SessionModel.Controller {
-        String origin;
+        String origin = com.limelight.gateway.GatewayConnection.DEFAULT_PROFILE_ID;
         @Override public String getExecutionProfileId() { return origin; }
         boolean parkResult = true;
         boolean disconnected;

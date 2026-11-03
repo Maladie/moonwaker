@@ -31,10 +31,6 @@ final class ConsoleBackdrop extends View {
         animated = false;
     }
 
-    long getStartedAt() {
-        return startedAt;
-    }
-
     @Override
     protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
         if (width <= 0 || height <= 0) return;

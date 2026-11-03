@@ -46,8 +46,7 @@ public final class SuspendedSessionStore {
             this.suspendId = normalizeValue(suspendId);
             this.hostId = normalize(hostId);
             this.profileId = GatewayConnection.normalizeProfileId(profileId);
-            this.executionProfileId = GatewayConnection.normalizeProfileId(
-                    executionProfileId == null ? this.profileId : executionProfileId);
+            this.executionProfileId = GatewayConnection.normalizeProfileId(executionProfileId);
             this.sunshineAppId = sunshineAppId;
             this.playniteGameId = normalize(playniteGameId);
             this.title = title == null ? "" : title.trim();
@@ -89,9 +88,7 @@ public final class SuspendedSessionStore {
         prefs.edit()
                 .putString(key(session.hostId, session.profileId), value.toString())
                 .remove(endedAtKey(session.hostId, session.profileId))
-                .remove(endedIdKey(session.hostId, session.profileId))
                 .remove(endedAtKey(session.hostId, session.executionProfileId))
-                .remove(endedIdKey(session.hostId, session.executionProfileId))
                 .apply();
     }
 
@@ -119,15 +116,15 @@ public final class SuspendedSessionStore {
         return newest;
     }
 
-    /** A record without its own suspend id or profile is not a record. */
+    /** A record without its own suspend id, profile or execution profile is not a record. */
     private static Session parse(String raw) {
         try {
             JSONObject value = new JSONObject(raw);
             String profile = value.optString("profile_id", "").trim();
+            String execution = value.optString("execution_profile_id", "").trim();
             String suspendId = normalizeValue(value.optString("suspend_id", ""));
-            if (profile.isEmpty() || suspendId.isEmpty()) return null;
-            return new Session(suspendId, value.optString("host_id", ""), profile,
-                    value.optString("execution_profile_id", profile),
+            if (profile.isEmpty() || execution.isEmpty() || suspendId.isEmpty()) return null;
+            return new Session(suspendId, value.optString("host_id", ""), profile, execution,
                     value.optInt("sunshine_app_id", 0), value.optString("playnite_game_id", ""),
                     value.optString("title", ""), value.optString("artwork", ""),
                     value.optLong("suspended_at", 0L), value.optLong("resumed_at", 0L),
@@ -188,10 +185,7 @@ public final class SuspendedSessionStore {
         prefs.edit()
                 .remove(key(current.hostId, current.profileId))
                 .putLong(endedAtKey(current.hostId, current.profileId), now)
-                .putString(endedIdKey(current.hostId, current.profileId), current.suspendId)
                 .putLong(endedAtKey(current.hostId, current.executionProfileId), now)
-                .putString(endedIdKey(current.hostId, current.executionProfileId),
-                        current.suspendId)
                 .apply();
     }
 
@@ -218,19 +212,6 @@ public final class SuspendedSessionStore {
         return hostId;
     }
 
-    static boolean canCompleteResume(Session session, String suspendId, String hostId,
-                                     String profileId, int sunshineAppId,
-                                     String playniteGameId) {
-        if (!matches(session, suspendId)
-                || !session.hostId.equals(normalize(hostId))
-                || !session.profileId.equals(
-                GatewayConnection.normalizeProfileId(profileId))
-                || session.sunshineAppId != sunshineAppId) return false;
-        String expectedGameId = normalize(playniteGameId);
-        return (expectedGameId.isEmpty() && session.playniteGameId.isEmpty())
-                || expectedGameId.equals(session.playniteGameId);
-    }
-
     static boolean matches(Session session, String suspendId) {
         return session != null && !session.suspendId.isEmpty()
                 && session.suspendId.equals(normalizeValue(suspendId));
@@ -247,10 +228,6 @@ public final class SuspendedSessionStore {
 
     private static String endedAtKey(String hostId, String profileId) {
         return "ended_at." + key(hostId, profileId);
-    }
-
-    private static String endedIdKey(String hostId, String profileId) {
-        return "ended_id." + key(hostId, profileId);
     }
 
     private static String normalize(String value) {

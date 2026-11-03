@@ -54,7 +54,7 @@ public class ConsoleActivityEnsureContractTest {
         // The stale-cover cleanup runs first: it never removes the cover the queue just drew.
         assertOrdered(resume,
                 "if (loadingLayer != null && loadingLayer.getVisibility() == View.VISIBLE) showHome();",
-                "renderQueue();", "sessionOrchestrator.sessionChanged();");
+                "renderQueue();", "sessionOrchestrator.screenShown();");
         String drives = source.substring(source.indexOf("public boolean drivesQueue()"));
         assertOrdered(drives, "active && !isFinishing()", "initialHostSelectionResolved",
                 "!hostSelectionVisible && profileGateHostUuid == null", "isStreamHome()",
@@ -84,10 +84,19 @@ public class ConsoleActivityEnsureContractTest {
                 source.indexOf("private void endQueuedCover()"));
         assertOrdered(queuedCover, "R.string.console_queued_waiting_session",
                 "R.string.console_queued_waiting_close, closingName");
-        String cancel = source.substring(source.indexOf("    private void showLoading(String hostName, String appName, String loadingArtworkPath)"));
-        assertOrdered(cancel, "@Override public void onCancel() {",
-                "if (queuedCoverIntent != null) {", "sessionOrchestrator.cancelQueued();",
-                "cancelCurrentPreparation();");
+        String cancel = source.substring(source.indexOf("private void cancelLoading()"),
+                source.indexOf("private static final String LOADING_COVER_FENCE"));
+        assertOrdered(cancel, "if (queuedCoverIntent != null) {",
+                "sessionOrchestrator.cancelQueued();", "cancelCurrentPreparation();");
+        // A-5: Back over the loading layer is its Cancel: the queued Play does not come back.
+        String onCancel = source.substring(source.indexOf("@Override public void onCancel()"),
+                source.indexOf("@Override public void onRetry()", source.indexOf(
+                        "@Override public void onCancel()")));
+        String back = source.substring(source.indexOf("public void onBackPressed()"),
+                source.indexOf("private void loadKnownHosts("));
+        assertTrue(onCancel.contains("cancelLoading();"));
+        assertOrdered(back, "loadingLayer.getVisibility() == View.VISIBLE) {",
+                "cancelLoading();", "} else if (expandedLibraryMode) {");
         // TV 2026-10-15: an earlier launch's cover never shows again when this window does.
         String stop = source.substring(source.indexOf("@Override protected void onStop() {"),
                 source.indexOf("public void onTrimMemory("));
@@ -297,7 +306,9 @@ public class ConsoleActivityEnsureContractTest {
                 source.indexOf("private void launchPreparedStream(", source.indexOf(
                         "private void beginInstallationSupportStream(")));
 
-        assertTrue(method.contains("terminateKnownControlPlane(ready, transitionProfileId"));
+        // A-7: the installation stream is a Play of the one table (replacement, queue, Retry).
+        assertTrue(method.contains("sessionOrchestrator.play(PlayIntent.installationSupport("));
+        assertFalse(method.contains("terminateKnownControlPlane("));
         assertFalse(method.contains("quitApp("));
     }
 
@@ -408,7 +419,7 @@ public class ConsoleActivityEnsureContractTest {
         String activity = source.substring(source.indexOf("private long playActivityEpoch("),
                 source.indexOf("private static String playniteCarouselInstallActivityKey("));
         String launch = source.substring(source.indexOf("private void launchPreparedStream("),
-                source.indexOf("private boolean handleRetainedStreamLaunch("));
+                source.indexOf("private void attachPresentationForSwitch("));
         String retainedSwitch = source.substring(source.indexOf(
                         "private SessionOrchestrator.CloseResult switchRetainedProviderGame("),
                 source.indexOf("private void showLoading(String hostName",
@@ -443,7 +454,7 @@ public class ConsoleActivityEnsureContractTest {
         String launch = source.substring(source.indexOf("@Override public void launch("),
                 source.indexOf("@Override public void preflightFailed("));
         String prepared = source.substring(source.indexOf("private void launchPreparedStream("),
-                source.indexOf("private boolean handleRetainedStreamLaunch("));
+                source.indexOf("private void attachPresentationForSwitch("));
 
         assertTrue(launch.contains("ownsFreshSunshineSession"));
         assertTrue(launch.contains("transitionType == LaunchTransitionType.GAME"));
@@ -502,8 +513,7 @@ public class ConsoleActivityEnsureContractTest {
                 resolver.indexOf("executor.execute("));
         assertEquals(3, beforePoll.split("if \\(completion != null\\) completion\\.accept"
                 + "\\(false\\);\\s+return;", -1).length - 1);
-        assertTrue(resolver.contains(
-                "completion.accept(projected != null && sameRenderScope)"));
+        assertTrue(resolver.contains("completion.accept(refreshed && sameRenderScope)"));
         assertTrue(activation.contains(
                 "playPlayniteGame(host, PlayniteTargetResolver.resolveNeutralStream(apps), item.game,\n"
                         + "                playniteSessionState(item) == PlayniteSessionPresentation.State.READY);"));
@@ -557,8 +567,9 @@ public class ConsoleActivityEnsureContractTest {
         assertOrdered(preflight, "Action.SWITCH_RETAINED", "HostReadiness.requestWake(");
         assertFalse(preflight.contains("HostReadiness.await("));
         assertFalse(preflight.contains("HostReadiness.awaitAfterWakeDecision("));
-        assertTrue(preflight.contains("State.HOME_LIVE"));
-        assertTrue(preflight.contains("State.PREPARING"));
+        // A-9: the switch preflight reads the session model's one switchable rule (parked too).
+        assertTrue(preflight.contains("sessionModel.canSwitchGame(retained)"));
+        assertFalse(preflight.contains("State.HOME_LIVE"));
         // When a close switches the retained stream: SessionTransitionTableTest
         // competingSessionGivesWayBySwitchConfirmationOrTheExactClose.
     }
@@ -585,16 +596,17 @@ public class ConsoleActivityEnsureContractTest {
         assertTrue(reject.contains("ConsoleUiFeedback.makeText(ConsoleActivity.this, title + \" \" + details,"));
         assertFalse(retry.contains("sessionOrchestrator.cancel()"));
         assertFalse(retry.contains("showHome()"));
-        assertTrue(resolve.contains("gateway.snapshot().sessionSnapshot"));
+        // A-2: a failed or rejected read completes the refresh as failed, never as refreshed.
+        assertTrue(resolve.contains("read = gateway.snapshot();"));
+        assertTrue(resolve.contains("completion.accept(refreshed && sameRenderScope)"));
         // Only the presentation key decides a render; no per-Activity copy of the projection.
         assertTrue(resolve.contains("renderLibraryForSessionChange(currentHost(expectedHostId))"));
     }
 
     @Test public void warmUpCancelAndFailureRemainScopedAndInline() throws IOException {
         String source = consoleActivitySource();
-        String cancel = source.substring(source.indexOf("@Override public void onCancel()"),
-                source.indexOf("@Override public void onRetry()", source.indexOf(
-                        "@Override public void onCancel()")));
+        String cancel = source.substring(source.indexOf("private void cancelLoading()"),
+                source.indexOf("private static final String LOADING_COVER_FENCE"));
         String hostCancel = source.substring(source.indexOf(
                         "private void cancelOwnedWarmUp("),
                 source.indexOf("private void startAppListPoller("));
@@ -625,7 +637,7 @@ public class ConsoleActivityEnsureContractTest {
         String polish = resourceSource("values-pl/strings.xml");
 
         assertTrue(cancel.contains("cancelCurrentPreparation()"));
-        assertTrue(back.contains("cancelCurrentPreparation()"));
+        assertTrue(back.contains("cancelLoading()"));
         assertTrue(pause.contains("cancelCurrentPreparation(childStreamHandoff)"));
         assertFalse(pause.contains("showHome()"));
         assertTrue(scopedCancel.contains("cancelPreparation(warmUpClientHostId)"));

@@ -34,14 +34,6 @@ public final class TransportStopCoordinator {
         this.executor = executor;
     }
 
-    public synchronized boolean hasStopStarted() {
-        return state == State.STOPPING || state == State.STOPPED;
-    }
-
-    public synchronized boolean hasWorkStarted() {
-        return state != State.NEW;
-    }
-
     public static void completeSafely(Completion completion, Result result) {
         if (completion == null) return;
         try {

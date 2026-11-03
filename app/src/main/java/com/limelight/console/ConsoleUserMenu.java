@@ -75,11 +75,14 @@ final class ConsoleUserMenu {
     private static final int QR_DP = 120;
     /** Legendary's Epic sign-in page; after login it shows the JSON with the code. */
     static final String EPIC_LOGIN_URL = "https://legendary.gl/epiclogin";
+    static final String STEAM_KEY_URL = "https://steamcommunity.com/dev/apikey";
 
     private final Activity activity;
     private final ConsolePanel panel;
     private final HostGatewayClient client;
     private final Executor executor;
+    /** The Epic sign-in waits up to 90 s: never on the console's shared workers. */
+    private final Executor accountExecutor;
     private final Handler main;
     private final Presenter presenter;
     private final Runnable openDiscordSettings;
@@ -97,12 +100,14 @@ final class ConsoleUserMenu {
     private int generation;
 
     ConsoleUserMenu(Activity activity, ConsolePanel panel, HostGatewayClient client,
-                    Executor executor, Handler main, Presenter presenter,
+                    Executor executor, Executor accountExecutor, Handler main,
+                    Presenter presenter,
                     Runnable openDiscordSettings, Runnable openProfileSettings) {
         this.activity = activity;
         this.panel = panel;
         this.client = client;
         this.executor = executor;
+        this.accountExecutor = accountExecutor;
         this.main = main;
         this.presenter = presenter;
         this.openDiscordSettings = openDiscordSettings;
@@ -218,7 +223,7 @@ final class ConsoleUserMenu {
         } else {
             views.add(panel.note(s(steam ? R.string.user_menu_steam_steps
                     : R.string.user_menu_epic_steps)));
-            views.add(qr(steam ? FirstRunWizard.STEAM_KEY_URL : EPIC_LOGIN_URL));
+            views.add(qr(steam ? STEAM_KEY_URL : EPIC_LOGIN_URL));
             EditText field = panel.textField(s(steam ? R.string.user_menu_paste_key
                     : R.string.user_menu_paste_code));
             field.setText(draft);
@@ -260,7 +265,7 @@ final class ConsoleUserMenu {
         inputError = "";
         renderFix(kind);
         String requestId = UUID.randomUUID().toString();
-        executor.execute(() -> {
+        accountExecutor.execute(() -> {
             String reason;
             try {
                 client.setupAccount(forSubject.connection, steam, value, requestId);
@@ -290,8 +295,7 @@ final class ConsoleUserMenu {
             case "steam_api_key_invalid": return s(R.string.user_menu_steam_invalid);
             case "epic_code_invalid": return s(R.string.user_menu_epic_invalid);
             case "epic_sign_in_failed": return s(R.string.user_menu_epic_failed);
-            case "legendary_unavailable":
-            case "legendary_disabled": return s(R.string.user_menu_legendary_missing);
+            case "legendary_unavailable": return s(R.string.user_menu_legendary_missing);
             default: return s(R.string.user_menu_save_failed);
         }
     }

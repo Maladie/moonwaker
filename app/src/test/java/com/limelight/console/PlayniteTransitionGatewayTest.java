@@ -1,5 +1,6 @@
 package com.limelight.console;
 
+import com.limelight.gateway.GatewayTransport;
 import com.limelight.SourceText;
 import com.limelight.session.MemoryPreferences;
 import com.limelight.session.SessionModel;
@@ -105,15 +106,23 @@ public class PlayniteTransitionGatewayTest {
         // A pre-launch decision trusts the streamer's app only from its own accepted read.
         assertTrue(accepted.observationAccepted);
         assertFalse(rejected.observationAccepted);
+        // A Play's session refresh succeeds only on an accepted read (A-2): a rejected or
+        // failed read is a failed refresh, never one whose UNCERTAIN result triggers recovery.
+        assertTrue(accepted.projectionRefreshed);
+        assertFalse(rejected.projectionRefreshed);
         HostGatewayClient down = new HostGatewayClient() {
             @Override SessionObservation getSessionObservation(GatewayConnection connection,
                     String executionProfileId, long requestOrdinal) throws IOException {
                 throw new IOException("down");
             }
         };
-        assertFalse(new PlayniteTransitionGateway(model, connection("parent"),
-                PlayniteTransitionGateway.ActorContext.parent("parent"), down)
-                .snapshot().observationAccepted);
+        PlayniteTransitionGateway.Snapshot failed = new PlayniteTransitionGateway(model,
+                connection("parent"), PlayniteTransitionGateway.ActorContext.parent("parent"),
+                down).snapshot();
+        assertFalse(failed.observationAccepted);
+        assertFalse(failed.projectionRefreshed);
+        assertTrue("the failed read still publishes its projection",
+                failed.sessionSnapshot != null);
     }
 
     @Test public void snapshotReadsAgainWhenADashboardPollWinsTheDispatch() throws Exception {
@@ -159,6 +168,8 @@ public class PlayniteTransitionGatewayTest {
         PlayniteTransitionGateway.Snapshot snapshot = switching.snapshot();
 
         assertEquals(2, client.parsedObservations);
+        // Decided on a newer accepted observation: a refresh, not a failed read.
+        assertTrue(snapshot.projectionRefreshed);
         assertEquals("running", snapshot.gameState);
         assertTrue(snapshot.hasVerifiedProcessFor("steam:123"));
         assertEquals("steam:123", PlayniteIdentityResolutionPolicy.verifiedStopTarget(
@@ -255,12 +266,12 @@ public class PlayniteTransitionGatewayTest {
                 .put("result", new JSONObject().put("accepted", false));
         assertFalse(gateway.stopGameWithinControl("steam:123", permit));
         client.stopAnswer = () -> {
-            throw new HostGatewayClient.GatewayException("control_operation_required", 409);
+            throw new GatewayTransport.GatewayException("control_operation_required", 409);
         };
         assertFalse(gateway.stopGameWithinControl("steam:123", permit));
         // The provider's answer never reached the Gateway, or none reached the TV: uncertain.
         for (IOException lost : new IOException[] {
-                new HostGatewayClient.GatewayException("provider_response_unavailable", 502),
+                new GatewayTransport.GatewayException("provider_response_unavailable", 502),
                 new java.net.SocketTimeoutException("timeout")}) {
             client.stopAnswer = () -> {
                 throw lost;
@@ -379,17 +390,18 @@ public class PlayniteTransitionGatewayTest {
 
     @Test public void startWithoutProcessIsAbandonableOnlyForTheExactProcesslessGame() {
         assertTrue(new PlayniteTransitionGateway.Snapshot(true, true, "starting", "steam:123",
-                0, false, "game", 0, "launcher_interaction_required", false)
+                0, false, "game", 0, "launcher_interaction_required")
                 .hasStartWithoutProcessFor("steam:123"));
         assertTrue(new PlayniteTransitionGateway.Snapshot(true, true, "failed", "steam:123",
-                0, false, "game", 0, "", false).hasStartWithoutProcessFor("steam:123"));
+                0, false, "game", 0, "").hasStartWithoutProcessFor("steam:123"));
         assertFalse(new PlayniteTransitionGateway.Snapshot(true, true, "starting", "steam:123",
-                0, false, "game", 0, "", false).hasStartWithoutProcessFor("steam:456"));
+                0, false, "game", 0, "").hasStartWithoutProcessFor("steam:456"));
         assertFalse(new PlayniteTransitionGateway.Snapshot(true, true, "starting", "steam:123",
-                42, false, "game", 0, "", false, PROCESS_TOKEN)
+                42, false, "game", 0, "", false, PROCESS_TOKEN, "", "",
+                        "", 0L, -1, false, "")
                 .hasStartWithoutProcessFor("steam:123"));
         assertFalse(new PlayniteTransitionGateway.Snapshot(true, true, "running", "steam:123",
-                0, false, "game", 0, "", false).hasStartWithoutProcessFor("steam:123"));
+                0, false, "game", 0, "").hasStartWithoutProcessFor("steam:123"));
     }
 
     @Test public void rejectedIdleControlReadCannotLetFullQuitSkipTheStop() throws Exception {
@@ -472,8 +484,8 @@ public class PlayniteTransitionGatewayTest {
         assertTrue(game.contains("ActorContext.child(\n"
                 + "                            childActorProfileId, childExecutionProfileId)"));
         String console = read(root.resolve("console/ConsoleActivity.java"));
-        assertEquals(1, occurrences(console, "PlayniteTransitionGateway.connect("));
-        assertTrue(console.contains("gatewayActorContext(host.uuid, transitionProfileId)"));
+        assertEquals(0, occurrences(console, "PlayniteTransitionGateway.connect("));
+        assertTrue(console.contains("gatewayActorContext(expectedHostId, requestKey.profileId)"));
     }
 
     @Test public void missingConnectionIsDiagnosedWithoutAddressOrCredentials()
@@ -512,18 +524,15 @@ public class PlayniteTransitionGatewayTest {
         assertFalse(acceptance.matches("suspend-a", 42, "game"));
     }
 
-    @Test public void acceptedLegacySuspendWithoutCorrelationMatches() {
-        PlayniteTransitionGateway.SuspendAcceptance acceptance =
-                new PlayniteTransitionGateway.SuspendAcceptance(true, "", 0, "");
-
-        assertTrue(acceptance.matches("suspend-a", 42, "game"));
-    }
-
-    @Test public void partialCorrelationIsNotTreatedAsLegacy() {
-        PlayniteTransitionGateway.SuspendAcceptance acceptance =
-                new PlayniteTransitionGateway.SuspendAcceptance(true, "suspend-a", 0, "");
-
-        assertFalse(acceptance.matches("suspend-a", 42, "game"));
+    /** A-8: an acknowledgement that echoes no correlation is no acceptance of this suspend. */
+    @Test public void suspendWithoutEchoedCorrelationNeverMatches() {
+        for (PlayniteTransitionGateway.SuspendAcceptance acceptance :
+                new PlayniteTransitionGateway.SuspendAcceptance[] {
+                        new PlayniteTransitionGateway.SuspendAcceptance(true, "", 0, ""),
+                        new PlayniteTransitionGateway.SuspendAcceptance(
+                                true, "suspend-a", 0, "")}) {
+            assertFalse(acceptance.matches("suspend-a", 42, "game"));
+        }
     }
 
     private static final String ATTEMPT = "0123456789abcdef0123456789abcdef";

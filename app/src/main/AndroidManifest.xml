@@ -142,30 +142,6 @@
                 <category android:name="tv.ouya.intent.category.APP" />
             </intent-filter>
         </activity-alias>
-        <!-- Small hack to support launcher shortcuts without relaunching over and over again when the back button is pressed -->
-        <activity
-            android:name=".ShortcutTrampoline"
-            android:noHistory="true"
-            android:exported="true"
-            android:resizeableActivity="true"
-            android:enableOnBackInvokedCallback="true"
-            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
-            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
-            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
-        </activity>
-
-        <!-- Activity for creating Quick Launch shortcuts -->
-        <activity
-            android:name=".QuickLaunchShortcutPicker"
-            android:label="Quick Launch App"
-            android:icon="@mipmap/ic_shortcut_quick_launch"
-            android:exported="true"
-            android:theme="@android:style/Theme.Material.Light.Dialog">
-            <intent-filter>
-                <action android:name="android.intent.action.CREATE_SHORTCUT" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
         <activity
             android:name=".preferences.AddComputerManually"
             android:resizeableActivity="true"
@@ -218,15 +194,6 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
-        <!-- Broadcast receiver for quitting the stream from external apps -->
-        <receiver
-            android:name=".receivers.StreamControlReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.limelight.QUIT_STREAM" />
-            </intent-filter>
-        </receiver>
-
         <!-- The package installer's answer to an app update (AppUpdater) -->
         <receiver
             android:name=".console.AppUpdater$Result"
@@ -244,15 +211,6 @@
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
             </intent-filter>
         </receiver>
-
-        <activity
-            android:name=".HelpActivity"
-            android:resizeableActivity="true"
-            android:enableOnBackInvokedCallback="true"
-            android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
-            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
-            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
-        </activity>
     </application>
 
 </manifest>
