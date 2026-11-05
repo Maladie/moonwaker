@@ -497,21 +497,6 @@ final class FirstRunWizardPage {
         return badge;
     }
 
-    /** A key chip as in the legend ("PS", "MENU"). */
-    TextView keyChip(String key) {
-        TextView chip = text(key, 12, TEXT, true);
-        chip.setMaxLines(1);
-        chip.setGravity(Gravity.CENTER);
-        GradientDrawable shape = new GradientDrawable();
-        shape.setCornerRadius(dp(12));
-        shape.setColor(0x1EFFFFFF);
-        shape.setStroke(Math.max(1, dp(.75f)), 0x50FFFFFF);
-        chip.setBackground(shape);
-        chip.setMinWidth(dp(26));
-        chip.setPadding(dp(7), dp(4), dp(7), dp(4));
-        return chip;
-    }
-
     /** A controller button in the glyph font. */
     TextView controllerGlyph(String glyph) {
         TextView view = text(glyph, 22, TEXT, false);

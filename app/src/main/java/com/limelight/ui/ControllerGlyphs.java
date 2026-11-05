@@ -5,9 +5,13 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.text.SpannableString;
+import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ReplacementSpan;
+
+import com.limelight.R;
 
 import java.util.Locale;
 
@@ -99,8 +103,19 @@ public final class ControllerGlyphs {
         return value;
     }
 
+    /** "Home + {@code button}": the pad's centre button (PS / Guide) drawn as it looks. */
+    public static SpannableStringBuilder guideChord(Context context, boolean playStation,
+                                                    Button button) {
+        SpannableStringBuilder text = new SpannableStringBuilder("○");
+        Drawable home = context.getDrawable(R.drawable.ic_controller_home).mutate();
+        text.setSpan(new HomeSpan(home), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        text.append(" + ");
+        append(context, text, playStation, button);
+        return text;
+    }
+
     /** Appends {@code button} drawn as its controller glyph, e.g. for a hint bar. */
-    public static void append(Context context, android.text.SpannableStringBuilder text,
+    public static void append(Context context, SpannableStringBuilder text,
                               boolean playStation, Button button) {
         int start = text.length();
         text.append(text(playStation, button));
@@ -142,6 +157,34 @@ public final class ControllerGlyphs {
             Paint.FontMetrics own = glyph.getFontMetrics();
             float centre = baseline + (line.ascent + line.descent) / 2f;
             canvas.drawText(text, start, end, x, centre - (own.ascent + own.descent) / 2f, glyph);
+        }
+    }
+
+    /** The home button drawable at a glyph's size and centre, in the text's colour. */
+    private static final class HomeSpan extends ReplacementSpan {
+        private final Drawable drawable;
+
+        HomeSpan(Drawable drawable) {
+            this.drawable = drawable;
+        }
+
+        @Override
+        public int getSize(Paint paint, CharSequence text, int start, int end,
+                           Paint.FontMetricsInt metrics) {
+            if (metrics != null) paint.getFontMetricsInt(metrics);
+            return Math.round(paint.getTextSize() * GlyphSpan.SCALE);
+        }
+
+        @Override
+        public void draw(Canvas canvas, CharSequence text, int start, int end, float x, int top,
+                         int baseline, int bottom, Paint paint) {
+            int size = Math.round(paint.getTextSize() * GlyphSpan.SCALE);
+            Paint.FontMetrics line = paint.getFontMetrics();
+            int left = Math.round(x);
+            int upper = Math.round(baseline + (line.ascent + line.descent) / 2f - size / 2f);
+            drawable.setBounds(left, upper, left + size, upper + size);
+            drawable.setTint(paint.getColor());
+            drawable.draw(canvas);
         }
     }
 

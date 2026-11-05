@@ -315,7 +315,6 @@
     <string name="overlay_discord_no_recent_channel">Brak ostatniego kanału Discord</string>
     <string name="overlay_discord_unavailable">Sterowanie Discordem jest niedostępne</string>
     <string name="discord_shortcut_none">Brak</string>
-    <string name="discord_shortcut_guide">Guide + %1$s</string>
     <string name="title_custom_commands">Własne komendy</string>
     <string name="custom_commands_empty">Nie skonfigurowano własnych komend.</string>
     <string name="custom_commands_add">Dodaj komendę</string>

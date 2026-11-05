@@ -28,6 +28,7 @@
     <string name="first_run_controller_found">Ein Controller ist verbunden. Du kannst spielen.</string>
     <string name="first_run_controller_missing">Nur die Fernbedienung erkannt. Mit Controller spielt es sich am besten.</string>
     <string name="first_run_connect_controller">Controller verbinden</string>
+    <string name="first_run_controller_paired_hint">Controller schon gekoppelt? Einfach einschalten.</string>
     <string name="first_run_bluetooth_missing">Dieser Fernseher hat keine Bluetooth-Einstellungen zum Öffnen.</string>
 
     <string name="first_run_install_title">Jetzt am PC: MoonWaker Host installieren</string>
@@ -92,6 +93,8 @@
     <string name="first_run_name_open">Computer benennen</string>
     <string name="first_run_name_title">Diesen Computer benennen</string>
     <string name="first_run_name_subtitle">Jeder Fernseher und jede Moonlight-App zeigt diesen Namen.</string>
+    <string name="first_run_name_subtitle_paired">Gekoppelt. Gib dem Computer einen Namen, den jeder Fernseher und jede Moonlight-App zeigt, oder überspringe.</string>
+    <string name="first_run_name_rename">Computer umbenennen</string>
     <string name="first_run_name_hint">Zum Beispiel „Wohnzimmer-PC“. Aktueller Name: %1$s.</string>
     <string name="first_run_name_save">Namen speichern</string>
     <string name="first_run_name_saving">Wird gespeichert…</string>

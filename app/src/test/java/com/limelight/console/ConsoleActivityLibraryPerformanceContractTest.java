@@ -74,6 +74,8 @@ public class ConsoleActivityLibraryPerformanceContractTest {
                 source.indexOf("private void styleControllerPill("));
         assertTrue(style.contains("instanceof StateListDrawable"));
         assertTrue(style.contains("card.setBackground(carouselCardBackground())"));
+        // A home card blurred as the grid opens shrinks back: its row decides, not the mode.
+        assertFalse(style.contains("expandedLibraryMode"));
 
         String render = source.substring(source.indexOf(
                         "private void renderExpandedLibrary("),

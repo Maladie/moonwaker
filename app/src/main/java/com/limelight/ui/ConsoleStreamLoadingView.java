@@ -79,6 +79,8 @@ public final class ConsoleStreamLoadingView extends FrameLayout {
     private static final long MESSAGE_INTERVAL_MS = 3000L;
     private static final long MESSAGE_FADE_MS = 400L;
     private static final long STAGE_FADE_MS = 200L;
+    /** A new notice (warning, failure, host reason) enters: fade, rise, slight scale. */
+    private static final long NOTICE_ENTER_MS = 250L;
     private static final long SEGMENT_FILL_MS = 280L;
     /** "Reveal now" eases in (fade, rise, slight scale); focusable from its first frame. */
     private static final long REVEAL_ENTER_MS = 300L;
@@ -940,10 +942,26 @@ public final class ConsoleStreamLoadingView extends FrameLayout {
         lineNotice = notice;
         lineMessage = message;
         lineView.animate().cancel();
+        lineView.setTranslationY(0f);
+        lineView.setScaleX(1f);
+        lineView.setScaleY(1f);
         if (!animatesChanges() || lineView.getText().length() == 0
                 || !noticeChanged && notice.length() > 0) {
             applyLine();
             lineView.setAlpha(1f);
+            return;
+        }
+        if (noticeChanged && notice.length() > 0) {
+            // A new notice enters at once, rising and settling from its bullet's corner.
+            applyLine();
+            lineView.setPivotX(0f);
+            lineView.setPivotY(0f);
+            lineView.setAlpha(0f);
+            lineView.setTranslationY(dp(6));
+            lineView.setScaleX(.97f);
+            lineView.setScaleY(.97f);
+            lineView.animate().alpha(1f).translationY(0f).scaleX(1f).scaleY(1f)
+                    .setDuration(NOTICE_ENTER_MS).start();
             return;
         }
         lineView.animate().alpha(0f).setDuration(MESSAGE_FADE_MS).withEndAction(() -> {

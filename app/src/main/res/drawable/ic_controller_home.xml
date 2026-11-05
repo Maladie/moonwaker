@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The pad's centre home button (PS / Guide), logo-free: a round button with a house. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.18"
+        android:pathData="M12,2a10,10 0,1 1,0 20a10,10 0,1 1,0 -20z" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.6"
+        android:pathData="M12,2.8a9.2,9.2 0,1 1,0 18.4a9.2,9.2 0,1 1,0 -18.4z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M11,16.25V13.25H13V16.25H15.5V12.25H17L12,7.75L7,12.25H8.5V16.25Z" />
+</vector>

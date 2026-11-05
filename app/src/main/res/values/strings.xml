@@ -363,7 +363,6 @@
     <string name="overlay_discord_no_recent_channel">No recent Discord channel is available</string>
     <string name="overlay_discord_unavailable">Discord controls are unavailable</string>
     <string name="discord_shortcut_none">None</string>
-    <string name="discord_shortcut_guide">Guide + %1$s</string>
 
     <!-- Custom Commands Activity -->
     <string name="title_custom_commands">Custom Commands</string>

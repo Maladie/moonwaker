@@ -3839,9 +3839,7 @@ public class OverlayMenuView extends LinearLayout {
             button.clearShortcut();
             return;
         }
-        button.setGuideChordShortcut(ControllerGlyphs.chord(getContext(),
-                getContext().getString(R.string.discord_shortcut_guide), playStationButtons,
-                glyph));
+        button.setValue(ControllerGlyphs.guideChord(getContext(), playStationButtons, glyph));
     }
 
     private static String normalizeDiscordShortcut(String value) {

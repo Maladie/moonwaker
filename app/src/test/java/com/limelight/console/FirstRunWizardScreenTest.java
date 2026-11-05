@@ -250,6 +250,10 @@ public class FirstRunWizardScreenTest {
         wizard.refresh();
         shot(language, "03h-nazwa-zapisana");
         set("renamedHost", null);
+        wizard.openAt(first, HOST, FirstRunPlan.Step.PAIR);
+        paired(HOST);
+        shot(language, "03i-nazwa-po-parowaniu");
+        set("justPaired", null);
 
         wizard.openAt(first, HOST, FirstRunPlan.Step.PROFILE);
         shot(language, "04-profil");
@@ -464,6 +468,28 @@ public class FirstRunWizardScreenTest {
     }
 
     @Test
+    public void aFreshPairingGoesOnToNamingWhichSkipLeaves() throws Exception {
+        start("en");
+        wizard.openAt(FirstRunPlan.Entry.FIRST_RUN, HOST, FirstRunPlan.Step.PAIR);
+        paired(HOST);
+        assertEquals("C:name:" + HOST, page().shape());
+        assertEquals("Komputer Ani",
+                ((EditText) page().find("c.name.field")).getText().toString());
+        page().find("c.name.skip").performClick();
+        assertEquals(FirstRunPlan.Step.PROFILE, get("step"));
+    }
+
+    @Test
+    public void aPadTurnedOnRedrawsTheWelcomeCardAtOnce() throws Exception {
+        start("en");
+        wizard.openAt(FirstRunPlan.Entry.FIRST_RUN, null, FirstRunPlan.Step.WELCOME);
+        assertEquals("A:false", page().shape());
+        host.pad = true;
+        wizard.controllersChanged();
+        assertEquals("A:true", page().shape());
+    }
+
+    @Test
     public void addHostOpensStepBWhoseNextLeadsToPairingAndBackReturns() throws Exception {
         start("en");
         wizard.open(FirstRunPlan.Entry.ADD_HOST, null);
@@ -583,6 +609,13 @@ public class FirstRunWizardScreenTest {
     private void key(int code) {
         wizard.handleKey(new KeyEvent(0, 0, KeyEvent.ACTION_DOWN, code, 0));
         wizard.handleKey(new KeyEvent(0, 0, KeyEvent.ACTION_UP, code, 0));
+    }
+
+    /** The pairing flow reports {@code uuid} paired to the wizard's listener. */
+    private void paired(String uuid) throws Exception {
+        Method listener = FirstRunWizard.class.getDeclaredMethod("pairingListener");
+        listener.setAccessible(true);
+        ((HostPairingFlow.Listener) listener.invoke(wizard)).onPaired(host.host(uuid));
     }
 
     private FirstRunWizardPage page() throws Exception {

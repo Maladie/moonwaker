@@ -51,7 +51,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -69,15 +68,13 @@ import java.util.function.Consumer;
  */
 final class FirstRunWizard {
     /** Step B's download link (design 5.2); the QR is generated from it at runtime. */
-    static final String INSTALLER_URL = "https://is.gd/moonwaker_host_083";
+    static final String INSTALLER_URL = "https://is.gd/moonwaker_host_084";
     static final String PREFS = "first_run_wizard";
     static final long REFRESH_MS = 3_000L;
     static final long WAKE_TICK_MS = 1_000L;
     /** After this long without a host, step C lights "I can't see the computer". */
     static final long NOT_FOUND_AFTER_MS = 30_000L;
     static final int CODE_LENGTH = 6;
-    /** The Gateway's limit on a host name. */
-    static final int HOST_NAME_MAX_LENGTH = 32;
     private static final String NEXT_AFTER_LANGUAGE = "next_after_language";
     private static final String RESUME_ENTRY = "resume_entry";
     private static final String RESUME_STEP = "resume_step";
@@ -317,6 +314,11 @@ final class FirstRunWizard {
 
     void pause() {
         main.removeCallbacks(tick);
+    }
+
+    /** A pad connected or left (the console's input-device listener): step A follows at once. */
+    void controllersChanged() {
+        if (step == Step.WELCOME && page.onScreen()) render(false);
     }
 
     private void close() {
@@ -869,6 +871,10 @@ final class FirstRunWizard {
                         : R.string.first_run_controller_missing), 13,
                 FirstRunWizardPage.TEXT_SECONDARY, false, 2),
                 ViewGroup.LayoutParams.MATCH_PARENT, 6);
+        if (!pad) {
+            page.add(words, page.wrapped(text(R.string.first_run_controller_paired_hint), 13,
+                    FirstRunWizardPage.TEXT, false, 2), ViewGroup.LayoutParams.MATCH_PARENT, 6);
+        }
         page.beside(heading, words, 0, 18);
         page.add(card, heading, ViewGroup.LayoutParams.MATCH_PARENT, 0);
         // One key for "go on" whether a pad is there or not: focus stays when one connects.
@@ -897,15 +903,18 @@ final class FirstRunWizard {
         screen.subtitle = text(R.string.first_run_install_subtitle);
         LinearLayout body = page.line(Gravity.CENTER_VERTICAL);
 
-        LinearLayout qrCard = page.card(20, 24);
+        // The address first and large: typed on the PC more often than the code is scanned.
+        LinearLayout qrCard = page.card(20, 22);
         qrCard.setGravity(Gravity.CENTER_HORIZONTAL);
-        qrCard.addView(page.qr(INSTALLER_URL, 170));
-        TextView url = page.text(INSTALLER_URL.replaceFirst("^https://", ""), 15,
+        TextView url = page.text(INSTALLER_URL.replaceFirst("^https://", ""), 21,
                 FirstRunWizardPage.TEXT, true);
         url.setGravity(Gravity.CENTER);
         url.setMaxLines(1);
-        page.add(qrCard, url, ViewGroup.LayoutParams.MATCH_PARENT, 16);
-        body.addView(qrCard, new LinearLayout.LayoutParams(page.dp(250),
+        qrCard.addView(match(url));
+        View qr = page.qr(INSTALLER_URL, 170);
+        ((LinearLayout.LayoutParams) qr.getLayoutParams()).topMargin = page.dp(16);
+        qrCard.addView(qr);
+        body.addView(qrCard, new LinearLayout.LayoutParams(page.dp(330),
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout steps = page.column(Gravity.START);
@@ -1329,10 +1338,11 @@ final class FirstRunWizard {
     private Screen naming(ComputerDetails chosen) {
         Screen screen = new Screen("C:name:" + chosen.uuid);
         screen.title = text(R.string.first_run_name_title);
-        screen.subtitle = text(R.string.first_run_name_subtitle);
+        screen.subtitle = text(chosen.uuid.equals(justPaired)
+                ? R.string.first_run_name_subtitle_paired : R.string.first_run_name_subtitle);
         LinearLayout body = page.column(Gravity.CENTER_HORIZONTAL);
         EditText field = page.add(body, page.field("c.name.field", hostName(chosen),
-                HOST_NAME_MAX_LENGTH), 420, 0);
+                HostRename.MAX_LENGTH), 420, 0);
         TextView hint = page.add(body, page.wrapped("", 13, FirstRunWizardPage.TEXT_SECONDARY,
                 false, 2), 460, 12);
         hint.setGravity(Gravity.CENTER);
@@ -1362,15 +1372,7 @@ final class FirstRunWizard {
 
     private void saveName(ComputerDetails chosen, EditText field) {
         if (savingName) return;
-        String name = field.getText().toString().trim();
-        GatewayConnection gateway = connection();
-        if (name.isEmpty() || gateway == null) {
-            nameError = text(name.isEmpty() ? R.string.first_run_name_invalid
-                    : R.string.first_run_name_failed);
-            render(false);
-            return;
-        }
-        if (name.equals(hostName(chosen))) {
+        if (field.getText().toString().trim().equals(hostName(chosen))) {
             naming = false;
             render(true);
             return;
@@ -1379,32 +1381,20 @@ final class FirstRunWizard {
         nameError = null;
         render(false);
         int token = generation;
-        String requestId = UUID.randomUUID().toString();
-        executor.execute(() -> {
-            String saved = null;
-            String failure = null;
-            try {
-                saved = client.setHostName(gateway, name, requestId);
-            } catch (IOException | RuntimeException error) {
-                failure = String.valueOf(error.getMessage());
-            }
-            String result = saved;
-            String reason = failure;
-            main.post(() -> {
-                if (token != generation) return;
-                savingName = false;
-                if (result != null) {
-                    renamedHost = chosen.uuid;
-                    renamedTo = result;
-                    naming = false;
-                    render(true);
-                } else {
-                    nameError = text("host_name_invalid".equals(reason)
-                            ? R.string.first_run_name_invalid : R.string.first_run_name_failed);
-                    render(false);
-                }
-            });
-        });
+        HostRename.save(client, executor, main, connection(), field.getText().toString(),
+                (saved, error) -> {
+                    if (token != generation) return;
+                    savingName = false;
+                    if (saved != null) {
+                        renamedHost = chosen.uuid;
+                        renamedTo = saved;
+                        naming = false;
+                        render(true);
+                    } else {
+                        nameError = text(error);
+                        render(false);
+                    }
+                });
     }
 
     private Screen asleep(ComputerDetails chosen, List<ComputerDetails> found) {
@@ -1495,6 +1485,9 @@ final class FirstRunWizard {
                 pairing = Pairing.IDLE;
                 justPaired = paired.uuid;
                 host.paired(paired.uuid);
+                // A fresh pairing goes on to naming the computer, which the user may skip.
+                naming = connection() != null;
+                nameError = null;
                 render(true);
             }
 
@@ -2193,7 +2186,8 @@ final class FirstRunWizard {
         LinearLayout body = page.column(Gravity.CENTER_HORIZONTAL);
         LinearLayout card = page.card(26, 14);
         String home = playStation ? "PS" : "Xbox";
-        controlRow(card, page.keyChip(home), text(R.string.first_run_controls_home_title, home),
+        controlRow(card, page.icon(R.drawable.ic_controller_home, FirstRunWizardPage.TEXT),
+                text(R.string.first_run_controls_home_title, home),
                 text(R.string.first_run_controls_home));
         controlRow(card, page.controllerGlyph(ControllerGlyphs.text(playStation,
                         ControllerGlyphs.Button.MENU)), text(R.string.first_run_controls_menu_title),

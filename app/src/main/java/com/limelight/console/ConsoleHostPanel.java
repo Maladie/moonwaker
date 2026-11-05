@@ -16,7 +16,7 @@ final class ConsoleHostPanel {
         DESKTOP(R.drawable.ic_console_monitor), WAKE(R.drawable.ic_console_sun),
         SLEEP(R.drawable.ic_console_moon), RESTART(R.drawable.ic_console_restart),
         SHUTDOWN(R.drawable.ic_console_power), CLOSE_SESSION(R.drawable.ic_console_close),
-        WINDOWS_UPDATE(R.drawable.ic_console_download),
+        RENAME(R.drawable.ic_console_pencil), WINDOWS_UPDATE(R.drawable.ic_console_download),
         REPORT_PROBLEM(R.drawable.ic_console_attention),
         CHANGE_HOST(R.drawable.ic_console_leave_host),
         HARD_TERMINATE(R.drawable.ic_console_power),
@@ -78,7 +78,11 @@ final class ConsoleHostPanel {
             menu.add(Action.REPORT_PROBLEM, R.string.problem_report_title, true);
         }
         if (facts.reachable && !facts.child) {
-            menu.add(Action.WINDOWS_UPDATE, R.string.console_windows_update,
+            // Saving the name may restart Vibepollo: never under a running session.
+            menu.add(Action.RENAME, R.string.first_run_name_rename, facts.online
+                            && facts.gatewayAvailable && !facts.sessionActive
+                            && !facts.streamRunning)
+                    .add(Action.WINDOWS_UPDATE, R.string.console_windows_update,
                     facts.online && facts.gatewayAvailable);
         }
         if (facts.inHost) menu.add(Action.CHANGE_HOST, R.string.console_change_host, true);

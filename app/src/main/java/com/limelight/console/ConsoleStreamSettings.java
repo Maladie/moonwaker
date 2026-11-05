@@ -341,8 +341,7 @@ final class ConsoleStreamSettings {
         for (int index = 0; index < values.length; index++) {
             ControllerGlyphs.Button glyph = OverlayMenuView.discordShortcutGlyph(values[index]);
             names[index] = glyph == null ? s(R.string.discord_shortcut_none)
-                    : ControllerGlyphs.chord(activity, s(R.string.discord_shortcut_guide),
-                    playStation, glyph);
+                    : ControllerGlyphs.guideChord(activity, playStation, glyph);
         }
         int current = Arrays.asList(values).indexOf(prefs.getString(key, fallback));
         LinearLayout row = panel.value(s(label), current < 0 ? "" : names[current]);

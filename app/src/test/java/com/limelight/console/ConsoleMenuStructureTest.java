@@ -39,7 +39,7 @@ public class ConsoleMenuStructureTest {
         assertEquals(Arrays.asList(ConsoleHostPanel.Action.DESKTOP,
                 ConsoleHostPanel.Action.SLEEP, ConsoleHostPanel.Action.RESTART,
                 ConsoleHostPanel.Action.SHUTDOWN, ConsoleHostPanel.Action.CLOSE_SESSION,
-                ConsoleHostPanel.Action.WINDOWS_UPDATE,
+                ConsoleHostPanel.Action.RENAME, ConsoleHostPanel.Action.WINDOWS_UPDATE,
                 ConsoleHostPanel.Action.CHANGE_HOST,
                 ConsoleHostPanel.Action.HARD_TERMINATE, ConsoleHostPanel.Action.UNPAIR),
                 menu.actions());
@@ -62,7 +62,7 @@ public class ConsoleMenuStructureTest {
         assertEquals(Arrays.asList(ConsoleHostPanel.Action.RESUME,
                 ConsoleHostPanel.Action.CLOSE_SESSION, ConsoleHostPanel.Action.SLEEP,
                 ConsoleHostPanel.Action.RESTART, ConsoleHostPanel.Action.SHUTDOWN,
-                ConsoleHostPanel.Action.WINDOWS_UPDATE,
+                ConsoleHostPanel.Action.RENAME, ConsoleHostPanel.Action.WINDOWS_UPDATE,
                 ConsoleHostPanel.Action.HARD_TERMINATE,
                 ConsoleHostPanel.Action.UNPAIR,
                 ConsoleHostPanel.Action.REMOVE), menu.actions());
@@ -89,6 +89,26 @@ public class ConsoleMenuStructureTest {
         assertFalse(child.contains(ConsoleHostPanel.Action.RESTART));
         assertFalse(child.contains(ConsoleHostPanel.Action.SHUTDOWN));
         assertFalse(child.contains(ConsoleHostPanel.Action.WINDOWS_UPDATE));
+        assertFalse(child.contains(ConsoleHostPanel.Action.RENAME));
+    }
+
+    @Test public void renameWaitsForTheSessionToEnd() {
+        ConsoleHostPanel.Facts facts = new ConsoleHostPanel.Facts();
+        facts.reachable = true;
+        facts.online = true;
+        facts.paired = true;
+        facts.gatewayAvailable = true;
+        assertTrue(enabled(ConsoleHostPanel.menu(facts), ConsoleHostPanel.Action.RENAME));
+        facts.streamRunning = true;
+        assertFalse(enabled(ConsoleHostPanel.menu(facts), ConsoleHostPanel.Action.RENAME));
+    }
+
+    private static boolean enabled(ConsoleActionMenu<ConsoleHostPanel.Action> menu,
+                                   ConsoleHostPanel.Action action) {
+        for (ConsoleActionMenu.Item<ConsoleHostPanel.Action> item : menu.items) {
+            if (item.action == action) return item.enabled;
+        }
+        throw new AssertionError(action + " missing");
     }
 
     @Test public void activeSessionClosesEvenWithTheStreamerUnknown() {

@@ -6,7 +6,6 @@ import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.Typeface;
-import android.text.SpannableString;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -155,11 +154,6 @@ public class OverlayMenuButton extends LinearLayout {
         shortcutView.setTypeface(typeface);
         shortcutView.setText(glyph);
         showShortcut();
-    }
-
-    /** A Guide chord ({@link com.limelight.ui.ControllerGlyphs#chord}) at the label's own size. */
-    public void setGuideChordShortcut(SpannableString value) {
-        setValue(value);
     }
 
     /** A right-aligned value in place of a shortcut glyph, e.g. a bitrate or a key combination. */

@@ -28,6 +28,7 @@
     <string name="first_run_controller_found">Pad jest podłączony. Możesz grać.</string>
     <string name="first_run_controller_missing">Wykryto tylko pilot. Najlepiej gra się padem.</string>
     <string name="first_run_connect_controller">Podłącz pada</string>
+    <string name="first_run_controller_paired_hint">Pad sparowany wcześniej? Wystarczy go włączyć.</string>
     <string name="first_run_bluetooth_missing">Ten telewizor nie ma ustawień Bluetooth do otwarcia.</string>
 
     <string name="first_run_install_title">Teraz na komputerze: zainstaluj MoonWaker Host</string>
@@ -92,6 +93,8 @@
     <string name="first_run_name_open">Nazwij komputer</string>
     <string name="first_run_name_title">Nazwij ten komputer</string>
     <string name="first_run_name_subtitle">Tę nazwę pokaże każdy telewizor i aplikacja Moonlight.</string>
+    <string name="first_run_name_subtitle_paired">Sparowano. Nadaj komputerowi nazwę, którą pokaże każdy telewizor i aplikacja Moonlight, albo pomiń.</string>
+    <string name="first_run_name_rename">Zmień nazwę komputera</string>
     <string name="first_run_name_hint">Na przykład „Salon PC”. Obecna nazwa: %1$s.</string>
     <string name="first_run_name_save">Zapisz nazwę</string>
     <string name="first_run_name_saving">Zapisuję…</string>

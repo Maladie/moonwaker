@@ -28,6 +28,7 @@
     <string name="first_run_controller_found">A controller is connected. You are ready to play.</string>
     <string name="first_run_controller_missing">Only the remote was found. Games play best with a controller.</string>
     <string name="first_run_connect_controller">Connect a controller</string>
+    <string name="first_run_controller_paired_hint">Paired this controller before? Just turn it on.</string>
     <string name="first_run_bluetooth_missing">This TV has no Bluetooth settings to open.</string>
 
     <string name="first_run_install_title">Now on your PC: install MoonWaker Host</string>
@@ -92,6 +93,8 @@
     <string name="first_run_name_open">Name the computer</string>
     <string name="first_run_name_title">Name this computer</string>
     <string name="first_run_name_subtitle">Every TV and Moonlight app will show this name.</string>
+    <string name="first_run_name_subtitle_paired">Paired. Give the computer a name every TV and Moonlight app will show, or skip.</string>
+    <string name="first_run_name_rename">Rename computer</string>
     <string name="first_run_name_hint">For example \"Living room PC\". Current name: %1$s.</string>
     <string name="first_run_name_save">Save name</string>
     <string name="first_run_name_saving">Saving…</string>

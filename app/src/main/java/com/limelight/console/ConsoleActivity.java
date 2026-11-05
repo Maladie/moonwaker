@@ -5699,6 +5699,36 @@ public class ConsoleActivity extends Activity implements InputManager.InputDevic
         startActivity(intent);
     }
 
+    /**
+     * "Rename computer": the name Vibepollo announces, saved through {@link HostRename}; a
+     * refusal opens the field again with the typed name and the reason.
+     */
+    private void renameHost(ComputerDetails host, GatewayConnection gateway, String typed,
+                            String error) {
+        consoleFeedback.showInput(getString(R.string.first_run_name_rename),
+                error != null ? error : getString(R.string.first_run_name_subtitle), typed,
+                getString(R.string.first_run_name_hint, host.name), false, HostRename.MAX_LENGTH,
+                getString(android.R.string.cancel), null, null,
+                getString(R.string.first_run_name_save), value -> {
+                    if (value.isEmpty()) return getString(R.string.first_run_name_invalid);
+                    if (value.equals(host.name)) return null;
+                    View saving = consoleFeedback.notify(ConsoleUiFeedback.Kind.PROGRESS,
+                            getString(R.string.first_run_name_saving), true);
+                    HostRename.save(hostGatewayClient, executor, mainHandler, gateway, value,
+                            (saved, problem) -> {
+                                consoleFeedback.dismiss(saving);
+                                if (saved == null) {
+                                    renameHost(host, gateway, value, getString(problem));
+                                    return;
+                                }
+                                consoleFeedback.notify(ConsoleUiFeedback.Kind.SUCCESS,
+                                        getString(R.string.first_run_name_saved));
+                                invalidateHostStateAsync(host.uuid);
+                            });
+                    return null;
+                });
+    }
+
     private void showHostSelectionOptions(ComputerDetails host) {
         // Decision read: which rows exist depends on the session, so no cached render read.
         SessionSnapshot session = resolveSessionSnapshot(host);
@@ -5745,6 +5775,11 @@ public class ConsoleActivity extends Activity implements InputManager.InputDevic
                         case SLEEP: confirmSleepHost(host); break;
                         case RESTART: confirmHostPower(host, false); break;
                         case SHUTDOWN: confirmHostPower(host, true); break;
+                        case RENAME:
+                            hideSidePanel();
+                            renameHost(host, hostGatewayStore.loadForHost(host.uuid, address,
+                                    selectedProfileId(host.uuid)), host.name, null);
+                            break;
                         case WINDOWS_UPDATE: showWindowsUpdate(host); break;
                         case CLOSE_SESSION: confirmTerminateSession(host); break;
                         case REPORT_PROBLEM:
@@ -10901,7 +10936,7 @@ public class ConsoleActivity extends Activity implements InputManager.InputDevic
         background.setStroke(dp(1), focused ? 0xFFEAFBFF : 0xFF54D4DE);
         card.setBackground(background);
         card.setElevation(dp(focused ? 14 : 8));
-        boolean homeCarousel = card.getParent() == appRow && !expandedLibraryMode;
+        boolean homeCarousel = card.getParent() == appRow;
         card.setPivotX(card.getWidth() > 0 ? card.getWidth() / 2f : dp(42));
         float scale = homeCarousel ? 1f : focused ? 1.04f : 1.02f;
         if (reducedMotion || !card.isLaidOut()) {
@@ -14941,6 +14976,7 @@ public class ConsoleActivity extends Activity implements InputManager.InputDevic
     }
 
     private void refreshControllers() {
+        if (firstRunWizard != null) firstRunWizard.controllersChanged();
         executor.execute(() -> {
             List<ControllerInfo> controllers = loadControllers();
             mainHandler.post(() -> renderControllers(controllers));
@@ -17660,7 +17696,9 @@ public class ConsoleActivity extends Activity implements InputManager.InputDevic
                 card.setBackground(carouselCardBackground());
             }
             card.setElevation(dp(focused ? 12 : 2));
-            boolean homeCarousel = card.getParent() == appRow && !expandedLibraryMode;
+            // The row decides, not the mode: a home card loses focus as the grid opens (mode
+            // already expanded) and must still shrink back, or it returns enlarged.
+            boolean homeCarousel = card.getParent() == appRow;
             boolean playniteHomeCarousel = homeCarousel
                     && ((String) tag).startsWith("playnite:");
             if (playniteHomeCarousel) resizeHomeCarouselCard(card, focused);
